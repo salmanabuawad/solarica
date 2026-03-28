@@ -1,0 +1,439 @@
+openapi: "3.1.0"
+info:
+  title: Solarica Connector API
+  version: "1.0.0"
+  description: |
+    Shared REST API contract implemented by both the Python and .NET connectors.
+    The connector runs locally on port 8765 and is called by the Solarica web app.
+
+    **Rules:**
+    - Both connectors MUST implement every endpoint listed here.
+    - All field names use camelCase in JSON.
+    - The `/health` response `runtime` field identifies which connector is active.
+    - Both connectors listen on `http://127.0.0.1:8765` by default.
+
+servers:
+  - url: http://127.0.0.1:8765
+    description: Local connector (default port)
+
+tags:
+  - name: health
+    description: Connector detection and health check
+  - name: device
+    description: PVPM device status and port management
+  - name: import
+    description: Pull measurements from the device into local cache
+  - name: measurements
+    description: Browse locally cached measurements
+  - name: sync
+    description: Upload cached measurements to the cloud backend
+  - name: export
+    description: Download measurements as CSV or JSON
+
+paths:
+
+  /health:
+    get:
+      tags: [health]
+      summary: Connector health and runtime identification
+      operationId: getHealth
+      responses:
+        "200":
+          description: Connector is online
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/device/status:
+    get:
+      tags: [device]
+      summary: Current device connection status
+      operationId: getDeviceStatus
+      responses:
+        "200":
+          description: Device status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceStatus"
+
+  /api/device/ports:
+    get:
+      tags: [device]
+      summary: List available serial ports (or virtual ports for vendor_export driver)
+      operationId: listPorts
+      responses:
+        "200":
+          description: Available ports
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PortsResponse"
+
+  /api/device/connect:
+    post:
+      tags: [device]
+      summary: Connect to a specific port
+      operationId: connectPort
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConnectRequest"
+      responses:
+        "200":
+          description: Updated device status after connect attempt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceStatus"
+
+  /api/device/disconnect:
+    post:
+      tags: [device]
+      summary: Disconnect from the current port
+      operationId: disconnectPort
+      responses:
+        "200":
+          description: Disconnected
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
+  /api/import/start:
+    post:
+      tags: [import]
+      summary: Pull measurements from the active driver into local SQLite cache
+      operationId: startImport
+      responses:
+        "200":
+          description: Import completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportStartResult"
+        "501":
+          description: Driver not implemented (e.g. serial protocol pending)
+
+  /api/import/status:
+    get:
+      tags: [import]
+      summary: Get current import state and unsynced count
+      operationId: getImportStatus
+      responses:
+        "200":
+          description: Import status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportStatus"
+
+  /api/measurements:
+    get:
+      tags: [measurements]
+      summary: List all locally cached measurements (newest first)
+      operationId: listMeasurements
+      responses:
+        "200":
+          description: Measurement list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementsResponse"
+
+  /api/measurements/{id}:
+    get:
+      tags: [measurements]
+      summary: Get a single measurement with full I-V curve data
+      operationId: getMeasurement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Measurement detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Measurement"
+        "404":
+          description: Not found
+
+  /api/sync/upload:
+    post:
+      tags: [sync]
+      summary: Upload all unsynced local measurements to the cloud backend
+      operationId: syncUpload
+      responses:
+        "200":
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncUploadResult"
+
+  /api/export/csv:
+    get:
+      tags: [export]
+      summary: Download all cached measurements as CSV
+      operationId: exportCsv
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+
+  /api/export/json:
+    get:
+      tags: [export]
+      summary: Download all cached measurements as JSON
+      operationId: exportJson
+      responses:
+        "200":
+          description: JSON file
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Measurement"
+
+components:
+  schemas:
+
+    HealthResponse:
+      type: object
+      required: [ok, version, runtime]
+      properties:
+        ok:
+          type: boolean
+          example: true
+        version:
+          type: string
+          example: "1.0.0"
+        runtime:
+          type: string
+          enum: [python, dotnet, unknown]
+          example: python
+
+    PortInfo:
+      type: object
+      required: [name, description]
+      properties:
+        name:
+          type: string
+          example: COM3
+        description:
+          type: string
+          example: USB Serial Device (COM3)
+
+    PortsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PortInfo"
+
+    ConnectRequest:
+      type: object
+      required: [port]
+      properties:
+        port:
+          type: string
+          example: COM3
+
+    DeviceStatus:
+      type: object
+      required: [connected, mode]
+      properties:
+        connected:
+          type: boolean
+        mode:
+          type: string
+          enum: [mock, serial, vendor_export]
+        port:
+          type: string
+          nullable: true
+        deviceModel:
+          type: string
+          nullable: true
+        deviceSerial:
+          type: string
+          nullable: true
+        firmwareVersion:
+          type: string
+          nullable: true
+        transferModeRequired:
+          type: boolean
+          default: true
+        transferModeDetected:
+          type: boolean
+          default: false
+        lastError:
+          type: string
+          nullable: true
+
+    ImportStartResult:
+      type: object
+      required: [ok, imported]
+      properties:
+        ok:
+          type: boolean
+        imported:
+          type: integer
+          example: 12
+
+    ImportStatus:
+      type: object
+      required: [state, lastImportedCount, unsyncedCount]
+      properties:
+        state:
+          type: string
+          enum: [idle, running, completed, failed]
+        lastImportedCount:
+          type: integer
+          example: 12
+        unsyncedCount:
+          type: integer
+          example: 5
+
+    CurvePoint:
+      type: object
+      required: [pointIndex, voltageV, currentA]
+      properties:
+        pointIndex:
+          type: integer
+        voltageV:
+          type: number
+          format: double
+        currentA:
+          type: number
+          format: double
+
+    Measurement:
+      type: object
+      required: [id, measuredAt, syncStatus]
+      properties:
+        id:
+          type: string
+        externalMeasurementKey:
+          type: string
+          nullable: true
+        measuredAt:
+          type: string
+          format: date-time
+        customer:
+          type: string
+          nullable: true
+        installation:
+          type: string
+          nullable: true
+        stringNo:
+          type: string
+          nullable: true
+        moduleType:
+          type: string
+          nullable: true
+        moduleReference:
+          type: string
+          nullable: true
+        modulesSeries:
+          type: integer
+          nullable: true
+        modulesParallel:
+          type: integer
+          nullable: true
+        nominalPowerW:
+          type: number
+          nullable: true
+        ppkWp:
+          type: number
+          nullable: true
+        rsOhm:
+          type: number
+          nullable: true
+        rpOhm:
+          type: number
+          nullable: true
+        vocV:
+          type: number
+          nullable: true
+        iscA:
+          type: number
+          nullable: true
+        vpmaxV:
+          type: number
+          nullable: true
+        ipmaxA:
+          type: number
+          nullable: true
+        ffPercent:
+          type: number
+          nullable: true
+        sweepDurationMs:
+          type: number
+          nullable: true
+        irradianceWM2:
+          type: number
+          nullable: true
+        sensorTempC:
+          type: number
+          nullable: true
+        moduleTempC:
+          type: number
+          nullable: true
+        irradianceSensorType:
+          type: string
+          nullable: true
+        irradianceSensorSerial:
+          type: string
+          nullable: true
+        importSource:
+          type: string
+          nullable: true
+        syncStatus:
+          type: string
+          enum: [unsynced, synced, error]
+          default: unsynced
+        notes:
+          type: string
+          nullable: true
+        curvePoints:
+          type: array
+          items:
+            $ref: "#/components/schemas/CurvePoint"
+
+    MeasurementsResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Measurement"
+
+    SyncUploadResult:
+      type: object
+      required: [uploaded]
+      properties:
+        uploaded:
+          type: integer
+          example: 5
+        error:
+          type: string
+          nullable: true

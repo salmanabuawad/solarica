@@ -1,0 +1,129 @@
+# Solarica Connector REST API
+
+Both the Python connector and the .NET connector expose the **same REST API** on
+`http://127.0.0.1:8765` (default port).
+The web app never needs to know which runtime is active.
+
+The canonical contract is in `connector/api-contract/openapi.yaml`.
+
+---
+
+## Base URL
+
+```
+http://127.0.0.1:8765
+```
+
+Change the port via `CONNECTOR_PORT` (.env) or `Urls` (appsettings.json).
+
+---
+
+## Endpoints
+
+### Health & detection
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Returns `{ ok, version, runtime }`. `runtime` is `"python"` or `"dotnet"`. |
+
+The web app calls `/health` on startup to auto-detect which connector is running.
+
+---
+
+### Device management
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| GET | `/api/device/status` | — | Current connection state |
+| GET | `/api/device/ports` | — | Available serial/virtual ports |
+| POST | `/api/device/connect` | `{ "port": "COM3" }` | Connect to a port |
+| POST | `/api/device/disconnect` | — | Disconnect |
+
+---
+
+### Import (device → local cache)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/import/start` | Pull measurements from the active driver into SQLite |
+| GET | `/api/import/status` | State, last count, unsynced count |
+
+---
+
+### Measurements (local cache)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/measurements` | List all cached measurements (newest first) |
+| GET | `/api/measurements/{id}` | Single measurement with full I-V curve |
+
+---
+
+### Sync (local cache → cloud backend)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/sync/upload` | Push unsynced measurements to `BACKEND_BASE_URL/api/import/batch` |
+
+---
+
+### Export
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/export/csv` | Download all cached measurements as CSV |
+| GET | `/api/export/json` | Download all cached measurements as JSON |
+
+---
+
+## Measurement schema
+
+All field names are **camelCase** in JSON responses.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | UUID hex |
+| `externalMeasurementKey` | string? | Device-assigned key |
+| `measuredAt` | ISO 8601 datetime | |
+| `customer` | string? | |
+| `installation` | string? | Site/plant name |
+| `stringNo` | string? | e.g. `S.1.2.3` |
+| `moduleType` | string? | |
+| `ppkWp` | float? | Peak power (W) |
+| `rsOhm` | float? | Series resistance (Ω) |
+| `rpOhm` | float? | Parallel resistance (Ω) |
+| `vocV` | float? | Open circuit voltage (V) |
+| `iscA` | float? | Short circuit current (A) |
+| `vpmaxV` | float? | MPP voltage (V) |
+| `ipmaxA` | float? | MPP current (A) |
+| `ffPercent` | float? | Fill factor (%) |
+| `irradianceWM2` | float? | Irradiance (W/m²) |
+| `moduleTempC` | float? | Module temperature (°C) |
+| `sensorTempC` | float? | Sensor/cell temperature (°C) |
+| `syncStatus` | `"unsynced"` \| `"synced"` \| `"error"` | |
+| `curvePoints` | `[{ pointIndex, voltageV, currentA }]` | I-V curve data |
+
+---
+
+## Driver modes
+
+| Driver | `PVPM_DRIVER` value | Description |
+|--------|---------------------|-------------|
+| Mock | `mock` | Synthetic data for testing and demo |
+| Vendor export | `vendor_export` | Reads PVPM export files from `WATCH_FOLDER` |
+| Serial (direct) | `serial` | COM port — protocol not yet implemented |
+
+---
+
+## Adding a new driver (Python)
+
+1. Create `connector/python/app/drivers/my_driver.py`
+2. Implement all methods of `PVPMDriver` protocol (`app/drivers/base.py`)
+3. Register the driver name in `app/driver_factory.py`
+4. Set `PVPM_DRIVER=my_driver` in `.env`
+
+## Adding a new driver (.NET)
+
+1. Create `Services/MyDriver.cs` implementing `IDeviceDriver`
+2. Add a case to the `IDeviceDriver` singleton factory in `Program.cs`
+3. Set `PvpmDriver=my_driver` in `appsettings.json`

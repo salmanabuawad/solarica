@@ -1,0 +1,361 @@
+openapi: 3.0.3
+info:
+  title: Solar String Scan API
+  version: 3.0.0
+servers:
+  - url: /api
+paths:
+  /sites/{site_id}/string-pattern:
+    get:
+      summary: Get active string pattern for a site
+      parameters:
+        - in: path
+          name: site_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Active pattern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteActivePatternResponse'
+    put:
+      summary: Set active string pattern for a site
+      parameters:
+        - in: path
+          name: site_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetSitePatternRequest'
+      responses:
+        "200":
+          description: Updated active pattern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteActivePatternResponse'
+
+  /string-patterns:
+    get:
+      summary: List available string patterns
+      responses:
+        "200":
+          description: Pattern list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StringPattern'
+
+  /design-files/{design_file_id}/scan-strings/prepare:
+    post:
+      summary: Prepare scan session and optionally detect pattern quickly
+      parameters:
+        - in: path
+          name: design_file_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrepareScanRequest'
+      responses:
+        "200":
+          description: Preparation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrepareScanResponse'
+
+  /design-files/{design_file_id}/scan-strings:
+    post:
+      summary: Full string scan with summary and design comparison
+      parameters:
+        - in: path
+          name: design_file_id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanStringsRequest'
+      responses:
+        "200":
+          description: Scan result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanStringsResponse'
+
+  /design-files/{design_file_id}/scan-strings/runs/{run_id}:
+    get:
+      summary: Get previous scan result
+      parameters:
+        - in: path
+          name: design_file_id
+          required: true
+          schema: { type: integer }
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Stored scan result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanStringsResponse'
+
+components:
+  schemas:
+    StringPattern:
+      type: object
+      required: [id, pattern_code, pattern_name, match_regex, parse_regex, level_count, levels, is_active]
+      properties:
+        id: { type: integer }
+        pattern_code: { type: string, example: S_DOT_3 }
+        pattern_name: { type: string, example: S.1.2.3 format }
+        match_regex:
+          type: string
+          example: '^S\.(?:[1-9]\d?)\.(?:[1-9]\d?)\.(?:[1-9]\d?)$'
+        parse_regex:
+          type: string
+          example: '^S\.([1-9]\d?)\.([1-9]\d?)\.([1-9]\d?)$'
+        level_count: { type: integer, example: 3 }
+        levels:
+          type: array
+          items: { type: string }
+          example: [section, inverter, string]
+        no_leading_zero: { type: boolean, example: true }
+        max_digits_per_level: { type: integer, example: 2 }
+        is_active: { type: boolean, example: true }
+
+    SiteActivePatternResponse:
+      type: object
+      required: [site_id, pattern]
+      properties:
+        site_id: { type: integer }
+        pattern:
+          $ref: '#/components/schemas/StringPattern'
+
+    SetSitePatternRequest:
+      type: object
+      required: [pattern_id]
+      properties:
+        pattern_id: { type: integer }
+
+    ScanRectangle:
+      type: object
+      required: [section_code, page_no, x_pct, y_pct, w_pct, h_pct]
+      properties:
+        section_code: { type: string, example: "1.2" }
+        page_no: { type: integer, example: 1 }
+        x_pct: { type: number, format: float, example: 27.4 }
+        y_pct: { type: number, format: float, example: 14.2 }
+        w_pct: { type: number, format: float, example: 19.1 }
+        h_pct: { type: number, format: float, example: 23.0 }
+
+    PrepareScanRequest:
+      type: object
+      required: [site_id]
+      properties:
+        site_id: { type: integer }
+        page_no: { type: integer, default: 1 }
+        rectangles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanRectangle'
+        run_fast_detect: { type: boolean, default: true }
+
+    FastDetectResult:
+      type: object
+      required: [configured_pattern_code, detected_pattern_code, confidence, token_counts]
+      properties:
+        configured_pattern_code: { type: string, example: S_DOT_3 }
+        detected_pattern_code: { type: string, example: S_DOT_3 }
+        confidence: { type: number, format: float, example: 0.97 }
+        token_counts:
+          type: object
+          additionalProperties: { type: integer }
+          example:
+            S_DOT_3: 701
+            S4_LEVEL: 0
+
+    PrepareScanResponse:
+      type: object
+      required: [design_file_id, page_no, fast_detect]
+      properties:
+        design_file_id: { type: integer }
+        page_no: { type: integer }
+        fast_detect:
+          $ref: '#/components/schemas/FastDetectResult'
+
+    ScanStringsRequest:
+      type: object
+      required: [site_id, page_no]
+      properties:
+        site_id: { type: integer }
+        page_no: { type: integer, default: 1 }
+        rectangles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanRectangle'
+        use_manual_rectangles: { type: boolean, default: true }
+        compare_to_design: { type: boolean, default: true }
+        save_run: { type: boolean, default: true }
+
+    TokenClassification:
+      type: object
+      required: [raw_text, normalized_text, classification]
+      properties:
+        raw_text: { type: string }
+        normalized_text: { type: string }
+        classification:
+          type: string
+          enum: [valid_string, invalid_string_name, non_string]
+        reason:
+          type: string
+          nullable: true
+          example: leading_zero
+        section_code:
+          type: string
+          nullable: true
+        parsed_levels:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    ScanIssue:
+      type: object
+      required: [issue_type, severity, entity_type, entity_key, message]
+      properties:
+        issue_type:
+          type: string
+          enum:
+            - invalid_string_name
+            - duplicate_string
+            - missing_sequence
+            - design_total_mismatch
+            - inverter_count_mismatch
+            - inverter_string_count_mismatch
+            - pattern_mismatch_warning
+        severity:
+          type: string
+          enum: [info, warning, error, blocker]
+        entity_type:
+          type: string
+          enum: [project, section, inverter, string]
+        entity_key: { type: string }
+        message: { type: string }
+        details:
+          type: object
+          additionalProperties: true
+
+    InverterSummary:
+      type: object
+      required:
+        - inverter_key
+        - expected_strings
+        - found_valid_strings
+        - duplicate_count
+        - invalid_name_count
+        - missing_sequence
+        - status
+      properties:
+        inverter_key: { type: string, example: "1.2" }
+        expected_strings: { type: integer, example: 21 }
+        found_valid_strings: { type: integer, example: 21 }
+        duplicate_count: { type: integer, example: 1 }
+        invalid_name_count: { type: integer, example: 0 }
+        missing_sequence:
+          type: array
+          items: { type: integer }
+        status:
+          type: string
+          enum: [match, mismatch, manual_review_required]
+
+    SectionSummary:
+      type: object
+      required: [section_code, found_inverters, found_valid_strings, inverter_summaries]
+      properties:
+        section_code: { type: string, example: "1.2" }
+        found_inverters: { type: integer, example: 1 }
+        found_valid_strings: { type: integer, example: 21 }
+        inverter_summaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/InverterSummary'
+
+    DesignComparisonSummary:
+      type: object
+      required:
+        - expected_total_strings
+        - found_total_valid_strings
+        - expected_inverter_groups
+        - found_inverter_groups
+        - matches_design
+      properties:
+        expected_total_strings: { type: integer, example: 702 }
+        found_total_valid_strings: { type: integer, example: 701 }
+        expected_inverter_groups: { type: integer, example: 34 }
+        found_inverter_groups: { type: integer, example: 34 }
+        matches_design: { type: boolean, example: false }
+
+    ScanStringsResponse:
+      type: object
+      required:
+        - design_file_id
+        - site_id
+        - pattern_code_used
+        - run_id
+        - summary
+        - sections
+        - issues
+      properties:
+        design_file_id: { type: integer }
+        site_id: { type: integer }
+        run_id: { type: integer }
+        pattern_code_used: { type: string, example: S_DOT_3 }
+        fast_detect:
+          $ref: '#/components/schemas/FastDetectResult'
+        summary:
+          type: object
+          required:
+            - total_valid_strings
+            - total_invalid_string_names
+            - total_duplicates
+            - total_inverters_found
+          properties:
+            total_valid_strings: { type: integer, example: 701 }
+            total_invalid_string_names: { type: integer, example: 3 }
+            total_duplicates: { type: integer, example: 1 }
+            total_inverters_found: { type: integer, example: 34 }
+        design_comparison:
+          $ref: '#/components/schemas/DesignComparisonSummary'
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/SectionSummary'
+        invalid_string_names:
+          type: array
+          items:
+            $ref: '#/components/schemas/TokenClassification'
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanIssue'

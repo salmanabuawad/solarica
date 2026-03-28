@@ -1,0 +1,10 @@
+{
+  "patterns": [
+    "S_DOT_3",
+    "S4_LEVEL"
+  ],
+  "rules": {
+    "max_digits": 2,
+    "no_leading_zero": true
+  }
+}

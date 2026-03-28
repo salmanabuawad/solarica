@@ -1,0 +1,20 @@
+# Root-level .dockerignore (applies to the build context of docker-compose services
+# that use context: . — none currently, but good practice to have)
+.git
+.gitignore
+*.pdf
+*.jpg
+*.db
+ivcare.db
+node_modules
+frontend/node_modules
+frontend/dist
+__pycache__
+backend/.venv
+connector/
+docs/
+mobile/
+hint_from_chatgpt/
+Sample_output/
+Software/
+solar_string_list*.txt

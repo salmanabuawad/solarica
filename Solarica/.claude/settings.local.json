@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Solarica -name *hint* -o -name *chatgpt*)"
+    ]
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "site_id": 12,
+  "page_no": 1,
+  "use_manual_rectangles": true,
+  "compare_to_design": true,
+  "save_run": true,
+  "rectangles": [
+    {
+      "section_code": "1.1",
+      "page_no": 1,
+      "x_pct": 18.0,
+      "y_pct": 26.0,
+      "w_pct": 19.0,
+      "h_pct": 31.0
+    },
+    {
+      "section_code": "1.2",
+      "page_no": 1,
+      "x_pct": 18.0,
+      "y_pct": 57.0,
+      "w_pct": 24.0,
+      "h_pct": 27.0
+    },
+    {
+      "section_code": "2.1",
+      "page_no": 1,
+      "x_pct": 49.0,
+      "y_pct": 26.0,
+      "w_pct": 31.0,
+      "h_pct": 30.0
+    },
+    {
+      "section_code": "2.2",
+      "page_no": 1,
+      "x_pct": 49.0,
+      "y_pct": 56.0,
+      "w_pct": 28.0,
+      "h_pct": 26.0
+    }
+  ]
+}
