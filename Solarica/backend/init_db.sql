@@ -250,22 +250,8 @@ CREATE TABLE IF NOT EXISTS site_string_pattern (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_site_one_active_pattern
     ON site_string_pattern(site_id) WHERE is_active = TRUE;
 
-CREATE TABLE IF NOT EXISTS map_scan_rectangle (
-    id BIGSERIAL PRIMARY KEY,
-    design_file_id BIGINT NULL,
-    section_code VARCHAR(50) NOT NULL,
-    page_no INTEGER NOT NULL DEFAULT 1,
-    x_pct NUMERIC(6,2) NOT NULL,
-    y_pct NUMERIC(6,2) NOT NULL,
-    w_pct NUMERIC(6,2) NOT NULL,
-    h_pct NUMERIC(6,2) NOT NULL,
-    created_by BIGINT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
 CREATE TABLE IF NOT EXISTS string_scan_run (
     id BIGSERIAL PRIMARY KEY,
-    design_file_id BIGINT NULL,
     site_id BIGINT NOT NULL,
     pattern_id BIGINT NOT NULL REFERENCES string_id_pattern(id),
     detected_pattern_code VARCHAR(50) NOT NULL,
