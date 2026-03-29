@@ -10,8 +10,12 @@ Or package with PyInstaller:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.driver_factory import get_driver
@@ -65,6 +69,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_static = Path(__file__).parent / "static"
+if _static.exists():
+    app.mount("/ui", StaticFiles(directory=str(_static)), name="static")
+
+@app.get("/", include_in_schema=False)
+def root() -> FileResponse:
+    return FileResponse(str(_static / "index.html"))
 
 
 # ---------------------------------------------------------------------------

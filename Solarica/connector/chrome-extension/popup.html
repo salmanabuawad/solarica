@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Solarica Connector</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2e3450; --accent: #4f8ef7;
+    --green: #22c55e; --yellow: #f59e0b; --red: #ef4444;
+    --text: #e2e8f0; --muted: #64748b;
+  }
+  body {
+    width: 320px; min-height: 200px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text);
+    font-size: 13px;
+  }
+
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+    background: linear-gradient(135deg, #4f8ef7, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 13px; color: #fff;
+  }
+  header h1 { font-size: 13px; font-weight: 600; flex: 1; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge.green { background: rgba(34,197,94,.15); color: var(--green); }
+  .badge.red   { background: rgba(239,68,68,.15);  color: var(--red); }
+  .badge.gray  { background: rgba(100,116,139,.15); color: var(--muted); }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+
+  .section { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .section-title {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+  }
+
+  .row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 0;
+  }
+  .row .lbl { color: var(--muted); }
+  .row .val { font-weight: 500; }
+  .good { color: var(--green); }
+  .warn { color: var(--yellow); }
+  .bad  { color: var(--red); }
+
+  .transfer-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border-radius: 8px;
+    padding: 8px 10px; margin-top: 6px;
+  }
+  .transfer-icon { font-size: 18px; }
+  .transfer-text { flex: 1; }
+  .transfer-text .t1 { font-size: 11px; color: var(--muted); }
+  .transfer-text .t2 { font-size: 12px; font-weight: 600; margin-top: 1px; }
+  .transfer-pill.active { border: 1px solid var(--green); background: rgba(34,197,94,.08); }
+  .transfer-pill.waiting { border: 1px dashed var(--yellow); }
+
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 7px 12px; border-radius: 7px; font-size: 12px; font-weight: 600;
+    border: none; cursor: pointer; transition: all .15s; width: 100%;
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; margin-bottom: 6px; }
+  .btn-primary:hover:not(:disabled) { background: #3a7ae4; }
+  .btn-green  { background: var(--green); color: #000; }
+  .btn-green:hover:not(:disabled)  { background: #16a34a; color: #fff; }
+  .btn-danger { background: rgba(239,68,68,.15); color: var(--red); }
+  .btn-danger:hover:not(:disabled) { background: var(--red); color: #fff; }
+  .btn-ghost  { background: var(--surface2); color: var(--text); }
+  .btn-ghost:hover:not(:disabled)  { background: var(--border); }
+
+  .btn-row { display: flex; gap: 6px; }
+  .btn-row .btn { flex: 1; }
+
+  select {
+    width: 100%; background: var(--surface2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px;
+    padding: 6px 8px; font-size: 12px; outline: none; margin-bottom: 6px;
+    cursor: pointer;
+  }
+
+  .spin {
+    display: inline-block; width: 11px; height: 11px;
+    border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+    border-radius: 50%; animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .stat-big {
+    text-align: center; padding: 6px 0;
+  }
+  .stat-big .num { font-size: 28px; font-weight: 700; }
+  .stat-big .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .footer {
+    padding: 8px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .footer a {
+    color: var(--accent); text-decoration: none; font-size: 11px;
+  }
+  .footer a:hover { text-decoration: underline; }
+  .footer .ts { font-size: 10px; color: var(--muted); }
+
+  #msg {
+    padding: 6px 14px; font-size: 11px; text-align: center;
+    color: var(--green); min-height: 20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">S</div>
+  <h1>Solarica Connector</h1>
+  <div class="badge gray" id="hdrBadge"><div class="dot"></div> Checking…</div>
+</header>
+
+<!-- Connector offline state -->
+<div id="offlineMsg" class="section" style="display:none; text-align:center; padding: 20px 14px;">
+  <div style="font-size:28px; margin-bottom:8px;">🔌</div>
+  <div style="font-weight:600; margin-bottom:4px;">Connector Offline</div>
+  <div style="color:var(--muted); font-size:12px; margin-bottom:12px;">
+    Start the connector on this machine first.
+  </div>
+  <button class="btn btn-ghost" onclick="openUI()">Open Connector UI</button>
+</div>
+
+<!-- Main content -->
+<div id="mainContent">
+  <!-- Device section -->
+  <div class="section">
+    <div class="section-title">Device</div>
+    <div class="row"><span class="lbl">Model</span><span class="val" id="devModel">—</span></div>
+    <div class="row"><span class="lbl">Port</span><span class="val" id="devPort">—</span></div>
+    <div class="row"><span class="lbl">Connected</span><span class="val" id="devConn">—</span></div>
+
+    <div class="transfer-pill waiting" id="transferPill">
+      <div class="transfer-icon" id="transferIcon">📡</div>
+      <div class="transfer-text">
+        <div class="t1">Transfer Mode</div>
+        <div class="t2" id="transferLabel">Not connected</div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <select id="portSel"><option value="auto">Auto-detect port</option></select>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnConn" onclick="connectDev()">Connect</button>
+        <button class="btn btn-danger"  id="btnDisc" onclick="disconnectDev()" disabled>Disconnect</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import section -->
+  <div class="section">
+    <div class="section-title">Import</div>
+    <div class="stat-big">
+      <div class="num warn" id="unsyncedNum">—</div>
+      <div class="lbl">measurements unsynced</div>
+    </div>
+    <div style="margin-top:8px;">
+      <button class="btn btn-primary" id="btnRead" onclick="readDevice()" style="margin-bottom:6px;">
+        ⬇ Read from Device
+      </button>
+      <button class="btn btn-green" id="btnSync" onclick="syncCloud()">
+        ↑ Sync to Cloud
+      </button>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+</div>
+
+<div class="footer">
+  <a href="http://127.0.0.1:8765" target="_blank">Open Full UI</a>
+  <a href="https://solarica.wavelync.com/device" target="_blank">Web App</a>
+  <span class="ts" id="lastPoll">—</span>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

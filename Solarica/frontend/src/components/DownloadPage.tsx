@@ -138,6 +138,36 @@ sc start SolaricaConnector`}</pre>
         </div>
       </div>
 
+      {/* Chrome Extension */}
+      <div className="card" style={{ marginTop: "1.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
+          <span style={{ fontSize: "1.5rem" }}>🧩</span>
+          <h3 style={{ margin: 0 }}>תוסף Chrome</h3>
+          <span className="badge">מומלץ</span>
+        </div>
+        <p className="hint">
+          מגשר בין אפליקציית Solarica בדפדפן לבין המחבר המקומי שרץ במחשב שלך. מציג את מצב החיבור, מאפשר ייבוא מדידות וסנכרון ישירות מסרגל הכלים של Chrome — ללא צורך לפתוח ממשק נפרד.
+        </p>
+
+        <h4>התקנה</h4>
+        <ol className="hint" style={{ paddingInlineStart: "1.25rem", lineHeight: "1.8" }}>
+          <li>הורד את הקובץ <code>solarica_connector_extension.zip</code> ופתח אותו לתיקייה</li>
+          <li>פתח Chrome ועבור אל <code>chrome://extensions</code></li>
+          <li>הפעל <strong>Developer mode</strong> (פינה עליונה ימנית)</li>
+          <li>לחץ <strong>Load unpacked</strong> ובחר את התיקייה שחולצה</li>
+          <li>ודא שהמחבר המקומי פועל ב-<code>127.0.0.1:8765</code></li>
+        </ol>
+
+        <div className="action-bar" style={{ marginTop: "1rem" }}>
+          <a
+            className="button-link primary"
+            href="/downloads/solarica_connector_extension.zip"
+          >
+            הורד תוסף Chrome
+          </a>
+        </div>
+      </div>
+
       {/* Same API callout */}
       <div className="card" style={{ borderLeft: "4px solid #22c55e", marginTop: "1.5rem" }}>
         <strong>שני המחברים חושפים אותו REST API</strong>

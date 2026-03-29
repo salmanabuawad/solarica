@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Solarica Connector</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3450;
+    --accent: #4f8ef7;
+    --accent2: #7c3aed;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    -webkit-app-region: drag;
+  }
+  header .logo {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+  }
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; }
+  header .version { font-size: 11px; color: var(--muted); margin-left: 6px; }
+  header .spacer { flex: 1; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge.green { background: rgba(34,197,94,.15); color: var(--green); }
+  .badge.red   { background: rgba(239,68,68,.15);  color: var(--red); }
+  .badge.yellow{ background: rgba(245,158,11,.15); color: var(--yellow); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ── Layout ── */
+  .body {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow-y: auto;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 12px;
+  }
+
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: var(--muted); }
+  .stat-value { font-weight: 500; }
+  .stat-value.good { color: var(--green); }
+  .stat-value.warn { color: var(--yellow); }
+  .stat-value.bad  { color: var(--red); }
+
+  /* Port selector */
+  .port-row { display: flex; gap: 8px; align-items: center; }
+  select {
+    flex: 1; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 7px 10px; font-size: 13px; outline: none;
+    cursor: pointer;
+  }
+  select:focus { border-color: var(--accent); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    border: none; cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #3a7ae4; }
+  .btn-danger  { background: var(--red); color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: #dc2626; }
+  .btn-ghost   { background: var(--border); color: var(--text); }
+  .btn-ghost:hover:not(:disabled) { background: #374060; }
+  .btn-green   { background: var(--green); color: #000; }
+  .btn-green:hover:not(:disabled) { background: #16a34a; color:#fff; }
+  .btn-full    { width: 100%; }
+
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Transfer indicator */
+  .transfer-box {
+    border-radius: 10px; padding: 14px; text-align: center;
+    margin-top: 4px;
+  }
+  .transfer-box.waiting {
+    background: rgba(245,158,11,.1);
+    border: 1px dashed var(--yellow);
+  }
+  .transfer-box.detected {
+    background: rgba(34,197,94,.1);
+    border: 1px solid var(--green);
+  }
+  .transfer-box .icon { font-size: 28px; margin-bottom: 6px; }
+  .transfer-box .label { font-size: 12px; color: var(--muted); }
+  .transfer-box .value { font-size: 13px; font-weight: 600; margin-top: 2px; }
+
+  /* Spinner */
+  .spin {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Main panel ── */
+  .main {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 20px;
+    flex-shrink: 0;
+  }
+  .tab {
+    padding: 12px 18px; font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all .15s; user-select: none;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .count {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--border); color: var(--text);
+    border-radius: 10px; padding: 1px 7px; font-size: 10px;
+    margin-left: 6px; font-weight: 600;
+  }
+
+  .tab-content { display: none; flex: 1; overflow-y: auto; padding: 20px; }
+  .tab-content.active { display: flex; flex-direction: column; gap: 12px; }
+
+  /* Measurements table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th {
+    background: var(--surface2); color: var(--muted);
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; padding: 10px 12px; text-align: left;
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px; border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+  tr:hover td { background: var(--surface2); }
+  .chip {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+  }
+  .chip.unsynced { background: rgba(245,158,11,.15); color: var(--yellow); }
+  .chip.synced   { background: rgba(34,197,94,.15);  color: var(--green); }
+  .chip.error    { background: rgba(239,68,68,.15);  color: var(--red); }
+
+  /* Log */
+  .log {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; font-family: 'Cascadia Code','Consolas',monospace;
+    font-size: 12px; overflow-y: auto; flex: 1; min-height: 200px;
+    line-height: 1.6; color: #94a3b8;
+  }
+  .log .entry { padding: 1px 0; }
+  .log .entry.ok    { color: var(--green); }
+  .log .entry.warn  { color: var(--yellow); }
+  .log .entry.error { color: var(--red); }
+  .log .entry.info  { color: #7dd3fc; }
+  .log .ts { color: var(--muted); margin-right: 8px; }
+
+  /* Sync bar */
+  .sync-bar {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .sync-bar .info { flex: 1; }
+  .sync-bar .count { font-size: 24px; font-weight: 700; color: var(--yellow); }
+  .sync-bar .label { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* Empty state */
+  .empty {
+    text-align: center; padding: 60px 20px; color: var(--muted);
+  }
+  .empty .icon { font-size: 40px; margin-bottom: 12px; }
+  .empty .msg  { font-size: 13px; }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px; transition: width .3s;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 20px; font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 99;
+    max-width: 400px; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  #toast.ok   { border-color: var(--green); color: var(--green); }
+  #toast.err  { border-color: var(--red);   color: var(--red); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="logo">S</div>
+  <h1>Solarica Connector</h1>
+  <span class="version" id="hdrVersion">v1.0.0 · python</span>
+  <div class="spacer"></div>
+  <div class="badge red" id="hdrStatus">
+    <div class="dot"></div> Connecting…
+  </div>
+</header>
+
+<div class="body">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <!-- Connector health -->
+    <div class="card">
+      <div class="card-title">Connector</div>
+      <div class="stat-row">
+        <span class="stat-label">Status</span>
+        <span class="stat-value" id="sConnStatus">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Version</span>
+        <span class="stat-value" id="sConnVersion">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Runtime</span>
+        <span class="stat-value" id="sConnRuntime">—</span>
+      </div>
+    </div>
+
+    <!-- Device -->
+    <div class="card">
+      <div class="card-title">Device</div>
+      <div class="stat-row">
+        <span class="stat-label">Model</span>
+        <span class="stat-value" id="sDevModel">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Connected</span>
+        <span class="stat-value" id="sDevConn">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Port</span>
+        <span class="stat-value" id="sDevPort">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Mode</span>
+        <span class="stat-value" id="sDevMode">—</span>
+      </div>
+
+      <div style="margin-top:14px;">
+        <div class="transfer-box waiting" id="transferBox">
+          <div class="icon">📡</div>
+          <div class="label">Transfer Mode</div>
+          <div class="value" id="transferLabel">Waiting for device…</div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="card-title">Port</div>
+        <div class="port-row">
+          <select id="portSelect"><option value="auto">Auto-detect</option></select>
+          <button class="btn btn-ghost" onclick="refreshPorts()" title="Refresh ports">↺</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn btn-primary" id="btnConnect" onclick="connectDevice()" style="flex:1;">Connect</button>
+          <button class="btn btn-danger"  id="btnDisconnect" onclick="disconnectDevice()" style="flex:1;" disabled>Disconnect</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import -->
+    <div class="card">
+      <div class="card-title">Import</div>
+      <div class="stat-row">
+        <span class="stat-label">State</span>
+        <span class="stat-value" id="sImportState">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Last imported</span>
+        <span class="stat-value" id="sImportCount">—</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Unsynced</span>
+        <span class="stat-value warn" id="sUnsynced">—</span>
+      </div>
+      <div style="margin-top:12px;">
+        <div class="progress-bar"><div class="progress-fill" id="importProgress" style="width:0%"></div></div>
+      </div>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-primary btn-full" id="btnRead" onclick="readFromDevice()">
+          ⬇ Read from Device
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('measurements',this)">
+        Measurements <span class="count" id="tabCountM">0</span>
+      </div>
+      <div class="tab" onclick="switchTab('sync',this)">Sync to Cloud</div>
+      <div class="tab" onclick="switchTab('log',this)">Log</div>
+    </div>
+
+    <!-- Tab: Measurements -->
+    <div class="tab-content active" id="tab-measurements">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;color:var(--muted);" id="mCount">0 measurements</span>
+        <div class="btn-row">
+          <button class="btn btn-ghost" onclick="loadMeasurements()">↺ Refresh</button>
+          <a class="btn btn-ghost" href="/api/export/csv" download="measurements.csv">⬇ CSV</a>
+          <a class="btn btn-ghost" href="/api/export/json" download="measurements.json">⬇ JSON</a>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Measured At</th>
+              <th>Site</th>
+              <th>String</th>
+              <th>Module</th>
+              <th>Pmax (W)</th>
+              <th>Voc (V)</th>
+              <th>Isc (A)</th>
+              <th>FF (%)</th>
+              <th>Source</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="mTbody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="mEmpty" style="display:none;">
+        <div class="icon">📊</div>
+        <div class="msg">No measurements yet.<br>Connect the PVPM and click <strong>Read from Device</strong>.</div>
+      </div>
+    </div>
+
+    <!-- Tab: Sync -->
+    <div class="tab-content" id="tab-sync">
+      <div class="sync-bar">
+        <div class="info">
+          <div class="count" id="syncUnsyncedCount">—</div>
+          <div class="label">measurements waiting to sync</div>
+        </div>
+        <button class="btn btn-green" onclick="syncToCloud()" id="btnSync">
+          ↑ Sync to Cloud
+        </button>
+      </div>
+
+      <div class="card" id="syncResult" style="display:none;">
+        <div class="card-title">Last Sync Result</div>
+        <div id="syncResultBody"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Cloud Backend</div>
+        <div class="stat-row">
+          <span class="stat-label">URL</span>
+          <span class="stat-value" id="syncBackendUrl" style="font-size:12px;word-break:break-all;">—</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Auth Token</span>
+          <span class="stat-value" id="syncAuthStatus">—</span>
+        </div>
+        <div style="margin-top:12px;">
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Bearer Token (optional)</label>
+          <div style="display:flex;gap:8px;">
+            <input id="tokenInput" type="password" placeholder="Paste auth token…"
+              style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;
+                     padding:8px 12px;color:var(--text);font-size:13px;outline:none;" />
+            <button class="btn btn-ghost" onclick="saveToken()">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Log -->
+    <div class="tab-content" id="tab-log" style="gap:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+        <span style="font-size:13px;color:var(--muted);">Activity log</span>
+        <button class="btn btn-ghost" onclick="clearLog()">Clear</button>
+      </div>
+      <div class="log" id="logEl"></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = 'http://127.0.0.1:8765';
+let pollTimer = null;
+let measurements = [];
+let authToken = localStorage.getItem('solarica_token') || '';
+
+// ── Tab switching ────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'sync') updateSyncTab();
+  if (name === 'measurements') loadMeasurements();
+}
+
+// ── Log ─────────────────────────────────────────────────────────
+function log(msg, type = '') {
+  const el = document.getElementById('logEl');
+  const ts = new Date().toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = 'entry ' + type;
+  div.innerHTML = `<span class="ts">${ts}</span>${msg}`;
+  el.appendChild(div);
+  el.scrollTop = el.scrollHeight;
+}
+function clearLog() { document.getElementById('logEl').innerHTML = ''; }
+
+// ── Toast ────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 3000);
+}
+
+// ── API helpers ──────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  const r = await fetch(API + path, { headers, ...opts });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+// ── Health poll ──────────────────────────────────────────────────
+async function pollHealth() {
+  try {
+    const h = await api('/health');
+    document.getElementById('hdrStatus').className = 'badge green';
+    document.getElementById('hdrStatus').innerHTML = '<div class="dot"></div> Online';
+    document.getElementById('sConnStatus').textContent = 'Online';
+    document.getElementById('sConnStatus').className = 'stat-value good';
+    document.getElementById('sConnVersion').textContent = 'v' + h.version;
+    document.getElementById('sConnRuntime').textContent = h.runtime;
+    document.getElementById('hdrVersion').textContent = `v${h.version} · ${h.runtime}`;
+  } catch {
+    document.getElementById('hdrStatus').className = 'badge red';
+    document.getElementById('hdrStatus').innerHTML = '<div class="dot"></div> Offline';
+    document.getElementById('sConnStatus').textContent = 'Offline';
+    document.getElementById('sConnStatus').className = 'stat-value bad';
+  }
+}
+
+// ── Device status ────────────────────────────────────────────────
+async function pollDevice() {
+  try {
+    const d = await api('/api/device/status');
+
+    document.getElementById('sDevModel').textContent = d.deviceModel || '—';
+    document.getElementById('sDevPort').textContent  = d.port || '—';
+    document.getElementById('sDevMode').textContent  = d.mode || '—';
+
+    const connEl = document.getElementById('sDevConn');
+    connEl.textContent  = d.connected ? 'Yes' : 'No';
+    connEl.className    = 'stat-value ' + (d.connected ? 'good' : 'bad');
+
+    document.getElementById('btnConnect').disabled    = d.connected;
+    document.getElementById('btnDisconnect').disabled = !d.connected;
+
+    const box = document.getElementById('transferBox');
+    const lbl = document.getElementById('transferLabel');
+    if (d.transferModeDetected) {
+      box.className = 'transfer-box detected';
+      lbl.textContent = '✓ Transfer Mode Active';
+    } else {
+      box.className = 'transfer-box waiting';
+      lbl.textContent = d.connected ? 'Waiting — press Transfer on device' : 'Not connected';
+    }
+
+    if (d.lastError) log('Device: ' + d.lastError, 'warn');
+  } catch { /* connector offline */ }
+}
+
+// ── Import status ────────────────────────────────────────────────
+async function pollImport() {
+  try {
+    const s = await api('/api/import/status');
+    document.getElementById('sImportState').textContent = s.state || '—';
+    document.getElementById('sImportCount').textContent = s.lastImportedCount ?? '—';
+    document.getElementById('sUnsynced').textContent    = s.unsyncedCount ?? '—';
+    document.getElementById('syncUnsyncedCount').textContent = s.unsyncedCount ?? '—';
+
+    const fill = document.getElementById('importProgress');
+    if (s.state === 'running') {
+      fill.style.width = '60%';
+      fill.style.animation = 'none';
+    } else {
+      fill.style.width = s.lastImportedCount > 0 ? '100%' : '0%';
+    }
+  } catch { /* ignore */ }
+}
+
+// ── Ports ────────────────────────────────────────────────────────
+async function refreshPorts() {
+  try {
+    const data = await api('/api/device/ports');
+    const sel = document.getElementById('portSelect');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="auto">Auto-detect</option>';
+    data.items.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.name;
+      opt.textContent = `${p.name} — ${p.description}`;
+      sel.appendChild(opt);
+    });
+    if (data.items.find(p => p.name === prev)) sel.value = prev;
+    log(`Found ${data.items.length} port(s)`, 'info');
+  } catch (e) { log('Port refresh failed: ' + e.message, 'error'); }
+}
+
+// ── Connect / Disconnect ─────────────────────────────────────────
+async function connectDevice() {
+  const port = document.getElementById('portSelect').value;
+  document.getElementById('btnConnect').innerHTML = '<span class="spin"></span>';
+  try {
+    const d = await api('/api/device/connect', {
+      method: 'POST',
+      body: JSON.stringify({ port })
+    });
+    log(`Connected to ${d.port} (${d.mode})`, 'ok');
+    toast('Device connected on ' + d.port, 'ok');
+    await pollDevice();
+  } catch (e) {
+    log('Connect failed: ' + e.message, 'error');
+    toast('Connection failed', 'err');
+  }
+  document.getElementById('btnConnect').innerHTML = 'Connect';
+}
+
+async function disconnectDevice() {
+  try {
+    await api('/api/device/disconnect', { method: 'POST' });
+    log('Disconnected', 'warn');
+    toast('Disconnected');
+    await pollDevice();
+  } catch (e) { log('Disconnect error: ' + e.message, 'error'); }
+}
+
+// ── Read from Device ─────────────────────────────────────────────
+async function readFromDevice() {
+  const btn = document.getElementById('btnRead');
+  btn.innerHTML = '<span class="spin"></span> Reading…';
+  btn.disabled = true;
+  log('Starting import from device…', 'info');
+  try {
+    const r = await api('/api/import/start', { method: 'POST' });
+    log(`Import started (${r.imported} captured so far)`, 'ok');
+    toast('Reading from device — press Transfer on the PVPM now');
+
+    // Poll until done
+    const poll = setInterval(async () => {
+      const s = await api('/api/import/status').catch(() => null);
+      if (!s) return;
+      if (s.state !== 'running') {
+        clearInterval(poll);
+        btn.innerHTML = '⬇ Read from Device';
+        btn.disabled = false;
+        log(`Import complete: ${s.lastImportedCount} measurement(s)`, 'ok');
+        toast(`Imported ${s.lastImportedCount} measurement(s)`, 'ok');
+        await loadMeasurements();
+        await pollImport();
+      }
+    }, 1000);
+  } catch (e) {
+    log('Import failed: ' + e.message, 'error');
+    toast('Import failed', 'err');
+    btn.innerHTML = '⬇ Read from Device';
+    btn.disabled = false;
+  }
+}
+
+// ── Measurements ─────────────────────────────────────────────────
+async function loadMeasurements() {
+  try {
+    const data = await api('/api/measurements');
+    measurements = data.items || [];
+    renderMeasurements();
+  } catch { /* ignore */ }
+}
+
+function renderMeasurements() {
+  const tbody = document.getElementById('mTbody');
+  const empty = document.getElementById('mEmpty');
+  const count = document.getElementById('mCount');
+  const tabCount = document.getElementById('tabCountM');
+
+  tabCount.textContent = measurements.length;
+  count.textContent = measurements.length + ' measurement' + (measurements.length !== 1 ? 's' : '');
+
+  if (measurements.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = measurements.slice().reverse().map((m, i) => {
+    const ts = m.measuredAt ? new Date(m.measuredAt).toLocaleString() : '—';
+    const pmax = m.ppkWp != null ? m.ppkWp.toFixed(1) : '—';
+    const voc  = m.vocV  != null ? m.vocV.toFixed(2)  : '—';
+    const isc  = m.iscA  != null ? m.iscA.toFixed(3)  : '—';
+    const ff   = m.ffPercent != null ? m.ffPercent.toFixed(1) : '—';
+    const status = m.syncStatus || 'unsynced';
+    return `<tr>
+      <td>${measurements.length - i}</td>
+      <td style="white-space:nowrap;">${ts}</td>
+      <td>${m.installation || '—'}</td>
+      <td>${m.stringNo || '—'}</td>
+      <td style="font-size:11px;">${m.moduleType || '—'}</td>
+      <td><strong>${pmax}</strong></td>
+      <td>${voc}</td>
+      <td>${isc}</td>
+      <td>${ff}</td>
+      <td style="font-size:11px;color:var(--muted);">${m.importSource || '—'}</td>
+      <td><span class="chip ${status}">${status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Sync ─────────────────────────────────────────────────────────
+async function syncToCloud() {
+  const btn = document.getElementById('btnSync');
+  btn.innerHTML = '<span class="spin"></span> Syncing…';
+  btn.disabled = true;
+  log('Syncing to cloud…', 'info');
+  try {
+    const r = await api('/api/sync/upload', { method: 'POST' });
+    const box = document.getElementById('syncResult');
+    const body = document.getElementById('syncResultBody');
+    box.style.display = '';
+    body.innerHTML = `
+      <div class="stat-row"><span class="stat-label">Uploaded</span><span class="stat-value good">${r.uploaded ?? 0}</span></div>
+      <div class="stat-row"><span class="stat-label">Failed</span><span class="stat-value ${r.failed > 0 ? 'bad' : ''}">${r.failed ?? 0}</span></div>
+      <div class="stat-row"><span class="stat-label">Remaining</span><span class="stat-value">${r.remaining ?? 0}</span></div>
+    `;
+    log(`Sync: ${r.uploaded} uploaded, ${r.failed} failed, ${r.remaining} remaining`, r.failed > 0 ? 'warn' : 'ok');
+    toast(`Synced ${r.uploaded} measurement(s)`, r.failed > 0 ? '' : 'ok');
+    await pollImport();
+    await loadMeasurements();
+  } catch (e) {
+    log('Sync failed: ' + e.message, 'error');
+    toast('Sync failed: ' + e.message, 'err');
+  }
+  btn.innerHTML = '↑ Sync to Cloud';
+  btn.disabled = false;
+}
+
+function updateSyncTab() {
+  const url = document.getElementById('syncBackendUrl');
+  const auth = document.getElementById('syncAuthStatus');
+  url.textContent = 'https://solarica.wavelync.com';
+  auth.textContent = authToken ? '✓ Token set' : 'None (anonymous)';
+  auth.className = 'stat-value ' + (authToken ? 'good' : 'warn');
+}
+
+function saveToken() {
+  authToken = document.getElementById('tokenInput').value.trim();
+  localStorage.setItem('solarica_token', authToken);
+  toast('Token saved', 'ok');
+  updateSyncTab();
+}
+
+// ── Poll loop ────────────────────────────────────────────────────
+async function poll() {
+  await Promise.all([pollHealth(), pollDevice(), pollImport()]);
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+(async () => {
+  if (authToken) document.getElementById('tokenInput').value = authToken;
+  log('Connector UI started', 'info');
+  await refreshPorts();
+  await poll();
+  await loadMeasurements();
+  pollTimer = setInterval(poll, 2000);
+  setInterval(loadMeasurements, 5000);
+})();
+</script>
+</body>
+</html>

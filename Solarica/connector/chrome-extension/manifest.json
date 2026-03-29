@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Solarica Connector",
+  "version": "1.0.0",
+  "description": "Bridges the Solarica web app to the local PVPM connector running on this machine.",
+  "permissions": ["storage", "alarms", "notifications"],
+  "host_permissions": [
+    "http://127.0.0.1:8765/*",
+    "https://solarica.wavelync.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Solarica Connector",
+    "default_icon": {
+      "16":  "icon16.png",
+      "48":  "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://solarica.wavelync.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16":  "icon16.png",
+    "48":  "icon48.png",
+    "128": "icon128.png"
+  }
+}
