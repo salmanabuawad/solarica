@@ -37,6 +37,7 @@ The web app calls `/health` on startup to auto-detect which connector is running
 | GET | `/api/device/status` | — | Current connection state |
 | GET | `/api/device/ports` | — | Available serial/virtual ports |
 | POST | `/api/device/connect` | `{ "port": "COM3" }` | Connect to a port |
+| POST | `/api/device/auto-connect` | — | Auto-pick the best FTDI / USB-Serial port for direct PVPM USB access |
 | POST | `/api/device/disconnect` | — | Disconnect |
 
 ---
@@ -111,7 +112,7 @@ All field names are **camelCase** in JSON responses.
 |--------|---------------------|-------------|
 | Mock | `mock` | Synthetic data for testing and demo |
 | Vendor export | `vendor_export` | Reads PVPM export files from `WATCH_FOLDER` |
-| Serial (direct) | `serial` | COM port — protocol not yet implemented |
+| Serial (direct) | `serial` | Direct FTDI / COM access to PVPM Transfer Mode; captures streamed SUI files over USB |
 
 ---
 

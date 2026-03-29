@@ -95,3 +95,11 @@ class HealthResponse(BaseModel):
     ok: bool
     version: str
     runtime: Literal["python", "dotnet", "unknown"] = "python"
+
+
+class AutoConnectResponse(BaseModel):
+    ok: bool
+    connected: bool
+    port: str | None = None
+    message: str | None = None
+    status: DeviceStatus | None = None

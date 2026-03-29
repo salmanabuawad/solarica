@@ -18,6 +18,7 @@ from app.driver_factory import get_driver
 from app.export import export_csv, export_json
 from app.repository import get_measurement, list_measurements
 from app.schemas import (
+    AutoConnectResponse,
     ConnectRequest,
     DeviceStatus,
     HealthResponse,
