@@ -1,58 +1,41 @@
-# Solar EPC Platform - Cursor Handoff
+# Solarica Refactored
 
-This package is a **production-oriented architecture scaffold** for a multi-site solar EPC platform with:
+This package is a cleaned and reorganized version of the original Solarica app.
 
-- **Backend**: Python (FastAPI), Celery, SQLAlchemy, Alembic
-- **Frontend**: React + TypeScript + Vite
-- **Database**: PostgreSQL
-- **Proxy**: Nginx
-- **Workers/Queue**: Redis + Celery
-- **File storage**: local volume first, S3-compatible later
+## What changed
+- removed Git metadata, cache files, local logs, and binary DB artifacts
+- removed experimental `hint_from_chatgpt` content from the deliverable
+- promoted `backend/app` as the primary backend application
+- moved the older root-level backend implementation into `backend/legacy/`
+- added a dedicated PVPM parser package under `backend/app/parsers/pvpm/`
+- kept frontend, bridge, connector, DB, deployment, and docs folders
 
-## Supported business flows
+## Recommended structure
+- `frontend/` — React + Vite UI
+- `backend/app/` — primary FastAPI-style application code
+- `backend/app/parsers/pvpm/` — PVPM SUI/XLS parser
+- `backend/legacy/` — older backend implementation preserved for reference
+- `bridge/` — local device bridge / integration layer
+- `connector/` — connector-related code and contracts
+- `db/` — schema and seed SQL
+- `deploy/` — deployment assets
+- `docs/` — architecture and workflow docs
 
-1. Multi-site / multi-project management
-2. Admin-managed validation rules for uploaded solar design drawings
-3. Design parsing + validation runs + issue tracking
-4. Construction progress reporting from field supervisors
-5. Project-scoped inventory management
-6. Testing & commissioning (continuity, polarity, megger, IV curve)
-7. Ongoing O&M scheduling and periodic retesting
+## Immediate next steps
+1. Point deployments to `backend/app/main.py` as the main backend entrypoint.
+2. Gradually migrate any still-needed endpoints from `backend/legacy/` into `backend/app/`.
+3. Wire the PVPM parser package into an upload/import API route.
+4. Remove `mobile/` if it is not an active product line.
 
-## Roles
+## Notes
+This refactor is structural cleanup. It does not attempt to merge or rewrite business logic automatically.
 
-- **manager** (global)
-- **project_manager** (project-scoped)
-- **supervisor** (project-scoped)
-- **inventory_keeper** (project-scoped)
 
-## How to use in Cursor
+## Connector site/part metadata
 
-1. Unzip this package.
-2. Open the root folder in Cursor.
-3. Start from:
-   - `docs/architecture.md`
-   - `docs/api-contracts.md`
-   - `db/schema.sql`
-   - `backend/app/main.py`
-   - `frontend/src/App.tsx`
-4. Ask Cursor to:
-   - wire auth
-   - generate Alembic migrations from models
-   - build CRUD screens from the contracts
-   - implement parser/validator services incrementally
+This bundle now includes connector-side Site/Part catalogs and an active session binding that tags imported PVPM measurements with site, part, customer, and module part number.
 
-## Recommended implementation order
 
-1. Auth + RBAC
-2. Sites / Projects / Assignments
-3. Design upload + parsed entities
-4. Validation rules + validation run + issues
-5. Daily progress + work packages
-6. Inventory
-7. Testing & commissioning
-8. O&M
+## Connector module catalog
 
-## Monolith first
-
-This scaffold is designed as a **modular monolith**. Keep it that way until traffic/teams justify service extraction.
+This bundle now also includes a connector-side module catalog so module part numbers can be stored locally and applied to imported PVPM measurements.

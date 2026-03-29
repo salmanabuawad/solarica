@@ -16,18 +16,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.driver_factory import get_driver
 from app.export import export_csv, export_json
-from app.repository import get_measurement, list_measurements
+from app.repository import create_module, create_part, create_site, get_active_binding, get_measurement, list_measurements, list_modules, list_parts, list_sites, set_active_binding
 from app.schemas import (
+    AutoConnectResponse,
     ConnectRequest,
+    CreateModuleRequest,
+    CreatePartRequest,
+    CreateSiteRequest,
+    DeviceDownloadSummary,
     DeviceStatus,
     HealthResponse,
     ImportStartResult,
     ImportStatus,
     MeasurementsResponse,
+    ModuleCatalogResponse,
+    PartCatalogResponse,
     PortsResponse,
+    SessionBinding,
+    SessionResponse,
+    SiteCatalogResponse,
     SyncUploadResult,
 )
 from app.services import (
+    download_all_from_device,
     get_import_status,
     seed_from_driver,
     start_watcher,
@@ -161,6 +172,93 @@ def launch_pvpm() -> dict:
             subprocess.Popen([str(exe)], shell=False)
             return {"ok": True, "launched": str(exe)}
     return {"ok": False, "error": "PVPMdisp.exe not found"}
+
+
+
+
+# ---------------------------------------------------------------------------
+# Site / Part catalogs and session binding
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/catalog/sites", response_model=SiteCatalogResponse)
+def catalog_sites() -> SiteCatalogResponse:
+    return SiteCatalogResponse(items=list_sites())
+
+
+@app.post("/api/catalog/sites", response_model=SessionResponse)
+def catalog_site_create(payload: CreateSiteRequest) -> SessionResponse:
+    item = create_site(payload.siteName, payload.customer, payload.notes)
+    binding = SessionBinding(**get_active_binding())
+    return SessionResponse(ok=True, binding=binding, message=f"Created site '{item['siteName']}' in connector catalog. This does not confirm a device-side write.")
+
+
+@app.get("/api/catalog/parts", response_model=PartCatalogResponse)
+def catalog_parts(siteName: str | None = None) -> PartCatalogResponse:
+    return PartCatalogResponse(items=list_parts(siteName))
+
+
+@app.post("/api/catalog/parts", response_model=SessionResponse)
+def catalog_part_create(payload: CreatePartRequest) -> SessionResponse:
+    item = create_part(payload.partName, payload.siteName, payload.modulePartNumber, payload.notes)
+    binding = SessionBinding(**get_active_binding())
+    return SessionResponse(ok=True, binding=binding, message=f"Created part '{item['partName']}' in connector catalog. This does not confirm a device-side write.")
+
+
+
+
+@app.get("/api/catalog/modules", response_model=ModuleCatalogResponse)
+def catalog_modules() -> ModuleCatalogResponse:
+    return ModuleCatalogResponse(items=list_modules())
+
+
+@app.post("/api/catalog/modules", response_model=SessionResponse)
+def catalog_module_create(payload: CreateModuleRequest) -> SessionResponse:
+    item = create_module(
+        payload.modulePartNumber,
+        payload.manufacturer,
+        payload.technology,
+        payload.nominalPowerW,
+        payload.notes,
+    )
+    binding = SessionBinding(**get_active_binding())
+    return SessionResponse(
+        ok=True,
+        binding=binding,
+        message=f"Created module '{item['modulePartNumber']}' in connector catalog. This does not confirm a device-side write."
+    )
+
+
+@app.get("/api/session/binding", response_model=SessionBinding)
+def session_binding_get() -> SessionBinding:
+    return SessionBinding(**get_active_binding())
+
+
+@app.post("/api/session/binding", response_model=SessionResponse)
+def session_binding_set(payload: SessionBinding) -> SessionResponse:
+    binding = set_active_binding(
+        site_name=payload.siteName,
+        part_name=payload.partName,
+        customer=payload.customer,
+        module_part_number=payload.modulePartNumber,
+    )
+    msg = (
+        "Binding saved in connector. Incoming measurements will be tagged with this site/part. "
+        "A confirmed write into the PVPM device itself is not implemented."
+    )
+    return SessionResponse(ok=True, binding=SessionBinding(**binding), message=msg)
+
+
+
+
+@app.post("/api/device/download-all", response_model=DeviceDownloadSummary)
+def device_download_all() -> DeviceDownloadSummary:
+    """
+    Download all currently available measurement data from the connected PVPM.
+    In direct USB mode this pulls every SUI available in the active Transfer session,
+    stores them locally, and writes JSON/CSV snapshots.
+    """
+    return DeviceDownloadSummary(**download_all_from_device())
 
 
 # ---------------------------------------------------------------------------

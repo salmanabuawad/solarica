@@ -95,3 +95,89 @@ class HealthResponse(BaseModel):
     ok: bool
     version: str
     runtime: Literal["python", "dotnet", "unknown"] = "python"
+
+
+class AutoConnectResponse(BaseModel):
+    ok: bool
+    connected: bool
+    port: str | None = None
+    message: str | None = None
+    status: DeviceStatus | None = None
+
+class SiteCatalogItem(BaseModel):
+    id: int | None = None
+    siteName: str
+    customer: str | None = None
+    notes: str | None = None
+
+
+class PartCatalogItem(BaseModel):
+    id: int | None = None
+    siteName: str | None = None
+    partName: str
+    modulePartNumber: str | None = None
+    notes: str | None = None
+
+
+class SiteCatalogResponse(BaseModel):
+    items: list[SiteCatalogItem]
+
+
+class PartCatalogResponse(BaseModel):
+    items: list[PartCatalogItem]
+
+
+class CreateSiteRequest(BaseModel):
+    siteName: str
+    customer: str | None = None
+    notes: str | None = None
+
+
+class CreatePartRequest(BaseModel):
+    siteName: str | None = None
+    partName: str
+    modulePartNumber: str | None = None
+    notes: str | None = None
+
+
+class SessionBinding(BaseModel):
+    siteName: str | None = None
+    partName: str | None = None
+    customer: str | None = None
+    modulePartNumber: str | None = None
+    applyToIncomingMeasurements: bool = True
+    writeToDeviceRequested: bool = False
+
+
+class SessionResponse(BaseModel):
+    ok: bool
+    binding: SessionBinding
+    message: str | None = None
+
+class DeviceDownloadSummary(BaseModel):
+    ok: bool
+    downloadedCount: int
+    savedRawCount: int
+    exportedJsonPath: str | None = None
+    exportedCsvPath: str | None = None
+    message: str | None = None
+
+class ModuleCatalogItem(BaseModel):
+    id: int | None = None
+    modulePartNumber: str
+    manufacturer: str | None = None
+    technology: str | None = None
+    nominalPowerW: float | None = None
+    notes: str | None = None
+
+
+class ModuleCatalogResponse(BaseModel):
+    items: list[ModuleCatalogItem]
+
+
+class CreateModuleRequest(BaseModel):
+    modulePartNumber: str
+    manufacturer: str | None = None
+    technology: str | None = None
+    nominalPowerW: float | None = None
+    notes: str | None = None

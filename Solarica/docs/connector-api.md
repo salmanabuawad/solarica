@@ -37,6 +37,7 @@ The web app calls `/health` on startup to auto-detect which connector is running
 | GET | `/api/device/status` | — | Current connection state |
 | GET | `/api/device/ports` | — | Available serial/virtual ports |
 | POST | `/api/device/connect` | `{ "port": "COM3" }` | Connect to a port |
+| POST | `/api/device/auto-connect` | — | Auto-pick the best FTDI / USB-Serial port for direct PVPM USB access |
 | POST | `/api/device/disconnect` | — | Disconnect |
 
 ---
@@ -111,7 +112,7 @@ All field names are **camelCase** in JSON responses.
 |--------|---------------------|-------------|
 | Mock | `mock` | Synthetic data for testing and demo |
 | Vendor export | `vendor_export` | Reads PVPM export files from `WATCH_FOLDER` |
-| Serial (direct) | `serial` | COM port — protocol not yet implemented |
+| Serial (direct) | `serial` | Direct FTDI / COM access to PVPM Transfer Mode; captures streamed SUI files over USB |
 
 ---
 
@@ -127,3 +128,34 @@ All field names are **camelCase** in JSON responses.
 1. Create `Services/MyDriver.cs` implementing `IDeviceDriver`
 2. Add a case to the `IDeviceDriver` singleton factory in `Program.cs`
 3. Set `PvpmDriver=my_driver` in `appsettings.json`
+
+## Site / Part catalog and session binding
+
+These endpoints let you create a connector-side site/part catalog and bind the active
+site/part/module to incoming measurements. This is the safe implementation until a
+confirmed PVPM write protocol exists.
+
+| Method | Path | Body | Purpose |
+|---|---|---|---|
+| GET | `/api/catalog/sites` | — | List connector-side sites |
+| POST | `/api/catalog/sites` | `{ "siteName": "HAMADYA", "customer": "M" }` | Create/update a connector-side site |
+| GET | `/api/catalog/parts?siteName=HAMADYA` | — | List connector-side parts |
+| POST | `/api/catalog/parts` | `{ "siteName": "HAMADYA", "partName": "S.2.7.2", "modulePartNumber": "TWMND-72HD580" }` | Create/update a connector-side part |
+| GET | `/api/session/binding` | — | Read the active site/part binding |
+| POST | `/api/session/binding` | `{ "siteName": "HAMADYA", "partName": "S.2.7.2", "customer": "M", "modulePartNumber": "TWMND-72HD580" }` | Apply site/part/module to imported measurements |
+
+### Important note
+
+These endpoints do **not** claim a device-side write into the PVPM itself.
+They create connector-side metadata and apply it to imported measurements.
+
+| POST | `/api/device/download-all` | — | Download all currently available data from the connected PVPM, save locally, and export JSON/CSV snapshots |
+
+
+| GET | `/api/catalog/modules` | — | List connector-side modules |
+| POST | `/api/catalog/modules` | `{ "modulePartNumber": "TWMND-72HD580", "manufacturer": "TW SOLAR", "technology": "mono", "nominalPowerW": 580 }` | Create/update a connector-side module |
+
+### Module note
+
+Modules are stored in the connector catalog and can be bound to imported measurements through `/api/session/binding`.
+This does **not** confirm a persistent module database write into the PVPM device itself.

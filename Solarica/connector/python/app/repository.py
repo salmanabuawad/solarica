@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import delete, func, select
 
-from .database import CurvePointRecord, MeasurementRecord, SessionLocal, SyncStateRecord
+from .database import CurvePointRecord, MeasurementRecord, ModuleCatalogRecord, PartCatalogRecord, SessionLocal, SiteCatalogRecord, SyncStateRecord
 
 
 def upsert_measurement(payload: dict) -> None:
@@ -183,3 +183,169 @@ def _serialize(session, measurement_id: str) -> dict:
             for p in points
         ],
     }
+
+
+def create_site(site_name: str, customer: str | None = None, notes: str | None = None) -> dict:
+    with SessionLocal() as session:
+        existing = session.scalar(
+            select(SiteCatalogRecord).where(SiteCatalogRecord.site_name == site_name)
+        )
+        if existing is None:
+            existing = SiteCatalogRecord(site_name=site_name, customer=customer, notes=notes)
+            session.add(existing)
+        else:
+            existing.customer = customer or existing.customer
+            existing.notes = notes if notes is not None else existing.notes
+        session.commit()
+        session.refresh(existing)
+        return {
+            "id": existing.id,
+            "siteName": existing.site_name,
+            "customer": existing.customer,
+            "notes": existing.notes,
+        }
+
+
+def list_sites() -> list[dict]:
+    with SessionLocal() as session:
+        rows = session.scalars(
+            select(SiteCatalogRecord).order_by(SiteCatalogRecord.site_name.asc())
+        ).all()
+        return [
+            {"id": r.id, "siteName": r.site_name, "customer": r.customer, "notes": r.notes}
+            for r in rows
+        ]
+
+
+def create_part(
+    part_name: str,
+    site_name: str | None = None,
+    module_part_number: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    with SessionLocal() as session:
+        existing = session.scalar(
+            select(PartCatalogRecord).where(
+                PartCatalogRecord.part_name == part_name,
+                PartCatalogRecord.site_name == site_name,
+            )
+        )
+        if existing is None:
+            existing = PartCatalogRecord(
+                part_name=part_name,
+                site_name=site_name,
+                module_part_number=module_part_number,
+                notes=notes,
+            )
+            session.add(existing)
+        else:
+            existing.module_part_number = module_part_number or existing.module_part_number
+            existing.notes = notes if notes is not None else existing.notes
+        session.commit()
+        session.refresh(existing)
+        return {
+            "id": existing.id,
+            "siteName": existing.site_name,
+            "partName": existing.part_name,
+            "modulePartNumber": existing.module_part_number,
+            "notes": existing.notes,
+        }
+
+
+def list_parts(site_name: str | None = None) -> list[dict]:
+    with SessionLocal() as session:
+        stmt = select(PartCatalogRecord)
+        if site_name:
+            stmt = stmt.where(PartCatalogRecord.site_name == site_name)
+        rows = session.scalars(stmt.order_by(PartCatalogRecord.site_name.asc(), PartCatalogRecord.part_name.asc())).all()
+        return [
+            {
+                "id": r.id,
+                "siteName": r.site_name,
+                "partName": r.part_name,
+                "modulePartNumber": r.module_part_number,
+                "notes": r.notes,
+            }
+            for r in rows
+        ]
+
+
+def set_active_binding(
+    site_name: str | None = None,
+    part_name: str | None = None,
+    customer: str | None = None,
+    module_part_number: str | None = None,
+) -> dict:
+    set_sync_state("active_site_name", site_name or "")
+    set_sync_state("active_part_name", part_name or "")
+    set_sync_state("active_customer", customer or "")
+    set_sync_state("active_module_part_number", module_part_number or "")
+    return get_active_binding()
+
+
+def get_active_binding() -> dict:
+    return {
+        "siteName": get_sync_state("active_site_name", "") or None,
+        "partName": get_sync_state("active_part_name", "") or None,
+        "customer": get_sync_state("active_customer", "") or None,
+        "modulePartNumber": get_sync_state("active_module_part_number", "") or None,
+        "applyToIncomingMeasurements": True,
+        "writeToDeviceRequested": False,
+    }
+
+
+def create_module(
+    module_part_number: str,
+    manufacturer: str | None = None,
+    technology: str | None = None,
+    nominal_power_w: float | None = None,
+    notes: str | None = None,
+) -> dict:
+    with SessionLocal() as session:
+        existing = session.scalar(
+            select(ModuleCatalogRecord).where(
+                ModuleCatalogRecord.module_part_number == module_part_number
+            )
+        )
+        if existing is None:
+            existing = ModuleCatalogRecord(
+                module_part_number=module_part_number,
+                manufacturer=manufacturer,
+                technology=technology,
+                nominal_power_w=nominal_power_w,
+                notes=notes,
+            )
+            session.add(existing)
+        else:
+            existing.manufacturer = manufacturer or existing.manufacturer
+            existing.technology = technology or existing.technology
+            existing.nominal_power_w = nominal_power_w if nominal_power_w is not None else existing.nominal_power_w
+            existing.notes = notes if notes is not None else existing.notes
+        session.commit()
+        session.refresh(existing)
+        return {
+            "id": existing.id,
+            "modulePartNumber": existing.module_part_number,
+            "manufacturer": existing.manufacturer,
+            "technology": existing.technology,
+            "nominalPowerW": existing.nominal_power_w,
+            "notes": existing.notes,
+        }
+
+
+def list_modules() -> list[dict]:
+    with SessionLocal() as session:
+        rows = session.scalars(
+            select(ModuleCatalogRecord).order_by(ModuleCatalogRecord.module_part_number.asc())
+        ).all()
+        return [
+            {
+                "id": r.id,
+                "modulePartNumber": r.module_part_number,
+                "manufacturer": r.manufacturer,
+                "technology": r.technology,
+                "nominalPowerW": r.nominal_power_w,
+                "notes": r.notes,
+            }
+            for r in rows
+        ]

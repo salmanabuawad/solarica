@@ -67,4 +67,34 @@ class SyncStateRecord(Base):
     value: Mapped[str] = mapped_column(String)
 
 
+class SiteCatalogRecord(Base):
+    __tablename__ = "site_catalog"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    site_name: Mapped[str] = mapped_column(String, unique=True, index=True)
+    customer: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class PartCatalogRecord(Base):
+    __tablename__ = "part_catalog"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    site_name: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    part_name: Mapped[str] = mapped_column(String, index=True)
+    module_part_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ModuleCatalogRecord(Base):
+    __tablename__ = "module_catalog"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    module_part_number: Mapped[str] = mapped_column(String, unique=True, index=True)
+    manufacturer: Mapped[str | None] = mapped_column(String, nullable=True)
+    technology: Mapped[str | None] = mapped_column(String, nullable=True)
+    nominal_power_w: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 Base.metadata.create_all(engine)

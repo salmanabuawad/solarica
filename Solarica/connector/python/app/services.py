@@ -5,6 +5,8 @@ from __future__ import annotations
 import threading
 import time
 from pathlib import Path
+import json
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
@@ -13,15 +15,33 @@ from .config import settings
 from .driver_factory import get_driver
 from .repository import (
     count_unsynced,
+    get_active_binding,
     get_sync_state,
     list_measurements,
     mark_synced,
     set_sync_state,
     upsert_measurement,
 )
+from .export import export_csv, export_json
 
 
 _import_lock = threading.Lock()
+
+
+def _apply_active_binding(item: dict) -> dict:
+    binding = get_active_binding()
+    if binding.get('siteName'):
+        item['installation'] = binding['siteName']
+    if binding.get('partName'):
+        item['stringNo'] = binding['partName']
+    if binding.get('customer'):
+        item['customer'] = binding['customer']
+    if binding.get('modulePartNumber'):
+        item['moduleType'] = binding['modulePartNumber']
+    raw = item.get('rawPayloadJson')
+    if isinstance(raw, dict):
+        raw.setdefault('connectorBinding', binding)
+    return item
 
 
 def seed_from_driver() -> int:
@@ -42,6 +62,7 @@ def seed_from_driver() -> int:
         items = driver.fetch_measurements()
         count = 0
         for item in items:
+            item = _apply_active_binding(item)
             upsert_measurement(item)
             count += 1
         set_sync_state("import_state", "completed")
@@ -164,3 +185,39 @@ def stop_watcher() -> bool:
         _watcher_thread = None  # type: ignore[assignment]
         set_sync_state("import_state", "idle")
         return True
+
+
+def download_all_from_device() -> dict:
+    """Download all available measurements from the connected PVPM and export snapshots.
+
+    In direct USB mode, this pulls every streamed SUI currently available from the device Transfer session,
+    stores them in the local connector DB, and writes JSON/CSV exports to the local data folder.
+    """
+    set_sync_state("download_all_state", "running")
+    driver = get_driver()
+    items = driver.fetch_measurements()
+    count = 0
+    for item in items:
+        item = _apply_active_binding(item)
+        upsert_measurement(item)
+        count += 1
+
+    export_dir = settings.local_db_file.parent / "exports"
+    export_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    json_path = export_dir / f"device_download_{stamp}.json"
+    csv_path = export_dir / f"device_download_{stamp}.csv"
+    json_path.write_bytes(export_json())
+    csv_path.write_bytes(export_csv())
+
+    set_sync_state("download_all_state", "completed")
+    set_sync_state("last_download_all_count", str(count))
+
+    return {
+        "ok": True,
+        "downloadedCount": count,
+        "savedRawCount": len(driver.list_files()) if hasattr(driver, "list_files") else count,
+        "exportedJsonPath": str(json_path),
+        "exportedCsvPath": str(csv_path),
+        "message": "Downloaded all currently available measurements from device session.",
+    }
