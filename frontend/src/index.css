@@ -1,0 +1,252 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ================================================================
+   SOLARICA — Theme variables  (data-theme on <html>)
+   RGB triplets so Tailwind opacity modifiers work.
+   ================================================================ */
+
+:root,
+[data-theme="ocean"] {
+  --theme-header:                 30  58  95;   /* #1e3a5f deep navy   */
+  --theme-sidebar:                22  46  74;   /* #162e4a darker navy */
+  --theme-sidebar-hover:          30  63  96;   /* #1e3f60             */
+  --theme-sidebar-active:         30  63  96;
+  --theme-sidebar-active-stripe:  56 189 248;   /* #38bdf8 sky accent  */
+  --theme-tab-active:             37  99 235;   /* #2563eb blue-600    */
+  --theme-tab-active-hover:       29  78 216;   /* #1d4ed8             */
+  --theme-tab-active-active:      30  64 175;   /* #1e40af             */
+  --theme-nav-bg:                232 237 241;
+  --theme-action-accent:          37  99 235;
+  --theme-action-accent-hover:    29  78 216;
+  --theme-content:               247 249 250;
+  --theme-text-primary:           17  24  39;   /* #111827             */
+  --theme-text-muted:            107 114 128;   /* #6b7280             */
+  --theme-card-border:           229 231 235;
+  --theme-floating-cell-bg:      255 255 255;
+  /* AG Grid */
+  --theme-ag-header-bg:    #e8ecf0;
+  --theme-ag-header-fg:    #374151;
+  --theme-ag-header-border:#dce4ea;
+  --theme-ag-row-hover:    #eef6fa;
+  --theme-ag-selected:     #dbeafe;
+  --theme-ag-border:       #dee2e6;
+  --theme-ag-cell-focus:   #2563eb;
+  --theme-ag-header-hover: #d4e8ef;
+  --theme-ag-expand-icon:  #495057;
+  /* Sizing */
+  --theme-font-size-base:  14px;
+  --theme-font-size-sm:    13px;
+  --theme-font-size-xs:    12px;
+  --theme-btn-radius:      0.5rem;
+}
+
+/* ── Brightness ──────────────────────────────────────────────── */
+[data-brightness="light"] {
+  --theme-content:      252 253 254;
+  --theme-ag-row-hover: #eef6fa;
+  --theme-ag-selected:  #dbeafe;
+}
+[data-brightness="dark"] {
+  --theme-content:      215 222 230;
+  --theme-ag-header-bg: #d4dce4;
+  --theme-ag-row-hover: #c8d8e8;
+  --theme-ag-selected:  #b8d4ee;
+}
+[data-brightness="contrast"] {
+  --theme-content:      255 255 255;
+  --theme-text-primary:   0   0   0;
+  --theme-text-muted:    26  26  26;
+  --theme-card-border:    0   0   0;
+  --theme-ag-header-bg:  #ffffff;
+  --theme-ag-header-fg:  #000000;
+  --theme-ag-border:     #000000;
+  --theme-ag-row-hover:  #e8e8e8;
+}
+
+/* ── Font size ───────────────────────────────────────────────── */
+[data-font-size="small"] {
+  --theme-font-size-base: 12px;
+  --theme-font-size-sm:   11px;
+  --theme-font-size-xs:   10px;
+}
+[data-font-size="large"] {
+  --theme-font-size-base: 17px;
+  --theme-font-size-sm:   15px;
+  --theme-font-size-xs:   13px;
+}
+[data-font-size="small"] .ag-theme-quartz { --ag-font-size: 11px; }
+[data-font-size="large"] .ag-theme-quartz {
+  --ag-font-size: 15px;
+  --ag-row-height: 44px;
+  --ag-header-height: 44px;
+}
+
+/* ================================================================
+   BASE — full-viewport, no page scroll
+   ================================================================ */
+html, body, #root { height: 100%; overflow: hidden; }
+html { font-size: var(--theme-font-size-base); }
+
+/* ================================================================
+   AG GRID — theme integration
+   ================================================================ */
+.ag-theme-quartz {
+  --ag-header-background-color:            var(--theme-ag-header-bg);
+  --ag-header-foreground-color:            var(--theme-ag-header-fg);
+  --ag-font-family:                        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --ag-font-size:                          12px;
+  --ag-row-height:                         32px;
+  --ag-header-height:                      36px;
+  --ag-grid-size:                          6px;
+  --ag-cell-horizontal-padding:            12px;
+  --ag-row-hover-color:                    var(--theme-ag-row-hover);
+  --ag-selected-row-background-color:      var(--theme-ag-selected);
+  --ag-odd-row-background-color:           rgb(var(--theme-floating-cell-bg));
+  --ag-background-color:                   rgb(var(--theme-floating-cell-bg));
+  --ag-border-color:                       var(--theme-ag-border);
+  --ag-header-cell-hover-background-color: var(--theme-ag-header-hover);
+  --ag-cell-horizontal-border:             solid var(--theme-ag-border);
+  --ag-borders:                            solid 1px var(--theme-ag-border);
+  --ag-row-border-color:                   var(--theme-ag-border);
+  --ag-input-focus-box-shadow:             none;
+  --ag-input-focus-border-color:           transparent;
+  width: 100% !important;
+}
+.ag-theme-quartz .ag-root-wrapper,
+.ag-theme-quartz .ag-root { width: 100% !important; height: 100% !important; }
+.ag-theme-quartz .ag-body-viewport { overflow-x: auto !important; overflow-y: auto !important; }
+.ag-theme-quartz .ag-header {
+  background: var(--theme-ag-header-bg);
+  color: var(--theme-ag-header-fg);
+  font-weight: 600;
+  border-bottom: 2px solid var(--theme-ag-header-border);
+}
+.ag-theme-quartz .ag-header-cell-label {
+  justify-content: flex-start !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: rgb(var(--theme-text-primary)) !important;
+  padding: 0 4px !important;
+}
+.ag-theme-quartz .ag-header-cell-text {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: rgb(var(--theme-text-primary)) !important;
+}
+.ag-theme-quartz .ag-cell {
+  border-color: var(--theme-ag-border);
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  line-height: 32px !important;
+  padding: 0 var(--ag-cell-horizontal-padding) !important;
+  box-sizing: border-box !important;
+}
+.ag-theme-quartz .ag-row           { transition: background-color 0.15s; }
+.ag-theme-quartz .ag-row-hover     { background-color: var(--theme-ag-row-hover) !important; }
+.ag-theme-quartz .ag-row-selected  { background-color: var(--theme-ag-selected) !important; }
+.ag-theme-quartz .ag-cell-focus    { box-shadow: inset 0 0 0 2px var(--theme-ag-cell-focus) !important; outline: none !important; }
+.ag-theme-quartz .ag-icon          { color: var(--theme-ag-expand-icon); opacity: 0.8; }
+.ag-theme-quartz .ag-watermark     { display: none !important; }
+.ag-horizontal-right-spacer        { display: none !important; }
+.ag-theme-quartz .ag-filter-wrapper,
+.ag-theme-quartz .ag-popup,
+.ag-theme-quartz .ag-popup-child   { z-index: 1000 !important; }
+.ag-theme-quartz .ag-menu          { z-index: 1002 !important; }
+
+/* ================================================================
+   COMPONENT CLASSES
+   ================================================================ */
+
+/* Page header strip */
+.page-header {
+  background: rgb(var(--theme-header));
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  flex-shrink: 0;
+}
+.page-header-icon {
+  padding: 0.3rem; border-radius: 0.375rem;
+  background: rgba(255,255,255,0.18);
+  display: flex; align-items: center; justify-content: center;
+}
+.page-header-title  { font-size: 0.9375rem; font-weight: 600; color: white; }
+.page-header-badge  { font-size: 0.75rem; font-weight: 600; color: white; padding: 0.125rem 0.375rem; border-radius: 0.25rem; }
+.page-header-badge-default { background: rgba(255,255,255,0.22); }
+
+/* Action bar */
+.action-bar {
+  background: #E8EDF1;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.625rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.04);
+  display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0;
+}
+.action-bar button {
+  background: #ffffff !important;
+  border: 1px solid #CED4DA !important;
+  border-radius: 0.5rem !important;
+}
+.action-bar button:hover:not(:disabled) {
+  background: #f5f7f9 !important;
+  border-color: #b8c2cc !important;
+}
+
+/* Buttons */
+.btn {
+  @apply inline-flex items-center gap-2 px-4 py-2 font-semibold transition-all duration-200 shadow-sm;
+  border-radius: var(--theme-btn-radius);
+}
+.btn-sm { @apply px-2 py-1 text-xs; }
+.btn-md { @apply px-3 py-1.5 text-sm; }
+.btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white border border-blue-700/20 disabled:opacity-50 disabled:cursor-not-allowed; }
+.btn-danger  { @apply bg-red-600 hover:bg-red-700 text-white border border-red-700/20 disabled:opacity-50 disabled:cursor-not-allowed; }
+.btn-cancel  { @apply bg-gray-500 hover:bg-gray-600 text-white disabled:opacity-50 disabled:cursor-not-allowed; }
+
+/* Action button — icon above label */
+.btn-action {
+  @apply flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-md transition-all duration-150 font-medium min-w-[52px] text-gray-600 hover:bg-gray-100 border-none bg-transparent cursor-pointer;
+}
+.btn-action-primary { @apply text-blue-600; }
+.btn-action-danger  { @apply text-red-600; }
+
+/* Sidebar flyout menu item */
+.btn-menu-item {
+  @apply w-full flex items-center gap-2 px-3 py-2 text-sm text-white/90 rounded transition-all duration-150 cursor-pointer border-none bg-transparent;
+}
+.btn-menu-item:hover { background: rgba(255,255,255,0.1); }
+
+/* Form inputs */
+.input-base {
+  @apply w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white outline-none transition-all disabled:bg-gray-50 disabled:cursor-not-allowed;
+}
+.input-base:focus {
+  @apply ring-2 ring-blue-500 border-blue-500;
+}
+.label-base { @apply block text-sm font-medium text-gray-700 mb-1.5; }
+
+/* Scrollbar hide */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 1s linear infinite; }
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in { animation: slide-in-right 0.22s ease-out; }
+
+/* Misc */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; }
+button { transition: all 0.2s ease-in-out; }
+button:disabled { cursor: not-allowed !important; }
+
+@media print { .no-print { display: none !important; } }

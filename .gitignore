@@ -1,0 +1,73 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.dockerignore
+frontend/Dockerfile
+
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs & temp ───────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+*.tmp
+*.bak
+
+# ── Lock files (keep package-lock.json) ───────────────────────────────────────
+yarn.lock
+pnpm-lock.yaml
+
+# ── Claude local config ───────────────────────────────────────────────────────
+.claude/
+CLAUDE_PROMPT.md
+
+# ── Large device repo data (deployed via deploy script, not tracked in git) ───
+device_repo/device_repository/solar_db_dump_real/device_models.csv
+device_repo/device_repository/solar_db_dump_real/device_specs.csv
+device_repo/device_repository/*.sqlite
+device_repo/device_repository/device_specs.csv
+device_repo/device_repository/devices.csv
+device_repo/device_repository/sites.csv
+
+# ── Documentation / reference only ───────────────────────────────────────────
+Documentaion/
+
+# ── Legacy reference code (already integrated) ────────────────────────────────
+from_chatgpt/
+
+# ── Runtime uploads ───────────────────────────────────────────────────────────
+uploads/
+
+# ── Docker files (managed separately) ────────────────────────────────────────
+backend/.dockerignore
+backend/Dockerfile
+
+# ── Misc root-level artefacts ─────────────────────────────────────────────────
+solar_classification.sql
+solarica_provisional_patent.pdf

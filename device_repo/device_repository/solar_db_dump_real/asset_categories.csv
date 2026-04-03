@@ -1,0 +1,8 @@
+category_id,category_code,category_name
+1,pv_module,PV Module
+2,solar_inverter,Solar Inverter
+3,battery_inverter,Battery Inverter
+4,battery,Battery
+5,meter,Meter
+6,pcs,Power Control System
+7,energy_storage_system,Energy Storage System

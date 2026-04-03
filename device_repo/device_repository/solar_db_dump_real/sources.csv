@@ -1,0 +1,7 @@
+source_id,source_code,name,publisher,source_url,retrieved_on,release_date,notes
+1,nrel_sam_cec_modules_2022,NREL SAM CEC Modules Library,NREL / SAM,https://github.com/NREL/SAM/raw/develop/deploy/libraries/CEC%20Modules.csv,2026-04-03,2022-05-28,Mirror used for download in this bundle; dataset file version indicates SAM 2021.12.02 and row date 2022-05-28.
+2,cec_inverters_2026_04_01,California Energy Commission Inverters List,California Energy Commission,https://solarequipment.energy.ca.gov/Home/DownloadtoExcel?filename=InvertersList,2026-04-03,2026-04-01,Workbook with Solar_Inverters and Battery_Inverters sheets.
+3,cec_batteries_2026_04_01,California Energy Commission Battery List,California Energy Commission,https://solarequipment.energy.ca.gov/Home/DownloadtoExcel?filename=BatteryList,2026-04-03,2026-04-01,Battery list workbook.
+4,cec_meters_2026_01_02,California Energy Commission Meter List,California Energy Commission,https://solarequipment.energy.ca.gov/Home/DownloadtoExcel?filename=MeterList,2026-04-03,2026-01-02,Meter list workbook.
+5,cec_energy_storage_2026_04_01,California Energy Commission Energy Storage System List,California Energy Commission,https://solarequipment.energy.ca.gov/Home/DownloadtoExcel?filename=EnergyStorage,2026-04-03,2026-04-01,Energy storage systems workbook.
+6,cec_pcs_2026_04_01,California Energy Commission PCS List,California Energy Commission,https://solarequipment.energy.ca.gov/Home/DownloadtoExcel?filename=PowerControlSystem,2026-04-03,2026-04-01,Inverter and Energy Storage System PCS list workbook.

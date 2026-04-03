@@ -1,0 +1,389 @@
+{
+  "app": {
+    "title": "سولاريكا",
+    "tagline": "من التصميم إلى التشغيل",
+    "positioning": "نظام التشغيل الشمسي"
+  },
+  "nav": {
+    "projects": "المشاريع",
+    "tasks": "المهام",
+    "inventory": "المخزون",
+    "warehouse": "المستودع",
+    "measurements": "القياسات",
+    "reports": "التقارير",
+    "mobile": "الجوّال",
+    "admin": "الإدارة",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج",
+    "login": "تسجيل الدخول",
+    "security": "الأمان"
+  },
+  "projects": {
+    "list_title": "المشاريع",
+    "create": "مشروع جديد",
+    "delete_confirm": "حذف المشروع \"{{name}}\"؟ لا يمكن التراجع.",
+    "delete_failed": "تعذر حذف المشروع.",
+    "active_label": "نشط",
+    "inactive_label": "غير نشط",
+    "inactive_banner": "هذا المشروع غير نشط. يمكنك عرض البيانات؛ فعّله ليعامل كمشروع حي.",
+    "set_active": "تفعيل المشروع",
+    "set_inactive": "إلغاء التفعيل",
+    "wizard": {
+      "step_details": "تفاصيل المشروع",
+      "step_site": "معلومات الموقع",
+      "step_design": "رفع التصميم",
+      "step_validation": "التحقق",
+      "step_review": "مراجعة وإرسال"
+    },
+    "fields": {
+      "name": "اسم المشروع",
+      "customer": "العميل",
+      "site": "الموقع",
+      "type": "نوع المشروع",
+      "description": "الوصف",
+      "phase": "المرحلة",
+      "progress": "التقدم",
+      "active": "نشط",
+      "status": "الحالة",
+      "validation": "التحقق"
+    }
+  },
+  "tasks": {
+    "list_title": "المهام",
+    "create": "مهمة جديدة",
+    "fields": {
+      "title": "العنوان",
+      "description": "الوصف",
+      "priority": "الأولوية",
+      "status": "الحالة",
+      "type": "النوع",
+      "assigned_to": "مُسنَد إلى",
+      "messages": "الرسائل",
+      "approvals": "الموافقات",
+      "test_results": "نتائج الاختبار"
+    }
+  },
+  "inventory": {
+    "materials": "المواد",
+    "warehouse": "المستودع",
+    "stock": "المخزون",
+    "issue": "صرف مادة",
+    "return": "إرجاع مادة",
+    "red_flags": "العلامات الحمراء",
+    "bom": "قائمة المواد",
+    "add_material": "إضافة مادة",
+    "category": "الفئة",
+    "unit": "الوحدة",
+    "sku": "رمز المخزون",
+    "min_threshold": "الحد الأدنى",
+    "unit_cost": "تكلفة الوحدة",
+    "no_materials": "لم يتم العثور على مواد.",
+    "no_issues": "لا توجد إصدارات مواد.",
+    "project_id": "معرف المشروع",
+    "issued_to": "صُرف إلى",
+    "issued_by": "صُرف بواسطة",
+    "site": "الموقع",
+    "expected_usage_days": "أيام الاستخدام المتوقعة",
+    "issue_materials": "صرف المواد",
+    "add_item": "+ إضافة عنصر",
+    "qty": "الكمية"
+  },
+  "measurements": {
+    "upload": "رفع القياسات",
+    "parse": "تحليل الملف",
+    "device": "الجهاز",
+    "sensor": "المستشعر",
+    "curves": "منحنيات IV",
+    "import": "استيراد البيانات",
+    "title": "القياسات",
+    "upload_sui": "رفع SUI",
+    "upload_pvpm_title": "رفع ملف قياس PVPM",
+    "accepted_format": "الصيغ المقبولة: .SUI",
+    "uploading": "جارٍ الرفع...",
+    "no_measurements": "لم يتم رفع قياسات بعد.",
+    "filename": "اسم الملف",
+    "device_model_col": "موديل الجهاز",
+    "string_col": "المسلك",
+    "uploaded_col": "تم الرفع",
+    "records_col": "السجلات"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "create": "إنشاء",
+    "search": "بحث",
+    "filter": "تصفية",
+    "loading": "جار التحميل...",
+    "error": "خطأ",
+    "success": "نجاح",
+    "confirm": "تأكيد",
+    "back": "رجوع",
+    "next": "التالي",
+    "submit": "إرسال",
+    "close": "إغلاق",
+    "yes": "نعم",
+    "no": "لا",
+    "actions": "الإجراءات",
+    "details": "التفاصيل",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "name": "الاسم",
+    "description": "الوصف",
+    "type": "النوع",
+    "none": "لا شيء",
+    "all": "الكل",
+    "refresh": "تحديث",
+    "export": "تصدير",
+    "add": "إضافة",
+    "register": "تسجيل",
+    "upload": "رفع",
+    "notes": "ملاحظات",
+    "sign_in": "دخول",
+    "signing_in": "جارٍ الدخول...",
+    "show": "إظهار",
+    "hide": "إخفاء",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "all_statuses": "كل الحالات",
+    "all_priorities": "كل الأولويات",
+    "all_severities": "كل مستويات الخطورة",
+    "all_categories": "كل الفئات",
+    "no_data": "لا توجد بيانات.",
+    "items": "عناصر",
+    "download": "تنزيل"
+  },
+  "roles": {
+    "admin": "مدير النظام",
+    "manager": "مدير",
+    "technician": "فني",
+    "warehouse": "أمين مستودع",
+    "owner": "مالك"
+  },
+  "phases": {
+    "design": "التصميم",
+    "validation": "التحقق",
+    "implementation": "التنفيذ",
+    "testing": "الاختبار",
+    "commissioning": "التشغيل الأولي",
+    "maintenance": "الصيانة",
+    "closed": "مغلق"
+  },
+  "priorities": {
+    "low": "منخفضة",
+    "medium": "متوسطة",
+    "high": "عالية",
+    "critical": "حرجة"
+  },
+  "statuses": {
+    "draft": "مسودة",
+    "open": "مفتوح",
+    "in_progress": "قيد التنفيذ",
+    "pending_approval": "بانتظار الموافقة",
+    "approved": "موافق عليه",
+    "rejected": "مرفوض",
+    "completed": "مكتمل",
+    "closed": "مغلق",
+    "flagged": "مُعلَّم"
+  },
+  "dashboard": {
+    "overview": "نظرة عامة",
+    "recent_projects": "المشاريع الأخيرة",
+    "pending_tasks": "المهام المعلقة",
+    "alerts": "التنبيهات",
+    "statistics": "الإحصائيات",
+    "total_projects": "إجمالي المشاريع",
+    "active_tasks": "المهام النشطة",
+    "pending_approvals": "بانتظار الموافقة",
+    "red_flags": "العلامات الحمراء",
+    "new_project": "مشروع جديد",
+    "upload_measurement": "رفع قياس",
+    "no_projects": "لا توجد مشاريع بعد.",
+    "no_tasks": "لا توجد مهام معلقة."
+  },
+  "auth": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "role": "الدور",
+    "welcome": "أهلاً وسهلاً",
+    "sign_in": "دخول",
+    "signing_in": "جارٍ الدخول...",
+    "enter_username": "أدخل اسم المستخدم",
+    "enter_password": "أدخل كلمة المرور",
+    "show_password": "إظهار",
+    "hide_password": "إخفاء"
+  },
+  "mobile": {
+    "my_tasks": "مهامي",
+    "daily_report": "التقرير اليومي",
+    "upload_evidence": "رفع الأدلة",
+    "material_usage": "استخدام المواد",
+    "checklist": "قائمة التحقق"
+  },
+  "validation": {
+    "run": "تشغيل التحقق",
+    "results": "نتائج التحقق",
+    "issues": "المشكلات",
+    "severity": "الخطورة",
+    "pass": "ناجح",
+    "fail": "فاشل",
+    "warning": "تحذير"
+  },
+  "help": {
+    "modal": {
+      "label": "مساعدة"
+    },
+    "topic": {
+      "dashboard": "مساعدة - لوحة التحكم",
+      "projects": "مساعدة - المشاريع",
+      "tasks": "مساعدة - المهام",
+      "inventory": "مساعدة - المخزون",
+      "measurements": "مساعدة - القياسات",
+      "security": "مساعدة - الأمان"
+    },
+    "general": {
+      "title": "مساعدة عامة",
+      "tip1": {
+        "title": "التنقل",
+        "body": "استخدم الشريط الجانبي للتنقل بين الأقسام. تتيح علامات التبويب في الأعلى فتح عدة شاشات في وقت واحد."
+      },
+      "tip2": {
+        "title": "الوصول حسب الدور",
+        "body": "تظهر عناصر القائمة والإجراءات بناءً على دورك. تواصل مع المسؤول إذا احتجت صلاحيات إضافية."
+      }
+    },
+    "dashboard": {
+      "tip1": {
+        "title": "ملخص المشاريع",
+        "body": "تعرض لوحة التحكم أعداداً حية للمشاريع النشطة والمهام المعلقة والموافقات والعلامات الحمراء."
+      },
+      "tip2": {
+        "title": "الإجراءات السريعة",
+        "body": "استخدم 'مشروع جديد' لتشغيل المعالج، أو 'رفع قياس' لاستيراد ملف PVPM مباشرةً من هذه الشاشة."
+      }
+    },
+    "projects": {
+      "tip1": {
+        "title": "دورة حياة المشروع",
+        "body": "ينتقل كل مشروع عبر مراحل: تصميم → تحقق → تنفيذ → اختبار → تشغيل → صيانة. يلزم الموافقة قبل الانتقال."
+      }
+    },
+    "tasks": {
+      "tip1": {
+        "title": "سير عمل المهام",
+        "body": "يمكن أن تشمل المهام رسائل وأدلة صور وموافقات ونتائج اختبار. يرى الفنيون مهامهم المُسنَدة فقط."
+      }
+    },
+    "inventory": {
+      "tip1": {
+        "title": "تتبع المواد",
+        "body": "تُصرَف المواد لكل مشروع وتُتتبَّع حسب الكميات المصروفة والمُعادة والمستهلكة والمفقودة."
+      }
+    },
+    "measurements": {
+      "tip1": {
+        "title": "رفع القياسات",
+        "body": "ارفع ملفات .SUI أو .XLS المصدَّرة من جهاز PVPM. تُربط السجلات تلقائياً بالمشروع والمهام ذات الصلة."
+      }
+    },
+    "security": {
+      "tip1": {
+        "title": "مراقبة أمان IT/OT",
+        "body": "تتبع وحدة الأمان الأجهزة المسجلة ونقاط الضعف المفتوحة (CVE/CVSS) ودرجات الامتثال."
+      }
+    },
+    "footer": {
+      "hint": "اضغط Esc للإغلاق",
+      "docs": "التوثيق الكامل"
+    }
+  },
+  "settings": {
+    "theme": "النمط",
+    "brightness": "السطوع",
+    "fontSize": "حجم الخط"
+  },
+  "admin": {
+    "settings": "الإعدادات",
+    "language": "اللغة"
+  },
+  "security": {
+    "title": "أمان IT/OT",
+    "dashboard": "لوحة الأمان",
+    "devices": "سجل الأجهزة",
+    "vulnerabilities": "نقاط الضعف",
+    "scan": "تشغيل فحص الأمان",
+    "register_device": "تسجيل جهاز",
+    "compliance_score": "درجة الامتثال",
+    "risk_score": "درجة المخاطر",
+    "total_devices": "إجمالي الأجهزة",
+    "open_vulns": "نقاط الضعف المفتوحة",
+    "critical": "المشكلات الحرجة",
+    "by_severity": "حسب الخطورة",
+    "by_category": "حسب الفئة",
+    "top_risks": "أبرز المخاطر",
+    "device_type": "نوع الجهاز",
+    "manufacturer": "الشركة المصنّعة",
+    "firmware": "البرنامج الثابت",
+    "protocol": "البروتوكول",
+    "network_zone": "منطقة الشبكة",
+    "remediation": "المعالجة",
+    "cvss": "درجة CVSS",
+    "cve": "معرّف CVE",
+    "last_scan": "آخر فحص",
+    "no_scans": "لم تُجرَ فحوصات بعد",
+    "scanning": "جارٍ الفحص...",
+    "firmware_intelligence": "معلومات البرنامج الثابت",
+    "check_firmware_cves": "فحص CVE للبرنامج الثابت",
+    "checking": "جارٍ الفحص...",
+    "devices_with_cves": "أجهزة بـ CVE معروفة",
+    "unknown_firmware": "برنامج ثابت مجهول",
+    "critical_alerts": "تنبيهات حرجة",
+    "auto_tasks": "مهام منشأة تلقائياً",
+    "no_firmware_data": "سجّل الأجهزة وفعّل فحص البرنامج الثابت لرؤية البيانات.",
+    "recent_fw_alerts": "تنبيهات البرنامج الثابت الأخيرة",
+    "no_risks": "لم يُكتشف أي خطر. سجّل الأجهزة وشغّل الفحص.",
+    "no_vulns": "لم يتم العثور على ثغرات. سجّل الأجهزة وشغّل فحص الأمان.",
+    "no_devices": "لا توجد أجهزة مسجلة.",
+    "register_new_device": "تسجيل جهاز جديد",
+    "registering": "جارٍ التسجيل...",
+    "ip_address": "عنوان IP",
+    "risk": "المخاطرة",
+    "vulns_col": "الثغرات",
+    "due_date": "تاريخ الاستحقاق",
+    "device_col": "الجهاز",
+    "title_col": "العنوان",
+    "comma_separated": "مفصولة بفاصلة",
+    "all_severities": "كل مستويات الخطورة",
+    "all_statuses_filter": "كل الحالات",
+    "all_categories_filter": "كل الفئات"
+  },
+  "users": {
+    "title": "إدارة المستخدمين",
+    "add_user": "إضافة مستخدم",
+    "username_col": "اسم المستخدم",
+    "display_name": "الاسم المعروض",
+    "role_col": "الدور",
+    "status_col": "الحالة"
+  },
+  "project": {
+    "files": "الملفات",
+    "no_files": "لم يتم رفع ملفات بعد",
+    "files_drop": "اسحب وأفلت الملفات هنا، أو انقر للتصفح",
+    "files_accepted": "ملفات PDF و DXF — يدعم ملفات متعددة — حتى 50 ميجابايت",
+    "files_uploading": "جارِ الرفع…",
+    "files_name": "اسم الملف",
+    "files_type": "النوع",
+    "files_size": "الحجم",
+    "files_uploaded": "تاريخ الرفع",
+    "files_count": "ملف(ات)",
+    "files_total": "الإجمالي",
+    "files_invalid_type": "يُقبل فقط ملفات PDF و DXF.",
+    "files_upload_error": "فشل الرفع",
+    "files_load_error": "فشل تحميل الملفات",
+    "files_delete_error": "فشل حذف الملف",
+    "files_delete_confirm": "هل تريد حذف هذا الملف؟"
+  }
+}

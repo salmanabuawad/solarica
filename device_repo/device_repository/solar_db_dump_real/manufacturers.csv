@@ -1,0 +1,528 @@
+manufacturer_id,manufacturer_name
+1,ABB
+2,ABB (Power-One)
+3,ABB/Elster
+4,AIMS Power Inc.
+5,AMETEK Power Instruments
+6,APOS Energy
+7,ARK Battery LLC
+8,ATI-Watt
+9,AU Optronics
+10,AXITEC
+11,Ablytek
+12,Accuenergy
+13,Accuenergy (Canada) Inc.
+14,Advance Power
+15,Advanced Solar Power (Hangzhou)
+16,"Afore New Energy Technology (Shanghai) Co., Ltd."
+17,"Alpha ESS Co., Ltd."
+18,Alps Technology
+19,AltGrid Power LLC
+20,Altenergy Power System Inc.
+21,"Amensolar Ess Co., Ltd"
+22,Amerisolar-Worldwide Energy and Manufacturing USA Co. Ltd
+23,Andalay Solar
+24,Anhui Rinengzhongtian Semiconductor Development
+25,Anhui Rinengzhongtian Semiconductor Development Co. Ltd
+26,Anji Dasol Solar Energy Science & Technology
+27,Anji Technology
+28,Anker Innovations Limited
+29,Apparent Energy
+30,Apparent Inc.
+31,Applied Materials
+32,Aptos Solar Technology LLC
+33,Astropower
+34,Auxin Solar
+35,BAE Batteries USA
+36,"BSL New Energy Technology Co., Ltd."
+37,BST POWER (SHENZHEN) LIMITED
+38,BYD Auto Industry Company Limited
+39,BYD Company Limited
+40,"Base Power, Inc"
+41,BenQ Solar
+42,BigBattery
+43,Blue Planet Energy Systems LLC
+44,Bluesun Solar Co.Ltd
+45,Bluesun Solar Energy Tech. Co.Ltd
+46,Boviet Solar Technology Co. Ltd.
+47,Brand Electronic
+48,"Briggs & Stratton, LLC"
+49,Brultech Research
+50,CARLO GAVAZZI
+51,CE+T America Inc.
+52,"CESC New Energy Technology Co., Ltd."
+53,"CORNEX NEW ENERGY CO., LTD"
+54,"CSI Energy Storage Co., Ltd."
+55,CSI Solar Co. Ltd.
+56,"CSI Solar Co., Ltd."
+57,Cadenza Innovation
+58,Canadian Solar
+59,Canadian Solar Inc.
+60,Carus Energy Inc.
+61,Caterpillar Inc.
+62,Centrosolar America
+63,CertainTeed
+64,Changzhou Eging Photovoltaic Technology
+65,Changzhou Nesl Solartech
+66,"Cherry Solution Co., Ltd."
+67,Chilicon Power
+68,"Chilicon Power, LLC"
+69,China Sunergy (Nanjing)
+70,China Sunergy (Nanjing) Co.Ltd.
+71,Chinaland Solar Energy
+72,Chint Power Systems America
+73,Chint Solar (Zhejiang) Co. Ltd.
+74,"Clean Air Investments, LLC."
+75,"Contemporary Amperex Technology Co., Limited"
+76,"Contemporary Nebula Technology Energy Co.,  Ltd."
+77,Continental Control Systems
+78,"Curb, Inc."
+79,Current Cost
+80,DEHUI SOLAR POWER INC.
+81,DENT Instruments
+82,DYNAPOWER COMPANY LLC
+83,Darfon Electronics
+84,Darfon Electronics Corp.
+85,Davidge Controls
+86,Dcbel Inc.
+87,Dehui Solar Power (Vietnam) Co.Ltd
+88,Delta Electronics
+89,Delta Networks (Xiamen) LTD.
+90,Destin Power Inc.
+91,Diehl AKO Stiftung & Co. KG
+92,Direct Grid Technologies
+93,Discover Energy Corp.
+94,Discover Energy Systems Corp.
+95,"Dongguan Lithium Valley Energy Co, Ltd"
+96,Draker Solar Design
+97,Du Pont Apollo
+98,DuCal Solar Technology LLC
+99,DualSun SAS
+100,"Dyness Digital Energy Technology Co., LTD."
+101,E-MON
+102,EG4 Electronics LLC
+103,EKM Metering
+104,ELM Fieldsight LLC
+105,"ELM Fieldsight, LLC"
+106,EMMVEE Photovoltaic Power Private Ltd.
+107,ENERNET
+108,"ENSIM Energy Technology (Zhejiang) Co., Ltd."
+109,EPC Energy Inc.
+110,EPC Power Corp.
+111,"ESS Tech, Inc"
+112,ET SOLAR POWER HONGKONG LIMITED
+113,ET Solar Industry
+114,ET Solar New Energy
+115,"EVE POWER CO., LTD."
+116,"EVE Power Co., Ltd."
+117,"EVO Power USA, Inc."
+118,East Penn Manufacturing Co.
+119,Eaton
+120,Eaton Corporation
+121,Eco-Worthy
+122,EcoFlow Inc.
+123,Eguana Technologies Inc.
+124,Electro Industries/GaugeTech
+125,Elkor Technologies
+126,Elster
+127,"EndurEnergy Systems, Inc."
+128,Enecsys
+129,Energizer Solar
+130,Energport Inc.
+131,Energy Tracking
+132,Enp Sonne Solar Technikk
+133,Enphase Energy Inc.
+134,"Enphase Energy, Inc."
+135,Eoplly New Energy Technology
+136,"Eternalplanet Energy Co., Ltd"
+137,Exeltech
+138,Expert Computer Int'l Inc.
+139,Exro Technologies Inc.
+140,"FOXESS CO., LTD."
+141,"Far East Energy Storage Technology Co., Ltd."
+142,Fat Spaniel Technologies
+143,"Fengfan Co., Ltd. Power Supply Branch"
+144,"Fengfan Co., Ltd. Power Supply Branch – SPT"
+145,First Solar Inc.
+146,Flextronics
+147,FnS Power Technology Inc
+148,Fortress Power LLC
+149,FranklinWH Energy Storage Inc.
+150,"FranklinWH Technologies Co., Ltd."
+151,FreeVolt
+152,Fronius International GmbH
+153,Fronius USA
+154,GAF
+155,GCL System Integration Technology Co. Ltd.
+156,GE Energy
+157,GE Renewable Energy
+158,Gamesa Electric
+159,"Generac Power Systems, Inc."
+160,General Electric
+161,General Motors Energy LLC
+162,Geneverse Energy Inc.
+163,GermanSolar USA
+164,GermanSolar USA Inc.
+165,"Ginlong Technologies Co., Ltd."
+166,Gintech Energy
+167,Gintung Energy
+168,Global Power Products
+169,Global Tech China Ltd.
+170,Go Electric Inc.
+171,Goldi Solar Private Limited
+172,"GoodWe Technologies Co., Ltd."
+173,"Gotion, Inc."
+174,Grape Solar
+175,"Green Solutions (Chengdu) Co., Ltd"
+176,Green Solutions Inc.
+177,Greenlite Solar Canada
+178,"Greensun Solar Energy Tech Co., Limited"
+179,"Gridwiz Co., Ltd"
+180,GuangZhou MeriTech Power Co Ltd
+181,"Guangdong Felicity New Energy Co., Ltd."
+182,Guangdong Golden Glass Technologies
+183,"Guangzhou Felicity Solar Technology Co., Ltd"
+184,"Guangzhou Great Power Energy Storage Technology Co., Ltd"
+185,"Guangzhou Sanjing Electric Co., Ltd."
+186,"HINAESS TECH CO., LTD"
+187,HYUNDAI ENERGY SOLUTIONS CO. LTD.
+188,Hansol Technics Co. Ltd.
+189,Hanwha Q CELLS
+190,Hanwha Q CELLS (Qidong)
+191,Hanwha Q CELLS (Qidong) Co. Ltd.
+192,Hanwha SolarOne (Qidong)
+193,Heliene
+194,Helios USA
+195,Hengdian Group DMEGC Magnetics
+196,HiQ Solar
+197,Holu Hou Energy LLC
+198,Home Energy Systems
+199,Honeywell
+200,"Hongyibo New Energy Technology (Shenzhen) Co., Ltd."
+201,Hoymiles Power Electronics Inc.
+202,"Huawei Technologies Co., Ltd."
+203,"Huizhou Roypow Technology Co., Ltd"
+204,"Humless, LLC"
+205,Hyperian Energy Inc.
+206,Hyperion Solar
+207,ICP Solar Technologies
+208,INGETEAM POWER TECHNOLOGY S.A.
+209,ISAC
+210,Integrated Metering Systems
+211,Intertie Incorporated
+212,Iron Edison Battery Company LLC
+213,Itron
+214,JA Solar
+215,Jackery Inc.
+216,Japan Solar (Infini Co. Ltd.)
+217,Jetion Solar (China)
+218,Jetion Solar (China) Co.Ltd.
+219,"Jiangsu Acrel Electrical Manufacturing. Co., Ltd."
+220,"Jiangsu RCT Power Energy Technology Co., Ltd"
+221,"Jiangsu Weiheng Intelligent Technology Co., Ltd."
+222,Jiangyin Hareon Power
+223,JingTsing Technology Ltd.
+224,Jinko Solar Co. Ltd
+225,"Jinko Solar Co., Ltd"
+226,Jinzhou Jinmao Photovoltaic Technology
+227,Juli New Energy
+228,KACO
+229,KACO new energy GmbH
+230,"KORE Power, Inc."
+231,KOSOL ENERGIE PVT. LTD.
+232,Kele
+233,Kohler Co.
+234,"Kowint Energy (Shenzhen) Co., Ltd."
+235,Kowint Energy Inc.
+236,LDK Solar
+237,LG Electronics
+238,LG Electronics Inc.
+239,"LG Energy Solution, Ltd."
+240,LIGHT&HOPE ENERGY CO.LTD.
+241,LONGi Green Energy Technology Co. Ltd.
+242,LS Energy Solutions LLC
+243,LUMA Resources
+244,La Solar LLC
+245,Landis+Gyr
+246,"LeadSolar Energy Co., Ltd"
+247,Leviton Manufacturing
+248,Lightway Green New Energy
+249,Liniotech
+250,Liniotech Energy Inc.
+251,Lion Energy
+252,Lite-On Technology Corporation
+253,Lithion Battery Inc.
+254,Locus Energy
+255,Lovato Electric
+256,Lumos
+257,"Lunar Energy, Inc."
+258,Lunna
+259,Luxco
+260,Luxor Solar
+261,MANGO POWER TECH INC.
+262,MK BATTERY
+263,MPP SOLAR INC
+264,MSquare Energy Pty Ltd
+265,Mage Solar
+266,Mage Solar USA
+267,Maxeon Solar Technologies Ltd.
+268,Measurlogic
+269,MelRok
+270,Merlin Solar Technologies Inc.
+271,Meter Home
+272,Metrum Technologies
+273,Miasole
+274,Microtrend Technologies
+275,MidNite Power Inc.
+276,"MidNite Solar, Inc."
+277,Mission Solar Energy LLC
+278,Mitsubishi Electric
+279,Mundra Solar PV Ltd.
+280,NEXTRACKER LLC
+281,"NINGBO DEYE ESS TECHNOLOGY CO., LTD"
+282,NeoVolta Inc.
+283,New East Solar Energy (Cambodia) Co.Ltd.
+284,Next Energy Alliance LLC
+285,Northern Electric & Power Co.
+286,Northern Electric & Power Co. Ltd
+287,"Northern Electric Power Technology, Inc"
+288,"Novele, Inc."
+289,"ONE SUN, MEXICO S.A. DE C.V."
+290,ONYX SOLAR ENERGY S.L.
+291,Orb Energy Private Limited
+292,OutBack Power
+293,OutBack Power Technologies
+294,"OutBack Power Technologies, Inc."
+295,Outback Power LLC
+296,"Oxford Intelligent Energy Co., Ltd."
+297,PANASONIC CORPORATION OF NORTH AMERICA
+298,PEIMAR
+299,PHASEGREEN TECHNOLOGY INC.
+300,POMCube Inc.
+301,POWER ELECTRONICS
+302,PT IDN SOLAR TECH
+303,PV Powered
+304,"PYLON TECHNOLOGIES CO.,LTD"
+305,Pacific Solar
+306,Panasonic Corporation of North America
+307,Perfect Source Technology
+308,Perlight Solar
+309,Petra Solar
+310,PhaseGreen Technology Inc.
+311,Philadelphia Solar
+312,Phoenix Contact
+313,Phono Solar Technology Co.Ltd.
+314,Pika Energy
+315,PointGuard Energy Inc.
+316,Polarium Inc.
+317,Poobah Industries
+318,Posh Robotics Inc.
+319,Power Center
+320,Power Electronics
+321,Power Measurement
+322,Power Standards Lab
+323,Power-One
+324,Powerhouse Dynamics
+325,Powersmiths International Corp.
+326,"Princeton Power Systems, Inc."
+327,Prism Solar Technologies Inc.
+328,"Pylon Technologies Co., Ltd."
+329,Qcells North America
+330,Quadlogic
+331,RCT Power Energy Technology Corporation
+332,REC Solar
+333,RECOM SILLIA
+334,"REPT BATTERO Energy Co., Ltd."
+335,RNG International Inc.
+336,RSI Holding
+337,RUNHOOD POWER INC.
+338,Real Goods Solar
+339,Recom
+340,"RelyEZ Energy Storage Technology Co., Ltd."
+341,Renesola
+342,Renesola America
+343,Renon Power Technology Inc
+344,Renon Power Technology Inc.
+345,Rhombus Energy Solutions
+346,Righthand Engineering
+347,Risen Energy Co. Ltd.
+348,S-Energy Co. Ltd.
+349,SANYO ELECTRIC CO LTD OF PANASONIC GROUP
+350,SATEC INC
+351,SEG Solar Inc.
+352,"SHENZHEN ACE BATTERY CO.,LTD."
+353,"SHENZHEN CLOU ELECTRONICS CO., LTD."
+354,"SHENZHEN POWEROAK NEWENER CO., LTD"
+355,"SINENG ELECTRIC CO., LTD."
+356,SMA America
+357,SOCOMEC
+358,SOLAR UTILITIES INC
+359,SOLAREVER TECNOLOGIA DE AMERICA SA DE CV
+360,SPITZER ENERGY COMPANY
+361,"SRNE Solar Co.,Ltd"
+362,SUNSTYLE AG / LTD
+363,"SYL (NINGBO) Battery Co., Ltd"
+364,Savant Systems Inc.
+365,Schneider Electric
+366,"Schneider Electric USA, Inc."
+367,Schuco USA L.P.
+368,Schweitzer Engineering Laboratories
+369,Senva Sensors Inc
+370,Seraphim Solar System Co.Ltd.
+371,"ShanDong Sacred Sun Power Sources Co., Ltd"
+372,Shanghai Aerospace Automobile Electromechanical
+373,Shanghai Aerospace Automobile Electromechanical Co. Ltd.
+374,"Shanghai Chelion RenewableTechnology Co., Ltd."
+375,"Shanghai PYTES Energy Co., Ltd."
+376,Shanghai ST Solar
+377,Sharp
+378,Shenglong PV-tech (Cambodia) Co. LTD
+379,"Shenzhen BYD Electronics Co., Ltd."
+380,Shenzhen BYD Lithium Battery Company Limited
+381,"Shenzhen Cubenergy Co., Ltd."
+382,Shenzhen Eternalplanet Energy Pingshan Ltd.
+383,"Shenzhen GSL Energy Co., Ltd."
+384,"Shenzhen Green Jiayuan Technology CO., Ltd"
+385,"Shenzhen Growatt New Energy Co., Ltd."
+386,Shenzhen Kstar New Energy Company Limited
+387,"Shenzhen Lux Power Technology Co., Ltd."
+388,"Shenzhen Megarevo Technology Co., Ltd."
+389,Shenzhen Poweroak Newener Co Ltd
+390,"Shenzhen Poweroak Newener Co., Ltd."
+391,"Shenzhen RePower Times Technology Co., Ltd."
+392,"Shenzhen SOSEN Innovation Technology Co.,Ltd"
+393,"Shenzhen Senergy Technology Co., Ltd."
+394,"Shenzhen Sinexcel Electric Co., Ltd."
+395,"Shenzhen Sinexcel Isuna Energy Technology Co., Ltd."
+396,Shenzhen UZ Energy Limited
+397,"Shenzhen Wirentech Co., Ltd."
+398,Shinsung E&G Co. Ltd.
+399,"Sichuan Clou Energy Electric Co., Ltd."
+400,"Siemens Industry, Inc."
+401,"Sigenergy Technology Co., Ltd."
+402,Silfab Solar Inc.
+403,SimpliPhi Power
+404,"SimpliPhi Power, Inc."
+405,SmartSynch
+406,Sol-Ark
+407,"SolaX Power Network Technology (Zhe jiang) Co., Ltd."
+408,Solar Frontier K.K.
+409,Solar Integrated Technologies
+410,Solar Liberty
+411,Solar Power (SPI)
+412,Solar-Log
+413,SolarBridge Technologies
+414,SolarCity Corp
+415,SolarEdge
+416,SolarEdge Technologies Ltd.
+417,SolarJuice American Inc.
+418,SolarMagic/National Semiconductor
+419,SolarQuest
+420,SolarWorld
+421,Solarbest Energy-Tech (Zhejiang)
+422,Solarbine
+423,Solarhome Tech Inc.
+424,Solaria Corporation
+425,Solarmax
+426,Solartech Energy
+427,Solartech Power
+428,Solectria Renewables
+429,"Soluna(Shanghai)Co.,Ltd"
+430,"Solvari, Inc."
+431,Sonali Energees
+432,Sonali Energees USA LLC
+433,Sonnen Inc.
+434,Southwest Windpower
+435,Sparq Systems
+436,"StackRack Battery Systems, LLC"
+437,Star Charge Americas Corp.
+438,Storz Power LLC
+439,Sun Gold Power Inc
+440,SunFusion Energy Systems
+441,SunPower
+442,SunSpark Technology Inc.
+443,SunTegra
+444,Sunergy California LLC
+445,Sunflare Co.
+446,Sungrow
+447,Sungrow Power Supply
+448,"Sungrow Power Supply Co., Ltd."
+449,Sunny International Power
+450,Sunrise Solartech
+451,Suntech Power
+452,"Sunwoda Energy Technology Co., Ltd."
+453,"Suzhou Ample ESS Co., Ltd"
+454,"Suzhou RCT Power Energy Technology Co., Ltd"
+455,Suzhou Talesun Solar Technologies Co. Ltd.
+456,T-Solar Global
+457,TE Connectivity/Crompton Instruments
+458,TED - The Energy Detective
+459,TMEIC
+460,TMEIC Corporation
+461,TROES Corp.
+462,TRUMPF Hüttinger GmbH + Co. KG
+463,TSEC
+464,"TSUNESS Co., Ltd"
+465,TWS Technology (Anhui) Limited
+466,"Tabuchi Electric Co., Ltd."
+467,"Teplore Co., Ltd."
+468,Tesla Inc.
+469,Thompson Technology Industries
+470,Tianwei New Energy (Yangzhou)
+471,Tigo Energy
+472,"Tigo Energy, Inc"
+473,Tongwei Solar (Hefei)
+474,TransData
+475,Trina Solar
+476,"Trystar, LLC"
+477,Turbo Energy S.A
+478,Tynsolar
+479,U.S. Solar
+480,"Uhome Smart Energy (Wuxi) Co., Ltd."
+481,"Ulectric Technology Co., Ltd"
+482,United Renewable Energy Co. Ltd.
+483,Univix Power Solutions
+484,Upsolar
+485,VINA SOLAR TECHNOLOGY CO LTD
+486,VOLTRONIC POWER TECHNOLOGY (SHENZHEN) CORP.
+487,Veris Industries
+488,Vietnam Sunergy Joint Stock Company
+489,Vikram Solar
+490,"Villara Energy Systems, LLC"
+491,WAAREE ENERGIES LIMITED
+492,WINAICO
+493,"WORLD4SOLAR,INC."
+494,WSTECH GmbH
+495,"Wanbang Digital Energy Co., Ltd."
+496,Wanxiang A123 Systems Corp.
+497,Wanxiang New Energy
+498,Westinghouse Solar
+499,"Weyland Apex Co., Ltd."
+500,Wuxi Suntech Power Co. Ltd
+501,XCHARGE Energy USA Inc.
+502,Xantrex
+503,Xiamen Ampace Technology Limited
+504,"Xiamen Hithium Energy Storage Technology Co., Ltd."
+505,"Xiamen Kehua Digital Energy Tech Co., Ltd"
+506,"Xiamen Kehua Hengsheng Co., Ltd."
+507,Yaskawa Solectria Solar
+508,"Yilink New Energy Co., Ltd"
+509,Yingli Energy (China)
+510,"Yotta Energy, Inc."
+511,ZNSHINE PV-TECH Co. Ltd.
+512,Zebra Energy
+513,"Zhejiang Chint IoT Technology Co., Ltd."
+514,"Zhejiang Hyxi Technology Co., Ltd"
+515,Zhejiang Kingdom Solar Energy Technic
+516,"Zhejiang Narada Power Source Co., Ltd"
+517,Zhejiang Trunsun Solar Co. Ltd.
+518,Zhongshan Ruike New Energy Co Ltd
+519,"Zhuhai Ruixu Electronic Technology CO., LTD"
+520,"Zhuhai Ruixu Electronic Technology Co., Ltd"
+521,Zytech Solar
+522,e-ON Batteries Inc.
+523,eGauge Systems
+524,"iPotisEdge Co., Ltd."
+525,iSYS Systems
+526,natcon7
+527,swebs / mysolarstats

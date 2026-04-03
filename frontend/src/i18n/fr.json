@@ -1,0 +1,389 @@
+{
+  "app": {
+    "title": "Solarica",
+    "tagline": "De la Conception à l'Exploitation",
+    "positioning": "Le Système d'Exploitation Solaire"
+  },
+  "nav": {
+    "projects": "Projets",
+    "tasks": "Tâches",
+    "inventory": "Inventaire",
+    "warehouse": "Entrepôt",
+    "measurements": "Mesures",
+    "reports": "Rapports",
+    "mobile": "Mobile",
+    "admin": "Admin",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "login": "Connexion",
+    "security": "Sécurité"
+  },
+  "projects": {
+    "list_title": "Projets",
+    "create": "Nouveau Projet",
+    "delete_confirm": "Supprimer le projet « {{name}} » ? Cette action est irréversible.",
+    "delete_failed": "Impossible de supprimer le projet.",
+    "active_label": "Actif",
+    "inactive_label": "Inactif",
+    "inactive_banner": "Ce projet est inactif. Vous pouvez consulter les données ; réactivez-le pour le traiter comme actif.",
+    "set_active": "Activer le projet",
+    "set_inactive": "Désactiver",
+    "wizard": {
+      "step_details": "Détails du Projet",
+      "step_site": "Informations du Site",
+      "step_design": "Téléverser le Design",
+      "step_validation": "Validation",
+      "step_review": "Réviser et Soumettre"
+    },
+    "fields": {
+      "name": "Nom du Projet",
+      "customer": "Client",
+      "site": "Site",
+      "type": "Type de Projet",
+      "description": "Description",
+      "phase": "Phase",
+      "progress": "Avancement",
+      "active": "Actif",
+      "status": "Statut",
+      "validation": "Validation"
+    }
+  },
+  "tasks": {
+    "list_title": "Tâches",
+    "create": "Nouvelle Tâche",
+    "fields": {
+      "title": "Titre",
+      "description": "Description",
+      "priority": "Priorité",
+      "status": "Statut",
+      "type": "Type",
+      "assigned_to": "Assigné à",
+      "messages": "Messages",
+      "approvals": "Approbations",
+      "test_results": "Résultats de Test"
+    }
+  },
+  "inventory": {
+    "materials": "Matériaux",
+    "warehouse": "Entrepôt",
+    "stock": "Stock",
+    "issue": "Émettre un Matériau",
+    "return": "Retourner un Matériau",
+    "red_flags": "Alertes Rouges",
+    "bom": "Nomenclature",
+    "add_material": "Ajouter un Matériau",
+    "category": "Catégorie",
+    "unit": "Unité",
+    "sku": "SKU",
+    "min_threshold": "Seuil Minimum",
+    "unit_cost": "Coût Unitaire",
+    "no_materials": "Aucun matériau trouvé.",
+    "no_issues": "Aucune émission de matériau.",
+    "project_id": "ID Projet",
+    "issued_to": "Émis À",
+    "issued_by": "Émis Par",
+    "site": "Site",
+    "expected_usage_days": "Jours d'Utilisation Prévus",
+    "issue_materials": "Émettre des Matériaux",
+    "add_item": "+ Ajouter un Article",
+    "qty": "Qté"
+  },
+  "measurements": {
+    "upload": "Téléverser les Mesures",
+    "parse": "Analyser le Fichier",
+    "device": "Appareil",
+    "sensor": "Capteur",
+    "curves": "Courbes IV",
+    "import": "Importer les Données",
+    "title": "Mesures",
+    "upload_sui": "Téléverser SUI",
+    "upload_pvpm_title": "Téléverser un Fichier de Mesure PVPM",
+    "accepted_format": "Accepté : format .SUI",
+    "uploading": "Téléversement en cours…",
+    "no_measurements": "Aucune mesure téléversée.",
+    "filename": "Nom de Fichier",
+    "device_model_col": "Modèle d'Appareil",
+    "string_col": "Chaîne",
+    "uploaded_col": "Téléversé",
+    "records_col": "Enregistrements"
+  },
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "confirm": "Confirmer",
+    "back": "Retour",
+    "next": "Suivant",
+    "submit": "Soumettre",
+    "close": "Fermer",
+    "yes": "Oui",
+    "no": "Non",
+    "actions": "Actions",
+    "details": "Détails",
+    "status": "Statut",
+    "date": "Date",
+    "name": "Nom",
+    "description": "Description",
+    "type": "Type",
+    "none": "Aucun",
+    "all": "Tout",
+    "refresh": "Actualiser",
+    "export": "Exporter",
+    "add": "Ajouter",
+    "register": "Enregistrer",
+    "upload": "Téléverser",
+    "notes": "Notes",
+    "sign_in": "Se connecter",
+    "signing_in": "Connexion en cours…",
+    "show": "Afficher",
+    "hide": "Masquer",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "all_statuses": "Tous les statuts",
+    "all_priorities": "Toutes les priorités",
+    "all_severities": "Toutes les sévérités",
+    "all_categories": "Toutes les catégories",
+    "no_data": "Aucune donnée trouvée.",
+    "items": "éléments",
+    "download": "Télécharger"
+  },
+  "roles": {
+    "admin": "Administrateur",
+    "manager": "Gestionnaire",
+    "technician": "Technicien",
+    "warehouse": "Magasinier",
+    "owner": "Propriétaire"
+  },
+  "phases": {
+    "design": "Conception",
+    "validation": "Validation",
+    "implementation": "Mise en Œuvre",
+    "testing": "Tests",
+    "commissioning": "Mise en Service",
+    "maintenance": "Maintenance",
+    "closed": "Clôturé"
+  },
+  "priorities": {
+    "low": "Faible",
+    "medium": "Moyenne",
+    "high": "Élevée",
+    "critical": "Critique"
+  },
+  "statuses": {
+    "draft": "Brouillon",
+    "open": "Ouvert",
+    "in_progress": "En cours",
+    "pending_approval": "En attente d'approbation",
+    "approved": "Approuvé",
+    "rejected": "Rejeté",
+    "completed": "Terminé",
+    "closed": "Clôturé",
+    "flagged": "Signalé"
+  },
+  "dashboard": {
+    "overview": "Vue d'ensemble",
+    "recent_projects": "Projets Récents",
+    "pending_tasks": "Tâches en Attente",
+    "alerts": "Alertes",
+    "statistics": "Statistiques",
+    "total_projects": "Total des Projets",
+    "active_tasks": "Tâches Actives",
+    "pending_approvals": "Approbations en Attente",
+    "red_flags": "Alertes Rouges",
+    "new_project": "Nouveau Projet",
+    "upload_measurement": "Téléverser une Mesure",
+    "no_projects": "Aucun projet pour l'instant.",
+    "no_tasks": "Aucune tâche en attente."
+  },
+  "auth": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "username": "Nom d'utilisateur",
+    "password": "Mot de passe",
+    "role": "Rôle",
+    "welcome": "Bienvenue",
+    "sign_in": "Se connecter",
+    "signing_in": "Connexion en cours…",
+    "enter_username": "Entrez le nom d'utilisateur",
+    "enter_password": "Entrez le mot de passe",
+    "show_password": "Afficher",
+    "hide_password": "Masquer"
+  },
+  "mobile": {
+    "my_tasks": "Mes Tâches",
+    "daily_report": "Rapport Journalier",
+    "upload_evidence": "Téléverser une Preuve",
+    "material_usage": "Utilisation des Matériaux",
+    "checklist": "Liste de Contrôle"
+  },
+  "validation": {
+    "run": "Lancer la Validation",
+    "results": "Résultats de Validation",
+    "issues": "Problèmes",
+    "severity": "Gravité",
+    "pass": "Réussi",
+    "fail": "Échoué",
+    "warning": "Avertissement"
+  },
+  "help": {
+    "modal": {
+      "label": "Aide"
+    },
+    "topic": {
+      "dashboard": "Aide - Tableau de Bord",
+      "projects": "Aide - Projets",
+      "tasks": "Aide - Tâches",
+      "inventory": "Aide - Inventaire",
+      "measurements": "Aide - Mesures",
+      "security": "Aide - Sécurité"
+    },
+    "general": {
+      "title": "Aide Générale",
+      "tip1": {
+        "title": "Navigation",
+        "body": "Utilisez la barre latérale pour naviguer entre les sections. Les onglets en haut gardent plusieurs vues ouvertes simultanément."
+      },
+      "tip2": {
+        "title": "Accès par rôle",
+        "body": "Les éléments de menu et les actions s'affichent selon votre rôle. Contactez votre administrateur si vous avez besoin de permissions supplémentaires."
+      }
+    },
+    "dashboard": {
+      "tip1": {
+        "title": "Résumé des projets",
+        "body": "Le tableau de bord affiche en temps réel le nombre de projets actifs, tâches en attente, approbations et alertes."
+      },
+      "tip2": {
+        "title": "Actions rapides",
+        "body": "Utilisez 'Nouveau Projet' pour lancer l'assistant, ou 'Téléverser une Mesure' pour importer un fichier PVPM directement."
+      }
+    },
+    "projects": {
+      "tip1": {
+        "title": "Cycle de vie du projet",
+        "body": "Chaque projet avance par phases : Conception → Validation → Mise en Œuvre → Tests → Mise en Service → Maintenance."
+      }
+    },
+    "tasks": {
+      "tip1": {
+        "title": "Flux de travail des tâches",
+        "body": "Les tâches peuvent inclure des messages, des preuves photo, des approbations et des résultats de test."
+      }
+    },
+    "inventory": {
+      "tip1": {
+        "title": "Suivi des matériaux",
+        "body": "Les matériaux sont émis par projet et suivis par quantité émise, retournée, consommée et manquante."
+      }
+    },
+    "measurements": {
+      "tip1": {
+        "title": "Téléversement des mesures",
+        "body": "Téléversez des fichiers .SUI ou .XLS validés exportés depuis votre appareil PVPM."
+      }
+    },
+    "security": {
+      "tip1": {
+        "title": "Surveillance de la sécurité IT/OT",
+        "body": "Le module de sécurité suit les appareils enregistrés, les vulnérabilités ouvertes et les scores de conformité."
+      }
+    },
+    "footer": {
+      "hint": "Appuyez sur Esc pour fermer",
+      "docs": "Documentation complète"
+    }
+  },
+  "settings": {
+    "theme": "Thème",
+    "brightness": "Luminosité",
+    "fontSize": "Taille de Police"
+  },
+  "admin": {
+    "settings": "Paramètres",
+    "language": "Langue"
+  },
+  "security": {
+    "title": "Sécurité IT/OT",
+    "dashboard": "Tableau de Bord Sécurité",
+    "devices": "Registre des Appareils",
+    "vulnerabilities": "Vulnérabilités",
+    "scan": "Lancer l'Analyse de Sécurité",
+    "register_device": "Enregistrer un Appareil",
+    "compliance_score": "Score de Conformité",
+    "risk_score": "Score de Risque",
+    "total_devices": "Total des Appareils",
+    "open_vulns": "Vulnérabilités Ouvertes",
+    "critical": "Problèmes Critiques",
+    "by_severity": "Par Gravité",
+    "by_category": "Par Catégorie",
+    "top_risks": "Principaux Risques",
+    "device_type": "Type d'Appareil",
+    "manufacturer": "Fabricant",
+    "firmware": "Micrologiciel",
+    "protocol": "Protocole",
+    "network_zone": "Zone Réseau",
+    "remediation": "Remédiation",
+    "cvss": "Score CVSS",
+    "cve": "ID CVE",
+    "last_scan": "Dernière analyse",
+    "no_scans": "Aucune analyse effectuée",
+    "scanning": "Analyse en cours…",
+    "firmware_intelligence": "Renseignement sur le Micrologiciel",
+    "check_firmware_cves": "Vérifier les CVE du Micrologiciel",
+    "checking": "Vérification…",
+    "devices_with_cves": "Appareils avec CVE connus",
+    "unknown_firmware": "Micrologiciel inconnu",
+    "critical_alerts": "Alertes Critiques",
+    "auto_tasks": "Tâches Créées Automatiquement",
+    "no_firmware_data": "Enregistrez des appareils et lancez la vérification du micrologiciel pour voir les données.",
+    "recent_fw_alerts": "Alertes Récentes du Micrologiciel",
+    "no_risks": "Aucun risque détecté. Enregistrez des appareils et lancez une analyse.",
+    "no_vulns": "Aucune vulnérabilité trouvée. Enregistrez des appareils et lancez une analyse de sécurité.",
+    "no_devices": "Aucun appareil enregistré.",
+    "register_new_device": "Enregistrer un Nouvel Appareil",
+    "registering": "Enregistrement…",
+    "ip_address": "Adresse IP",
+    "risk": "Risque",
+    "vulns_col": "Vulnérab.",
+    "due_date": "Date d'échéance",
+    "device_col": "Appareil",
+    "title_col": "Titre",
+    "comma_separated": "Séparés par des virgules",
+    "all_severities": "Toutes les sévérités",
+    "all_statuses_filter": "Tous les statuts",
+    "all_categories_filter": "Toutes les catégories"
+  },
+  "users": {
+    "title": "Gestion des Utilisateurs",
+    "add_user": "Ajouter un Utilisateur",
+    "username_col": "Nom d'utilisateur",
+    "display_name": "Nom Affiché",
+    "role_col": "Rôle",
+    "status_col": "Statut"
+  },
+  "project": {
+    "files": "Fichiers",
+    "no_files": "Aucun fichier téléversé pour l'instant",
+    "files_drop": "Glissez-déposez des fichiers ici, ou cliquez pour parcourir",
+    "files_accepted": "Fichiers PDF et DXF — plusieurs fichiers — max 50 Mo chacun",
+    "files_uploading": "Téléversement…",
+    "files_name": "Nom du fichier",
+    "files_type": "Type",
+    "files_size": "Taille",
+    "files_uploaded": "Téléversé",
+    "files_count": "fichier(s)",
+    "files_total": "total",
+    "files_invalid_type": "Seuls les fichiers PDF et DXF sont acceptés.",
+    "files_upload_error": "Échec du téléversement",
+    "files_load_error": "Échec du chargement",
+    "files_delete_error": "Échec de la suppression",
+    "files_delete_confirm": "Supprimer ce fichier ?"
+  }
+}
