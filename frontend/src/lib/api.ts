@@ -1287,6 +1287,25 @@ export async function listProjectMapObjects(projectId: number): Promise<ProjectM
   return data;
 }
 
+export async function createProjectMapObject(
+  projectId: number,
+  payload: {
+    layer_id: number | null;
+    object_uid: string;
+    object_type: string;
+    subtype?: string | null;
+    label?: string | null;
+    geometry_type: string;
+    geometry: Record<string, unknown>;
+    properties?: Record<string, unknown>;
+    parent_id?: number | null;
+    source_ref?: string | null;
+  },
+): Promise<ProjectMapObject> {
+  const { data } = await client.post<ProjectMapObject>(`/projects/${projectId}/map/objects`, payload);
+  return data;
+}
+
 export async function updateProjectMapObject(objectId: number, payload: Partial<ProjectMapObject> & { geometry?: Record<string, unknown>; properties?: Record<string, unknown> }): Promise<ProjectMapObject> {
   const { data } = await client.patch<ProjectMapObject>(`/map/objects/${objectId}`, payload);
   return data;
