@@ -900,6 +900,35 @@ def build_compact_parse_report(report: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+_UNIT_SUFFIX_RE = re.compile(
+    r'(?:KN|MW|kW|kWh|kWp|m2|m²|mm|cm|kg|ha|deg|Hz|VA|Wp|mA|V\b)',
+    re.IGNORECASE,
+)
+
+
+def _looks_like_string_candidate(text: str) -> bool:
+    """
+    Return True if *text* looks like it could be a solar string identifier
+    that failed pattern validation — i.e. it's worth reporting as "invalid".
+
+    Requires at least 2 dots (string codes are like 1.2.3.1A).
+    Filters out decimals (.4, 1.1), measurements (0.4KN/m2), and noise.
+    """
+    dot_count = text.count(".")
+    if dot_count < 2:
+        return False
+    # Filter out trailing '=' or other punctuation noise
+    if text.endswith("=") or text.endswith(",") or text.endswith(";"):
+        return False
+    # Filter out measurement values (contain unit suffixes)
+    if _UNIT_SUFFIX_RE.search(text):
+        return False
+    # At least two dot-separated segments should start with a digit
+    parts = text.rstrip("ABCDabcd").split(".")
+    numeric_parts = sum(1 for p in parts if p and p[0:1].isdigit())
+    return numeric_parts >= 2
+
+
 def run_full_from_items(items: List[TextItem]) -> Dict[str, Any]:
     """
     Core analysis pipeline: accepts pre-extracted TextItems and returns the full
@@ -915,7 +944,7 @@ def run_full_from_items(items: List[TextItem]) -> Dict[str, Any]:
         occ = parse_valid_string(item, pattern)
         if occ:
             valid_occ.append(occ)
-        elif item.text.startswith("S") or "." in item.text:
+        elif _looks_like_string_candidate(item.text):
             invalid.append(item.text)
     exact_dups = {k: v for k, v in Counter(o.raw for o in valid_occ).items() if v > 1}
     unique_valid = sorted({o.raw for o in valid_occ})
