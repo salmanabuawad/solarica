@@ -26,7 +26,7 @@ from pydantic import BaseModel
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, HTTPException, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -1190,9 +1190,18 @@ def _run_scan_job(
                     pass
 
 
+class ScanStartBody(BaseModel):
+    """JSON body for POST /scan-start (legacy / backwards-compat)."""
+    file_ids: str
+    approved_pattern_name: str | None = None
+    approved_pattern_regex: str | None = None
+    detect_token: str | None = None
+
+
 @router.post("/{project_id}/scan-start")
 async def scan_start(
     project_id: int,
+    request: Request,
     files: Optional[List[UploadFile]] = File(default=None),
     file_ids: Optional[str] = Form(default=None),
     approved_pattern_name: Optional[str] = Form(default=None),
@@ -1201,12 +1210,31 @@ async def scan_start(
 ) -> dict:
     """
     Start a background scan job and return a job_id immediately.
-    Accepts multipart/form-data: supply either ``files`` (direct upload, wizard mode)
-    or ``file_ids`` (comma-separated IDs of already-uploaded project files).
+
+    Accepts **multipart/form-data** (preferred): supply either ``files``
+    (direct upload, wizard mode) or ``file_ids`` (comma-separated IDs of
+    already-uploaded project files).
+
+    Also accepts **application/json** body for backwards-compatibility::
+
+        {"file_ids": "id1,id2", "approved_pattern_name": "...", ...}
+
     Poll GET /{project_id}/scan-status/{job_id} for progress.
-    When project_id==0 (wizard preview), DB sync is skipped and the full parsed
-    result is returned as scan_summary so the form can be pre-filled.
+    When project_id==0 (wizard preview), DB sync is skipped and the full
+    parsed result is returned as scan_summary so the form can be pre-filled.
     """
+    # ── JSON body fallback (backwards-compat with old frontend) ──────────────
+    ct = request.headers.get("content-type", "")
+    if "application/json" in ct and not file_ids:
+        try:
+            body = await request.json()
+            file_ids = body.get("file_ids") or file_ids
+            approved_pattern_name = body.get("approved_pattern_name") or approved_pattern_name
+            approved_pattern_regex = body.get("approved_pattern_regex") or approved_pattern_regex
+            detect_token = body.get("detect_token") or detect_token
+        except Exception:
+            pass
+
     # Save uploaded files to temp paths now (before the background thread starts)
     temp_paths: list[str] = []
     entries_override: list[dict[str, Any]] | None = None
