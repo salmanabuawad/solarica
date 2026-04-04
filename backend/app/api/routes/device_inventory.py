@@ -4,12 +4,12 @@ Prefix: /api/device-inventory
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 import csv
 import io
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -143,6 +143,15 @@ def update_device(device_id: int, payload: DeviceUpdate, db: Session = Depends(g
     if not device:
         raise HTTPException(404, "Device not found")
     return device.to_dict(include_specs=True, include_vulns=True)
+
+
+@router.delete("/devices/bulk", status_code=200)
+def delete_devices_bulk(ids: List[int] = Body(..., embed=True), db: Session = Depends(get_db)):
+    """Delete multiple devices by ID list."""
+    if not ids:
+        raise HTTPException(400, "No device IDs provided")
+    deleted = repo.delete_devices_bulk(db, ids)
+    return {"deleted": deleted}
 
 
 @router.delete("/devices/{device_id}", status_code=204)

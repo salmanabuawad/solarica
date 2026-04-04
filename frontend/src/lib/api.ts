@@ -744,6 +744,11 @@ export async function deleteDeviceInventoryItem(id: number): Promise<void> {
   await client.delete(`/device-inventory/devices/${id}`);
 }
 
+export async function deleteDeviceInventoryBulk(ids: number[]): Promise<{ deleted: number }> {
+  const { data } = await client.delete<{ deleted: number }>(`/device-inventory/devices/bulk`, { data: { ids } });
+  return data;
+}
+
 export async function listDeviceSpecs(deviceId: number): Promise<DeviceSpec[]> {
   const { data } = await client.get<DeviceSpec[]>(`/device-inventory/devices/${deviceId}/specs`);
   return data;

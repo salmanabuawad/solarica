@@ -119,6 +119,13 @@ def delete_device(db: Session, device_id: int) -> bool:
     return True
 
 
+def delete_devices_bulk(db: Session, device_ids: list[int]) -> int:
+    """Delete multiple devices by ID. Returns count of deleted rows."""
+    count = db.query(DeviceInventory).filter(DeviceInventory.id.in_(device_ids)).delete(synchronize_session="fetch")
+    db.commit()
+    return count
+
+
 # ---------------------------------------------------------------------------
 # Specs
 # ---------------------------------------------------------------------------
