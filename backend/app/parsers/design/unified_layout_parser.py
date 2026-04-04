@@ -32,7 +32,7 @@ except Exception:  # pragma: no cover
 
 QUNITRA_STRING_RE = re.compile(r"^S\.(\d+)\.(\d+)\.(\d+)$")
 HAMADIYA_STRING_RE = re.compile(r"^S(\d+)\.(\d+)\.(\d+)\.(\d+)$")
-QUNITRA_INVERTER_RE = re.compile(r"(?<![\d.])(\d+)\.(\d+)(?![\d.])")
+QUNITRA_INVERTER_RE = re.compile(r"^(\d)\.(\d{1,2})$")
 TOKEN_RE = re.compile(r"[A-Za-z0-9_.+\-/°]+")
 FLOAT_COORDS_RE = re.compile(r"(\d{1,2}\.\d+)\s*[Nn]\s+(\d{1,3}\.\d+)\s*[Ee]")
 CAPACITY_KWP_RE = re.compile(r"Plant System Rating\s*[-:]\s*([\d,]+(?:\.\d+)?)\s*kW[pP]", re.I)
@@ -494,10 +494,17 @@ def extract_inverter_ids(items: List[TextItem], pattern: str, occs: List[ValidSt
     if pattern == "hamadiya":
         return sorted({o.inverter_id for o in occs}, key=lambda s: tuple(int(p) for p in s.split(".")))
     out = {o.inverter_id for o in occs}
+
+    # Only add raw-text inverter IDs whose station number already appears
+    # in validated string occurrences — prevents coordinates, measurements,
+    # and other decimal noise from being treated as inverters.
+    known_stations = {o.station for o in occs} if occs else set()
     for item in items:
         m = QUNITRA_INVERTER_RE.fullmatch(item.text)
         if m:
-            out.add(f"{int(m.group(1))}.{int(m.group(2))}")
+            station = int(m.group(1))
+            if station in known_stations:
+                out.add(f"{station}.{int(m.group(2))}")
     return sorted(out, key=lambda s: tuple(int(p) for p in s.split(".")))
 
 
@@ -912,13 +919,18 @@ def _looks_like_string_candidate(text: str) -> bool:
     that failed pattern validation — i.e. it's worth reporting as "invalid".
 
     Requires at least 2 dots (string codes are like 1.2.3.1A).
-    Filters out decimals (.4, 1.1), measurements (0.4KN/m2), and noise.
+    Filters out decimals (.4, 1.1), measurements (0.4KN/m2), elevation
+    offsets (-0.05=+938.75), and other noise.
     """
     dot_count = text.count(".")
     if dot_count < 2:
         return False
-    # Filter out trailing '=' or other punctuation noise
-    if text.endswith("=") or text.endswith(",") or text.endswith(";"):
+    # Filter out noise characters that never appear in string identifiers
+    if text.startswith("-") or text.startswith("+"):
+        return False
+    if "=" in text or "+" in text or "/" in text:
+        return False
+    if text.endswith(",") or text.endswith(";"):
         return False
     # Filter out measurement values (contain unit suffixes)
     if _UNIT_SUFFIX_RE.search(text):
