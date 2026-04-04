@@ -36,8 +36,40 @@ server {
     add_header X-Frame-Options SAMEORIGIN always;
     add_header X-Content-Type-Options nosniff always;
 
-    # Extended timeout for PDF/DXF work (scan, pattern detect, SSE stream)
-    location ~ ^/api/projects/[0-9]+/(scan-strings|detect-string-pattern|scan-stream) {
+    # SSE scan-stream: long parse + must not buffer (legacy clients)
+    location ~ ^/api/projects/[0-9]+/scan-stream$ {
+        proxy_pass         http://127.0.0.1:8010;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_set_header   Connection        "";
+        proxy_read_timeout  900s;
+        proxy_send_timeout  900s;
+        proxy_buffering     off;
+        proxy_cache         off;
+        proxy_request_buffering off;
+        gzip                off;
+        client_max_body_size 1G;
+    }
+
+    # POST scan-run: same long-running pipeline, single JSON response (no chunked stream)
+    location ~ ^/api/projects/[0-9]+/scan-run$ {
+        proxy_pass         http://127.0.0.1:8010;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout  900s;
+        proxy_send_timeout  900s;
+        proxy_request_buffering off;
+        client_max_body_size 1G;
+    }
+
+    # Extended timeout for PDF/DXF uploads (scan-strings, pattern detect)
+    location ~ ^/api/projects/[0-9]+/(scan-strings|detect-string-pattern) {
         proxy_pass         http://127.0.0.1:8010;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;

@@ -3,8 +3,8 @@ Output validation service — ported from
 from_chatgpt/app/services/validation/output_validation_service.py.
 
 Adapted to work with plain Python dicts rather than SQLAlchemy models.
-All validation rules operate on the parse-result dict produced by
-pdf_string_extractor.build_site_design_preview (or the multi-file variant).
+Rules operate on the legacy scan-result dict from
+:func:`unified_scan_adapter.adapt_unified_report_to_legacy_scan_result`.
 
 Usage:
     from app.services.output_validation import validate
@@ -25,8 +25,7 @@ def validate(result: dict[str, Any]) -> list[dict[str, Any]]:
     Parameters
     ----------
     result:
-        The dict returned by build_site_design_preview or
-        build_site_design_preview_multi.
+        The dict returned by the unified parser adapter (string-scan shape).
 
     Returns
     -------

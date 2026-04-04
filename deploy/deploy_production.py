@@ -41,16 +41,12 @@ BACKEND_FILES = [
      "/opt/solarica/backend/app/api/routes/project_files.py"),
     (r"C:\Solarica_OM\backend\app\api\routes\string_scan.py",
      "/opt/solarica/backend/app/api/routes/string_scan.py"),
-    (r"C:\Solarica_OM\backend\app\parsers\design\pdf_string_extractor.py",
-     "/opt/solarica/backend/app/parsers/design/pdf_string_extractor.py"),
-    (r"C:\Solarica_OM\backend\app\parsers\design\extra_patterns.py",
-     "/opt/solarica/backend/app/parsers/design/extra_patterns.py"),
-    (r"C:\Solarica_OM\backend\app\parsers\design\normalization.py",
-     "/opt/solarica/backend/app/parsers/design/normalization.py"),
-    (r"C:\Solarica_OM\backend\app\parsers\design\final_engine.py",
-     "/opt/solarica/backend/app/parsers/design/final_engine.py"),
     (r"C:\Solarica_OM\backend\app\parsers\design\strict_map_parser.py",
      "/opt/solarica/backend/app/parsers/design/strict_map_parser.py"),
+    (r"C:\Solarica_OM\backend\app\parsers\design\unified_layout_parser.py",
+     "/opt/solarica/backend/app/parsers/design/unified_layout_parser.py"),
+    (r"C:\Solarica_OM\backend\app\parsers\design\unified_scan_adapter.py",
+     "/opt/solarica/backend/app/parsers/design/unified_scan_adapter.py"),
     (r"C:\Solarica_OM\backend\app\api\routes\parser_engine.py",
      "/opt/solarica/backend/app/api/routes/parser_engine.py"),
     (r"C:\Solarica_OM\backend\app\services\output_validation.py",
@@ -290,8 +286,8 @@ def deploy():
 
     commands: list[tuple[str, str]] = [
         (
-            "Install ezdxf",
-            '/opt/solarica/venv/bin/pip install "ezdxf>=1.1.0" 2>&1'
+            "Install pdfplumber + ezdxf",
+            '/opt/solarica/venv/bin/pip install pdfplumber "ezdxf>=1.1.0" 2>&1'
         ),
         (
             "Create device_repo dirs",

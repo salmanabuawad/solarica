@@ -1,251 +1,14 @@
 """
-DXF design file parser — extracts labels and runs the same analysis pipeline
-as the PDF extractor. Uses ezdxf for DXF reading.
+DXF scan entry points for ``map_parser_v7`` and tooling.
+
+Parsing is implemented in :mod:`app.parsers.design.unified_layout_parser`.
 """
 from __future__ import annotations
 
 import os
-import re
 import tempfile
 from pathlib import Path
 from typing import Any
-
-from app.parsers.design.pdf_string_extractor import (
-    _tokenize,
-    _extract_string_rows,
-    _extract_invalid_ab_labels,
-    _preprocess_text,
-    _build_strings_map,
-    _build_gaps,
-    _build_duplicates,
-    _build_anomalies,
-    _annotate_rows_with_inverter_key,
-    _build_inverter_summary,
-    _build_per_inverter_gaps,
-    _build_per_inverter_duplicates,
-    _extract_dc_buckets,
-    _extract_inverters,
-    _fill_and_extend_inverters,
-    _extract_ac_assets,
-    _extract_batteries,
-    _extract_extended_metadata,
-    _extract_mppt_channels,
-    _extract_icb_zones,
-    _validate_output,
-    _identify_risks,
-    _derive_layout_name,
-    _derive_site_code,
-    _search,
-    _parse_float,
-    _parse_int,
-    STRING_EXTRACT_PATTERN,
-    STRING_TOKEN_PATTERN,
-)
-
-DXF_DETECT_TOKEN_BYTES_RE = STRING_TOKEN_PATTERN.pattern.encode("ascii")
-
-
-def _read_dxf_document(content: bytes):
-    try:
-        import ezdxf
-    except ImportError as exc:
-        raise RuntimeError("DXF parsing requires the 'ezdxf' package: pip install ezdxf") from exc
-
-    tmp_path: str | None = None
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".dxf", delete=False) as tmp:
-            tmp.write(content)
-            tmp.flush()
-            tmp_path = tmp.name
-        return ezdxf.readfile(tmp_path)
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-
-
-def _read_dxf_document_from_path(path: str):
-    try:
-        import ezdxf
-    except ImportError as exc:
-        raise RuntimeError("DXF parsing requires the 'ezdxf' package: pip install ezdxf") from exc
-    return ezdxf.readfile(path)
-
-
-def extract_text_from_dxf(content: bytes) -> str:
-    doc = _read_dxf_document(content)
-    msp = doc.modelspace()
-
-    labels: list[str] = []
-    for entity in msp:
-        if entity.dxftype() in {"TEXT", "MTEXT"}:
-            t = getattr(entity.dxf, "text", None) or getattr(entity, "plain_mtext", lambda: "")()
-            if t and t.strip():
-                labels.append(t.strip())
-    return _preprocess_text("\n".join(labels))
-
-
-def extract_text_from_dxf_path(path: str) -> str:
-    doc = _read_dxf_document_from_path(path)
-    msp = doc.modelspace()
-
-    labels: list[str] = []
-    for entity in msp:
-        if entity.dxftype() in {"TEXT", "MTEXT"}:
-            t = getattr(entity.dxf, "text", None) or getattr(entity, "plain_mtext", lambda: "")()
-            if t and t.strip():
-                labels.append(t.strip())
-    return _preprocess_text("\n".join(labels))
-
-
-def _extract_detection_tokens_from_dxf_stream(stream, chunk_size: int = 1024 * 1024, max_tokens: int = 20000) -> str:
-    token_re = re.compile(DXF_DETECT_TOKEN_BYTES_RE, re.IGNORECASE)
-    overlap = 128
-    tail = b""
-    tokens: list[str] = []
-
-    while True:
-        chunk = stream.read(chunk_size)
-        if not chunk:
-            break
-        buf = tail + chunk
-        for match in token_re.finditer(buf):
-            token = match.group(0).decode("ascii", errors="ignore").strip()
-            if token:
-                tokens.append(token)
-                if len(tokens) >= max_tokens:
-                    return _preprocess_text("\n".join(tokens))
-        tail = buf[-overlap:]
-
-    return _preprocess_text("\n".join(tokens))
-
-
-def extract_detection_text_from_dxf(content: bytes) -> str:
-    import io
-
-    return _extract_detection_tokens_from_dxf_stream(io.BytesIO(content))
-
-
-def extract_detection_text_from_dxf_path(path: str) -> str:
-    with open(path, "rb") as stream:
-        return _extract_detection_tokens_from_dxf_stream(stream)
-
-
-def _build_dxf_result(
-    doc: Any,
-    text: str,
-    filename: str,
-    approved_pattern_regex: str | None = None,
-    approved_pattern_name: str | None = None,
-) -> dict[str, Any]:
-    tokens = _tokenize(text)
-
-    if not text:
-        raise ValueError("No text labels found in DXF file")
-
-    rows = _extract_string_rows(
-        text,
-        pattern_regex=approved_pattern_regex,
-        pattern_name=approved_pattern_name,
-    )
-    if not rows:
-        raise ValueError("No solar string IDs found in DXF file")
-
-    rows_sorted = sorted(
-        rows,
-        key=lambda r: (
-            r["section_no"] if r["section_no"] is not None else 10**9,
-            r["block_no"] if r["block_no"] is not None else 10**9,
-            r["string_no"] if r["string_no"] is not None else 10**9,
-            r["raw_value"],
-        ),
-    )
-    _annotate_rows_with_inverter_key(rows_sorted)
-    valid_rows = [r for r in rows_sorted if r["is_valid"]]
-    invalid_rows = [r for r in rows_sorted if not r["is_valid"]]
-
-    layout_name = _derive_layout_name(text, filename)
-    site_code = _derive_site_code(layout_name)
-    site_name = _search(r"\b([A-Za-z0-9-]+-FPV)\b", text) or site_code
-
-    ext_meta = _extract_extended_metadata(text)
-    inverters = _extract_inverters(tokens, string_rows=valid_rows, text=text)
-    inverter_count_doc = ext_meta.get("inverter_count_doc")
-    inverters = _fill_and_extend_inverters(
-        inverters,
-        doc_count=int(inverter_count_doc) if inverter_count_doc else None,
-        string_rows=valid_rows,
-    )
-    ac_assets = _extract_ac_assets(tokens)
-    batteries = _extract_batteries(tokens)
-    dc_buckets = _extract_dc_buckets(text)
-    inverter_summary = _build_inverter_summary(valid_rows)
-    missing_strings_by_inverter = _build_per_inverter_gaps(valid_rows)
-    duplicate_string_numbers_by_inverter = _build_per_inverter_duplicates(rows_sorted)
-
-    plant_capacity_mw = _parse_float(_search(r"System Capacity\s*-\s*([0-9.]+)\s*MW", text, 2))
-    module_count = _parse_int(_search(r"Number of\s+Modules\s*-\s*([0-9,]+)", text, 2))
-
-    base_meta: dict[str, Any] = {
-        "module_count": module_count,
-        "plant_capacity_mw": plant_capacity_mw,
-    }
-    duplicates = _build_duplicates(rows_sorted)
-    invalid_ab_labels = _extract_invalid_ab_labels(text)
-    validation_findings = _validate_output(base_meta, ext_meta, len(valid_rows), inverters=inverters)
-    validation_findings += _identify_risks(duplicates, ext_meta, ac_assets, batteries)
-
-    return {
-        "site_code": site_code,
-        "site_name": site_name,
-        "layout_name": layout_name,
-        "source_document": Path(filename).name,
-        "country": _search(r"Country\s*-\s*([A-Z][A-Z ]+)", text),
-        "region": _search(r"Region\s*/\s*Province\s*-\s*([A-Z][A-Z ]+)", text),
-        "latitude": _parse_float(_search(r"Coordinates\s+([0-9.]+)\s*N", text, 2)),
-        "longitude": _parse_float(_search(r"Coordinates\s+[0-9.]+\s*N\s+([0-9.]+)\s*E", text, 2)),
-        "plant_capacity_mw": plant_capacity_mw,
-        "module_type": _search(r"Type of Module / Power\s*-\s*([A-Z0-9-]+)", text, 2),
-        "module_count": module_count,
-        "module_power_wp": ext_meta.get("module_power_wp"),
-        "modules_per_string": ext_meta.get("modules_per_string"),
-        "system_rating_kwp": ext_meta.get("system_rating_kwp"),
-        "battery_capacity_mwh": ext_meta.get("battery_capacity_mwh"),
-        "tracker_enabled": ext_meta.get("tracker_enabled", False),
-        "tracker_rotation_deg": ext_meta.get("tracker_rotation_deg"),
-        "azimuth_deg": ext_meta.get("azimuth_deg"),
-        "dxf_layers": list(doc.layers.names()),
-        "total_strings_doc": ext_meta.get("total_strings_doc"),
-        "string_rows": rows_sorted,
-        "strings": _build_strings_map(rows_sorted),
-        "gaps": _build_gaps(rows_sorted),
-        "duplicates": duplicates,
-        "anomalies": _build_anomalies(text),
-        "valid_count": len(valid_rows),
-        "invalid_count": len(invalid_rows),
-        "invalid_ab_labels": invalid_ab_labels,
-        "has_errors": bool(invalid_rows) or bool(invalid_ab_labels),
-        "approved_pattern_name": approved_pattern_name,
-        "approved_pattern_regex": approved_pattern_regex,
-        "inverters": inverters,
-        "inverter_count_detected": len(inverters),
-        "ac_assets": ac_assets,
-        "batteries": batteries,
-        "mppt_channels": _extract_mppt_channels(text),
-        "icb_zones": _extract_icb_zones(text),
-        "inverter_summary": inverter_summary,
-        "missing_strings_by_inverter": missing_strings_by_inverter,
-        "duplicate_string_numbers_by_inverter": duplicate_string_numbers_by_inverter,
-        "dc_string_buckets_found": dc_buckets,
-        "validation_findings": validation_findings,
-        "metadata": {
-            "project": site_name,
-            "location": None,
-            "total_modules": module_count,
-        },
-    }
 
 
 def parse_dxf(
@@ -255,21 +18,26 @@ def parse_dxf(
     approved_pattern_name: str | None = None,
     extracted_text: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Parse a DXF file and return the same structure as build_site_design_preview.
-    """
+    """Parse DXF bytes; returns the legacy string-scan result dict."""
+    _ = extracted_text
+    tmp_path: str | None = None
     try:
-        doc = _read_dxf_document(content)
-    except RuntimeError:
-        raise
-    text = extracted_text if extracted_text is not None else extract_text_from_dxf(content)
-    return _build_dxf_result(
-        doc,
-        text,
-        filename,
-        approved_pattern_regex=approved_pattern_regex,
-        approved_pattern_name=approved_pattern_name,
-    )
+        with tempfile.NamedTemporaryFile(suffix=".dxf", delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        return parse_dxf_path(
+            tmp_path,
+            filename,
+            approved_pattern_regex=approved_pattern_regex,
+            approved_pattern_name=approved_pattern_name,
+            extracted_text=None,
+        )
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def parse_dxf_path(
@@ -279,15 +47,15 @@ def parse_dxf_path(
     approved_pattern_name: str | None = None,
     extracted_text: str | None = None,
 ) -> dict[str, Any]:
-    try:
-        doc = _read_dxf_document_from_path(path)
-    except RuntimeError:
-        raise
-    text = extracted_text if extracted_text is not None else extract_text_from_dxf_path(path)
-    return _build_dxf_result(
-        doc,
-        text,
-        filename,
-        approved_pattern_regex=approved_pattern_regex,
+    """Parse a DXF on disk; returns the legacy string-scan result dict."""
+    _ = extracted_text
+    from app.parsers.design.unified_layout_parser import run_full
+    from app.parsers.design.unified_scan_adapter import adapt_unified_report_to_legacy_scan_result
+
+    report = run_full([Path(path)])
+    return adapt_unified_report_to_legacy_scan_result(
+        report,
+        source_document=Path(filename).name,
         approved_pattern_name=approved_pattern_name,
+        approved_pattern_regex=approved_pattern_regex,
     )

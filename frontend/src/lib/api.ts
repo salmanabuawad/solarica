@@ -47,6 +47,29 @@ function isTokenValid(token: string): boolean {
   }
 }
 
+/** Headers for raw `fetch()` to scan-run / scan-stream (axios interceptors do not apply). */
+export function scanStreamFetchHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'text/event-stream',
+    'Cache-Control': 'no-cache',
+  };
+  const stored = localStorage.getItem('solarica_user') || sessionStorage.getItem('solarica_user');
+  if (stored) {
+    try {
+      const user = JSON.parse(stored) as User;
+      if (user.username) headers['X-User'] = user.username;
+      if (user.role) headers['X-Role'] = user.role;
+    } catch {
+      /* ignore */
+    }
+  }
+  const token = localStorage.getItem('solarica_token') || sessionStorage.getItem('solarica_token');
+  if (token && isTokenValid(token)) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 /** Clear all stored session data and dispatch a custom event so AppContext reacts. */
 export function clearSession(): void {
   localStorage.removeItem('solarica_token');
@@ -988,7 +1011,7 @@ export interface StringScanResult {
   topology_findings?: { risk_code: string; severity: string; title: string; description: string; related_assets?: string[] }[];
   reconciliation?: { table_inverter_count?: number; map_inverter_count?: number; map_string_total?: number; table_string_count?: number; icb_zones_detected?: string[]; mppt_groups_detected?: number; status?: string; issues?: { code: string; severity: string; message: string }[] };
   events?: { event: string; timestamp: string; payload: Record<string, unknown> }[];
-  // New extended fields from extra_patterns / from_chatgpt integration
+  // Extended metadata fields from unified design parse / analytics
   project_name?:              string | null;
   coordinates?:               string | null;
   building_area_ha?:          number | null;

@@ -1,0 +1,10 @@
+# Core API dependencies (also install on server venv as needed)
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic
+python-multipart
+
+# Design file parsing (unified_layout_parser)
+pdfplumber
+ezdxf>=1.1.0

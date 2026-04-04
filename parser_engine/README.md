@@ -1,9 +1,7 @@
 # parser_engine (map_parser_v7)
 
-Deploy uploads everything under `src/` plus `pyproject.toml`, `requirements.txt`, and other package root files to `/opt/solarica/parser_engine` on the server.
+The **`map_parser_v7`** package lives under **`src/map_parser_v7/`**. It implements the `ParserEngine` step flow used by Solarica **scan-stream** for **DXF-only** jobs (no explicit regex): steps run on the backend, and **`step_extract_strings`** calls `app.parsers.design.dxf_parser.parse_dxf_path`.
 
-Place the **`map_parser_v7`** package at:
+Deploy uploads everything under `src/` plus `pyproject.toml`, `requirements.txt`, etc., to `/opt/solarica/parser_engine`, then runs `pip install -e`.
 
-`src/map_parser_v7/` (with `__init__.py`, `core/engine.py`, etc.)
-
-The repo root folder `backend/` here is **not** deployed — it is a local stub only.
+The folder **`parser_engine/backend/`** is **not** deployed (legacy stub only).

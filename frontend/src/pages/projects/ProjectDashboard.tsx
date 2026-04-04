@@ -36,6 +36,7 @@ import { useApp } from '../../contexts/AppContext';
 import { registerAgGridModules } from '../../lib/agGridModules';
 
 registerAgGridModules();
+
 interface ProjectDashboardProps {
   projectId: string;
 }
@@ -545,7 +546,7 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
     refreshProjectFiles();
   }, [refreshProjectFiles]);
 
-  /** Internal: actually start the SSE scan (called after confirmation). */
+  /** Internal: run full parse/sync via POST /scan-run (avoids chunked SSE through proxies). */
   const _runScan = useCallback((newFileIds: string[], approvedPattern?: ApprovedStringPattern, detectToken?: string | null) => {
     const STEPS: ScanStep[] = [
       { label: 'Parsing design file',           state: 'pending' },
@@ -566,71 +567,100 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
     setScanModalOpen(true);
     setScanBusy(true);
 
-    const params = new URLSearchParams({ file_ids: newFileIds.join(',') });
     if (approvedPattern) {
-      params.set('approved_pattern_name', approvedPattern.pattern_name);
-      params.set('approved_pattern_regex', approvedPattern.pattern_regex);
       setProject((prev) => (prev ? { ...prev, string_pattern: approvedPattern.pattern_name } : prev));
     }
-    if (detectToken) {
-      params.set('detect_token', detectToken);
-    }
-    const url = `/api/projects/${projectId}/scan-stream?${params.toString()}`;
-    const evtSource = new EventSource(url);
 
-    evtSource.onmessage = (e: MessageEvent) => {
-      let msg: any;
-      try { msg = JSON.parse(e.data); } catch { return; }
+    const applyScanCompleteRefetch = (note?: string) => {
+      const pid = Number(projectId);
+      setScanPct(100);
+      setScanSubLabel(null);
+      Promise.all([
+        api.listProjectTopologyInverters(pid).catch(() => [] as ProjectTopologyInverter[]),
+        api.listProjectDesignStrings(pid).catch(() => [] as ProjectDesignString[]),
+        api.getScanAnalytics(pid).catch(() => null),
+      ]).then(([inv, strs, analytics]) => {
+        if (analytics) setScanAnalytics(analytics);
+        setTopologyInverters(inv);
+        setDesignStrings(strs);
+        setScanSteps((prev) => prev.map((s) => ({ ...s, state: 'done' })));
+        const base = `${inv.length} inverters · ${strs.length} strings synced`;
+        setScanSummary(note ? `${base} — ${note}` : base);
+        setScanBusy(false);
+        setActiveSubTab('inverters');
+      }).catch(() => {
+        setScanBusy(false);
+      });
+    };
 
-      if (msg.type === 'complete') {
-        evtSource.close();
+    void (async () => {
+      const progressLabels = [
+        'Parsing design file…',
+        'Extracting strings & inverters…',
+        'Syncing topology…',
+        'Syncing design strings…',
+        'Saving analytics…',
+      ];
+      let labelIdx = 0;
+      set(0, 'running');
+      setScanSubLabel(progressLabels[0]!);
+      setScanPct(8);
+      const tick = window.setInterval(() => {
+        labelIdx = Math.min(labelIdx + 1, progressLabels.length - 1);
+        setScanSubLabel(progressLabels[labelIdx]!);
+        setScanPct((p) => Math.min(90, p + 12));
+      }, 5000);
+
+      try {
+        const res = await fetch(`/api/projects/${projectId}/scan-run`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            ...api.scanStreamFetchHeaders(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            file_ids: newFileIds.join(','),
+            approved_pattern_name: approvedPattern?.pattern_name ?? undefined,
+            approved_pattern_regex: approvedPattern?.pattern_regex ?? undefined,
+            detect_token: detectToken ?? undefined,
+          }),
+        });
+        const raw = await res.text();
+        let j: Record<string, unknown> = {};
+        try {
+          j = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+        } catch {
+          /* ignore */
+        }
+        if (!res.ok) {
+          const d = j.detail;
+          const msg =
+            typeof d === 'string'
+              ? d
+              : Array.isArray(d)
+                ? d
+                    .map((x) => (typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x)))
+                    .join('; ')
+                : d != null
+                  ? JSON.stringify(d)
+                  : `Scan failed (${res.status})`;
+          setScanError(msg);
+          setScanSteps((prev) => prev.map((s) => (s.state === 'running' ? { ...s, state: 'error' } : s)));
+          setScanBusy(false);
+          return;
+        }
         setScanPct(100);
         setScanSubLabel(null);
-        if (msg.analytics) setScanAnalytics(msg.analytics as import('../../lib/api').ScanAnalytics);
-        Promise.all([
-          api.listProjectTopologyInverters(Number(projectId)).catch(() => [] as ProjectTopologyInverter[]),
-          api.listProjectDesignStrings(Number(projectId)).catch(() => [] as ProjectDesignString[]),
-        ]).then(([inv, strs]) => {
-          setTopologyInverters(inv);
-          setDesignStrings(strs);
-          set(4, 'done');
-          setScanSummary(`${inv.length} inverters · ${strs.length} strings synced`);
-          setScanBusy(false);
-          setActiveSubTab('inverters');
-        }).catch(() => {
-          setScanBusy(false);
-        });
-
-      } else if (msg.type === 'error') {
-        evtSource.close();
-        setScanError(msg.error ?? 'Unknown error');
-        setScanSteps(prev => prev.map(s => s.state === 'running' ? { ...s, state: 'error' } : s));
+        applyScanCompleteRefetch();
+      } catch {
+        setScanError('Connection to server lost during scan. Please try again.');
+        setScanSteps((prev) => prev.map((s) => (s.state === 'running' ? { ...s, state: 'error' } : s)));
         setScanBusy(false);
-
-      } else if (typeof msg.step === 'number') {
-        const idx = (msg.step as number) - 1;
-        if (typeof msg.pct === 'number') setScanPct(msg.pct);
-        if (msg.state === 'running') {
-          set(idx, 'running');
-          if (msg.label) setScanSubLabel(msg.label);
-        } else if (msg.state === 'done') {
-          set(idx, 'done');
-          setScanSubLabel(null);
-        } else if (msg.state === 'error') {
-          set(idx, 'error');
-          setScanError(msg.error ?? 'Step failed');
-          evtSource.close();
-          setScanBusy(false);
-        }
+      } finally {
+        window.clearInterval(tick);
       }
-    };
-
-    evtSource.onerror = () => {
-      evtSource.close();
-      setScanError('Connection to server lost during scan. Please try again.');
-      setScanSteps(prev => prev.map(s => s.state === 'running' ? { ...s, state: 'error' } : s));
-      setScanBusy(false);
-    };
+    })();
   }, [projectId]);
 
   const openParsePatternChoice = useCallback((fileIds: string[]) => {

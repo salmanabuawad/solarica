@@ -1,12 +1,11 @@
 """
-Minimal label scan API — ported from repo `parser_engine/backend/app/main.py` (as-is behavior).
+Minimal label scan API — text-only stub (same response shape as the old final_engine).
 
-POST /scan accepts a file; body is decoded as UTF-8 with errors ignored (same as standalone stub).
-For PDF/DXF binary, use the main project string-scan endpoints instead.
+POST /scan decodes the body as UTF-8 with errors ignored. For PDF/DXF use string-scan.
 """
 from fastapi import APIRouter, UploadFile
 
-from app.parsers.design.final_engine import run
+from app.parsers.design.unified_scan_adapter import plain_text_stub_scan
 
 router = APIRouter()
 
@@ -15,4 +14,4 @@ router = APIRouter()
 async def scan(file: UploadFile):
     content = await file.read()
     text = content.decode(errors="ignore")
-    return run(text)
+    return plain_text_stub_scan(text)
