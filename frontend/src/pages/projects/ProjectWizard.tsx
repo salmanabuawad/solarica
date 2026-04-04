@@ -171,9 +171,31 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
     try {
       const dt = new DataTransfer();
       pdfFiles.forEach(f => dt.items.add(f));
-      const detection = await api.detectStringPattern(0, undefined, dt.files);
-      setPatternDetection(detection);
-      setPatternModalOpen(true);
+      // Start background detect job — returns immediately
+      const { job_id } = await api.detectStringPatternStart(0, dt.files);
+
+      // Poll every 2 s until done or error
+      await new Promise<void>((resolve, reject) => {
+        const poll = async () => {
+          try {
+            const status = await api.detectStringPatternStatus(0, job_id);
+            if (status.state === 'error') {
+              reject(new Error(status.error ?? 'Pattern detection failed.'));
+            } else if (status.state === 'done') {
+              if (status.scan_summary) {
+                setPatternDetection(status.scan_summary);
+                setPatternModalOpen(true);
+              }
+              resolve();
+            } else {
+              window.setTimeout(poll, 2_000);
+            }
+          } catch (e) {
+            reject(e);
+          }
+        };
+        window.setTimeout(poll, 1_000);
+      });
     } catch (e: any) {
       setParseError(e?.response?.data?.detail || e?.message || 'Could not detect a string pattern.');
     } finally {
@@ -186,20 +208,42 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
     try {
       const dt = new DataTransfer();
       pdfFiles.forEach(f => dt.items.add(f));
-      const res = await api.scanProjectStrings(0, undefined, dt.files, pattern, detectToken);
-      setApprovedPattern(pattern);
-      setParseResult(res);
-      const pr = extractStructuredParseReport(res as unknown);
-      const siteLabel = pr?.site?.name ?? res.site_name ?? res.site_code ?? '';
-      const invTotal = pr?.inverters?.total ?? res.inverter_count_detected;
-      setForm(prev => ({
-        ...prev,
-        name: prev.name || siteLabel,
-        site_name: prev.site_name || siteLabel,
-        capacity_kw: prev.capacity_kw || (res.plant_capacity_mw != null ? String(res.plant_capacity_mw * 1000) : ''),
-        naming_prefix: prev.naming_prefix || res.site_code || '',
-        inverter_count: prev.inverter_count || (invTotal != null && invTotal > 0 ? String(invTotal) : ''),
-      }));
+
+      // Start background scan job (project_id=0 → skip DB sync, return full result)
+      const { job_id } = await api.scanProjectStart(0, undefined, dt.files, pattern, detectToken ?? null);
+
+      // Poll every 2 s until done or error
+      await new Promise<void>((resolve, reject) => {
+        const poll = async () => {
+          try {
+            const status = await api.scanProjectStatus(0, job_id);
+            if (status.state === 'error') {
+              reject(new Error(status.error ?? 'Parse failed.'));
+            } else if (status.state === 'done') {
+              const res = status.scan_summary as api.StringScanResult;
+              setApprovedPattern(pattern);
+              setParseResult(res);
+              const pr = extractStructuredParseReport(res as unknown);
+              const siteLabel = pr?.site?.name ?? res.site_name ?? res.site_code ?? '';
+              const invTotal = pr?.inverters?.total ?? res.inverter_count_detected;
+              setForm(prev => ({
+                ...prev,
+                name: prev.name || siteLabel,
+                site_name: prev.site_name || siteLabel,
+                capacity_kw: prev.capacity_kw || (res.plant_capacity_mw != null ? String(res.plant_capacity_mw * 1000) : ''),
+                naming_prefix: prev.naming_prefix || res.site_code || '',
+                inverter_count: prev.inverter_count || (invTotal != null && invTotal > 0 ? String(invTotal) : ''),
+              }));
+              resolve();
+            } else {
+              window.setTimeout(poll, 2_000);
+            }
+          } catch (e) {
+            reject(e);
+          }
+        };
+        window.setTimeout(poll, 1_000);
+      });
     } catch (e: any) {
       setParseError(e?.response?.data?.detail || e?.message || 'Parse failed.');
     } finally { setParsing(false); }

@@ -9,29 +9,28 @@ logger = logging.getLogger(__name__)
 
 
 def run_all_seeds(db: Session) -> None:
-    """Run all seed functions in dependency order."""
+    """Run all seed functions in dependency order, each in its own transaction."""
     from app.repositories.user_repo import seed_default_users
     from app.repositories.project_repo import seed_projects
     from app.repositories.task_repo import seed_tasks
     from app.repositories.inventory_repo import seed_inventory
     from app.repositories.test_repo import seed_test_types
 
-    try:
-        seed_default_users(db)
-        logger.info("Users seeded")
-        seed_projects(db)
-        logger.info("Projects seeded")
-        seed_tasks(db)
-        logger.info("Tasks seeded")
-        seed_inventory(db)
-        logger.info("Inventory seeded")
-        seed_test_types(db)
-        logger.info("Test types seeded")
-        db.commit()
-        logger.info("All seeds committed")
-    except Exception as e:
-        db.rollback()
-        logger.error("Seed failed: %s", e)
+    # Each seed runs in its own transaction so one failure doesn't roll back others.
+    for fn, label in [
+        (seed_default_users, "users"),
+        (seed_projects,      "projects"),
+        (seed_tasks,         "tasks"),
+        (seed_inventory,     "inventory"),
+        (seed_test_types,    "test_types"),
+    ]:
+        try:
+            fn(db)
+            db.commit()
+            logger.info("Seed OK: %s", label)
+        except Exception as exc:
+            db.rollback()
+            logger.warning("Seed skipped (%s): %s", label, exc)
 
     # Device inventory repository (from device_repo/device_repository/repository.json)
     try:

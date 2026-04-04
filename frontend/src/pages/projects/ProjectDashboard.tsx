@@ -546,24 +546,24 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
     refreshProjectFiles();
   }, [refreshProjectFiles]);
 
-  /** Internal: run full parse/sync via POST /scan-run (avoids chunked SSE through proxies). */
+  /**
+   * Internal: start a background scan job, then poll /scan-status every 2 s.
+   * Progress comes from the server (real pct + label), no fake client-side timer.
+   */
   const _runScan = useCallback((newFileIds: string[], approvedPattern?: ApprovedStringPattern, detectToken?: string | null) => {
     const STEPS: ScanStep[] = [
       { label: 'Parsing design file',           state: 'pending' },
       { label: 'Extracting strings & inverters', state: 'pending' },
       { label: 'Syncing topology',               state: 'pending' },
       { label: 'Syncing design strings',         state: 'pending' },
-      { label: 'Refreshing project data',        state: 'pending' },
+      { label: 'Saving analytics',               state: 'pending' },
     ];
-
-    const set = (idx: number, state: ScanStep['state']) =>
-      setScanSteps(prev => prev.map((s, i) => i === idx ? { ...s, state } : s));
 
     setScanSteps(STEPS);
     setScanSummary(null);
     setScanError(null);
     setScanPct(0);
-    setScanSubLabel(null);
+    setScanSubLabel('Starting scan…');
     setScanModalOpen(true);
     setScanBusy(true);
 
@@ -593,73 +593,90 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
       });
     };
 
-    void (async () => {
-      const progressLabels = [
-        'Parsing design file…',
-        'Extracting strings & inverters…',
-        'Syncing topology…',
-        'Syncing design strings…',
-        'Saving analytics…',
-      ];
-      let labelIdx = 0;
-      set(0, 'running');
-      setScanSubLabel(progressLabels[0]!);
-      setScanPct(8);
-      const tick = window.setInterval(() => {
-        labelIdx = Math.min(labelIdx + 1, progressLabels.length - 1);
-        setScanSubLabel(progressLabels[labelIdx]!);
-        setScanPct((p) => Math.min(90, p + 12));
-      }, 5000);
+    const handleError = (msg: string) => {
+      setScanError(msg);
+      setScanSteps((prev) => prev.map((s) => (s.state === 'running' ? { ...s, state: 'error' } : s)));
+      setScanSubLabel(null);
+      setScanBusy(false);
+    };
 
+    void (async () => {
+      // ── Step 1: kick off background job ──────────────────────────────
+      let jobId: string;
       try {
-        const res = await fetch(`/api/projects/${projectId}/scan-run`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            ...api.scanStreamFetchHeaders(),
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            file_ids: newFileIds.join(','),
-            approved_pattern_name: approvedPattern?.pattern_name ?? undefined,
-            approved_pattern_regex: approvedPattern?.pattern_regex ?? undefined,
-            detect_token: detectToken ?? undefined,
-          }),
-        });
-        const raw = await res.text();
-        let j: Record<string, unknown> = {};
+        const { job_id } = await api.scanProjectStart(
+          Number(projectId),
+          newFileIds,
+          undefined,
+          approvedPattern,
+          detectToken,
+        );
+        jobId = job_id;
+      } catch (err: any) {
+        const detail =
+          err?.response?.data?.detail ??
+          err?.message ??
+          'Could not reach the server. Please try again.';
+        handleError(detail);
+        return;
+      }
+
+      // ── Step 2: poll /scan-status every 2 s ──────────────────────────
+      // Map server pct ranges to step indices so the step list updates live
+      const pctToStepIdx = (pct: number): number => {
+        if (pct < 30) return 0;
+        if (pct < 35) return 1;
+        if (pct < 65) return 2;
+        if (pct < 88) return 3;
+        return 4;
+      };
+
+      let activeStep = 0;
+      setScanSteps((prev) => prev.map((s, i) => i === 0 ? { ...s, state: 'running' } : s));
+
+      const poll = async (): Promise<void> => {
+        let status: Awaited<ReturnType<typeof api.scanProjectStatus>>;
         try {
-          j = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-        } catch {
-          /* ignore */
-        }
-        if (!res.ok) {
-          const d = j.detail;
-          const msg =
-            typeof d === 'string'
-              ? d
-              : Array.isArray(d)
-                ? d
-                    .map((x) => (typeof x === 'object' && x !== null ? JSON.stringify(x) : String(x)))
-                    .join('; ')
-                : d != null
-                  ? JSON.stringify(d)
-                  : `Scan failed (${res.status})`;
-          setScanError(msg);
-          setScanSteps((prev) => prev.map((s) => (s.state === 'running' ? { ...s, state: 'error' } : s)));
-          setScanBusy(false);
+          status = await api.scanProjectStatus(Number(projectId), jobId);
+        } catch (err: any) {
+          handleError(`Scan status check failed: ${err?.message ?? 'network error'}`);
           return;
         }
-        setScanPct(100);
-        setScanSubLabel(null);
-        applyScanCompleteRefetch();
-      } catch {
-        setScanError('Connection to server lost during scan. Please try again.');
-        setScanSteps((prev) => prev.map((s) => (s.state === 'running' ? { ...s, state: 'error' } : s)));
-        setScanBusy(false);
-      } finally {
-        window.clearInterval(tick);
-      }
+
+        if (status.state === 'error') {
+          handleError(status.error ?? 'Scan failed');
+          return;
+        }
+
+        if (status.state === 'done') {
+          applyScanCompleteRefetch();
+          return;
+        }
+
+        // running — update progress
+        const pct = status.pct ?? 0;
+        const label = status.label ?? '';
+        setScanPct(pct);
+        setScanSubLabel(label ? `${label}…` : null);
+
+        const newStep = pctToStepIdx(pct);
+        if (newStep !== activeStep) {
+          setScanSteps((prev) =>
+            prev.map((s, i) => {
+              if (i < newStep) return { ...s, state: 'done' };
+              if (i === newStep) return { ...s, state: 'running' };
+              return { ...s, state: 'pending' };
+            }),
+          );
+          activeStep = newStep;
+        }
+
+        // schedule next poll
+        window.setTimeout(() => { void poll(); }, 2_000);
+      };
+
+      // Start polling after a short delay (let the job register)
+      window.setTimeout(() => { void poll(); }, 1_000);
     })();
   }, [projectId]);
 

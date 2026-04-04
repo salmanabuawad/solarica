@@ -1114,6 +1114,75 @@ export async function detectStringPattern(
   return data;
 }
 
+/** Start a background detect job; returns {job_id}. */
+export async function detectStringPatternStart(
+  projectId: number,
+  files?: FileList,
+  fileIds?: string[],
+): Promise<{ job_id: string }> {
+  const form = new FormData();
+  if (fileIds?.length) form.append('file_ids', fileIds.join(','));
+  if (files) Array.from(files).forEach(f => form.append('files', f));
+  const { data } = await client.post<{ job_id: string }>(
+    `/projects/${projectId}/detect-start`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data;
+}
+
+/** Poll detect-job status. scan_summary holds the detection result when state='done'. */
+export async function detectStringPatternStatus(
+  projectId: number,
+  jobId: string,
+): Promise<{ state: 'running' | 'done' | 'error'; pct?: number; label?: string; error?: string; scan_summary?: StringPatternDetectionResult }> {
+  const { data } = await client.get(`/projects/${projectId}/detect-status/${jobId}`);
+  return data;
+}
+
+/**
+ * Start a background scan job (polling mode). Returns {job_id} immediately.
+ * Supply either ``files`` (wizard direct upload, project_id=0) or ``fileIds``
+ * (IDs of already-uploaded project files).
+ * When project_id=0, DB sync is skipped and the full parsed result is returned
+ * as scan_summary in the status response — used by the wizard to pre-fill its form.
+ */
+export async function scanProjectStart(
+  projectId: number,
+  fileIds?: string[],
+  files?: FileList,
+  approvedPattern?: ApprovedStringPattern,
+  detectToken?: string | null,
+): Promise<{ job_id: string }> {
+  const form = new FormData();
+  if (fileIds?.length) form.append('file_ids', fileIds.join(','));
+  if (files) Array.from(files).forEach(f => form.append('files', f));
+  if (approvedPattern) {
+    form.append('approved_pattern_name', approvedPattern.pattern_name);
+    form.append('approved_pattern_regex', approvedPattern.pattern_regex);
+  }
+  if (detectToken) form.append('detect_token', detectToken);
+  const { data } = await client.post<{ job_id: string }>(
+    `/projects/${projectId}/scan-start`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data;
+}
+
+/**
+ * Poll scan-job progress.
+ * When state='done', scan_summary contains the full StringScanResult
+ * (wizard) or a compact {valid_count, invalid_count, inverter_count_detected} (dashboard).
+ */
+export async function scanProjectStatus(
+  projectId: number,
+  jobId: string,
+): Promise<{ state: 'running' | 'done' | 'error'; pct?: number; label?: string; error?: string; scan_summary?: StringScanResult }> {
+  const { data } = await client.get(`/projects/${projectId}/scan-status/${jobId}`);
+  return data;
+}
+
 // ── Mobile ──────────────────────────────────────────────────────
 
 export async function getMobileHome(role: string): Promise<MobileHomeResponse> {

@@ -115,34 +115,81 @@ class ValidStringOccurrence:
         return f"{self.station}.{self.inverter}"
 
 
-def extract_pdf_items(path: Path) -> List[TextItem]:
-    if pdfplumber is None:
-        raise RuntimeError("pdfplumber is required for PDF parsing")
+_PDF_CHUNK_PAGES = 25    # pages processed per worker thread
+_PDF_MAX_WORKERS  = 4    # max concurrent threads for large PDFs
+
+
+def _extract_pdf_page_range(path: Path, start: int, end: int) -> List[TextItem]:
+    """Extract TextItems from pages [start, end) — 0-indexed, closed file when done."""
     items: List[TextItem] = []
-    with pdfplumber.open(str(path)) as pdf:
-        for page_idx, page in enumerate(pdf.pages, start=1):
+    with pdfplumber.open(str(path)) as pdf:  # type: ignore[union-attr]
+        for page_idx in range(start, min(end, len(pdf.pages))):
+            page = pdf.pages[page_idx]
             pw, ph = float(page.width), float(page.height)
+            display_page = page_idx + 1
             words = page.extract_words() or []
             if words:
                 for w in words:
                     txt = (w.get("text") or "").strip()
                     if txt:
-                        items.append(
-                            TextItem(
-                                txt,
-                                path.name,
-                                page_idx,
-                                float(w.get("x0", 0.0)),
-                                float(w.get("top", 0.0)),
-                                pw,
-                                ph,
-                            )
-                        )
+                        items.append(TextItem(
+                            txt, path.name, display_page,
+                            float(w.get("x0", 0.0)),
+                            float(w.get("top", 0.0)), pw, ph,
+                        ))
             else:
                 txt = page.extract_text() or ""
                 for token in TOKEN_RE.findall(txt):
-                    items.append(TextItem(token, path.name, page_idx, page_width=pw, page_height=ph))
+                    items.append(TextItem(token, path.name, display_page,
+                                          page_width=pw, page_height=ph))
     return items
+
+
+def extract_pdf_items(path: Path) -> List[TextItem]:
+    """
+    Extract text items from a PDF.
+
+    For large PDFs (> _PDF_CHUNK_PAGES pages) the file is processed in parallel
+    page-range chunks so that each thread holds only a fraction of the PDF data
+    in memory at once.  Each chunk opens and closes the file independently,
+    allowing the GC to reclaim memory between chunks.
+    """
+    if pdfplumber is None:
+        raise RuntimeError("pdfplumber is required for PDF parsing")
+
+    # Quick page count (lightweight open — no page data loaded yet)
+    with pdfplumber.open(str(path)) as pdf:  # type: ignore[union-attr]
+        total_pages = len(pdf.pages)
+
+    if total_pages <= _PDF_CHUNK_PAGES:
+        # Small PDF — single thread, avoids thread-pool overhead
+        return _extract_pdf_page_range(path, 0, total_pages)
+
+    # Large PDF — split into page-range chunks and parse concurrently
+    from concurrent.futures import ThreadPoolExecutor, as_completed as _as_completed
+
+    chunk_ranges = [
+        (s, min(s + _PDF_CHUNK_PAGES, total_pages))
+        for s in range(0, total_pages, _PDF_CHUNK_PAGES)
+    ]
+    n_workers = min(_PDF_MAX_WORKERS, len(chunk_ranges))
+
+    all_items: List[TextItem] = []
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futures = {
+            pool.submit(_extract_pdf_page_range, path, s, e): (s, e)
+            for s, e in chunk_ranges
+        }
+        for fut in _as_completed(futures):
+            try:
+                all_items.extend(fut.result())
+            except Exception as exc:
+                import sys as _sys
+                print(f"[pdf_chunk] pages {futures[fut]}: {exc}", file=_sys.stderr)
+
+    # Restore page order (futures may complete out of order)
+    all_items.sort(key=lambda item: item.page)
+    return all_items
 
 
 def _ascii_dxf_scan(content: str, path: Path) -> List[TextItem]:
@@ -793,10 +840,13 @@ def build_compact_parse_report(report: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def run_full(paths: List[Path]) -> Dict[str, Any]:
-    items: List[TextItem] = []
-    for p in paths:
-        items.extend(extract_items_from_file(p))
+def run_full_from_items(items: List[TextItem]) -> Dict[str, Any]:
+    """
+    Core analysis pipeline: accepts pre-extracted TextItems and returns the full
+    parse report dict.  Separating extraction from analysis allows callers to
+    save extracted items to disk, free PDF-related memory, then call this
+    function in a subsequent phase with much lower peak memory.
+    """
     pattern = detect_site_pattern(items)
     metadata = parse_project_metadata(items, pattern)
     valid_occ: List[ValidStringOccurrence] = []
@@ -895,9 +945,38 @@ def run_full(paths: List[Path]) -> Dict[str, Any]:
     return full
 
 
+def run_full(paths: List[Path]) -> Dict[str, Any]:
+    """Extract items from files then run the full analysis pipeline."""
+    items: List[TextItem] = []
+    for p in paths:
+        items.extend(extract_items_from_file(p))
+    return run_full_from_items(items)
+
+
 def parse_files(paths: List[Path]) -> Dict[str, Any]:
     """Backward-compatible alias for :func:`run_full`."""
     return run_full(paths)
+
+
+def items_to_json(items: List[TextItem]) -> List[Dict[str, Any]]:
+    """Serialize TextItems to a plain-dict list suitable for JSON storage."""
+    return [
+        {"text": i.text, "source_file": i.source_file, "page": i.page,
+         "x": i.x, "y": i.y, "page_width": i.page_width, "page_height": i.page_height}
+        for i in items
+    ]
+
+
+def items_from_json(data: List[Dict[str, Any]]) -> List[TextItem]:
+    """Deserialize TextItems from the format produced by :func:`items_to_json`."""
+    return [
+        TextItem(
+            text=d["text"], source_file=d["source_file"], page=d.get("page", 1),
+            x=d.get("x"), y=d.get("y"),
+            page_width=d.get("page_width"), page_height=d.get("page_height"),
+        )
+        for d in data
+    ]
 
 
 def to_frontend_parse_report(
