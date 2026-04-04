@@ -119,6 +119,56 @@ _PDF_CHUNK_PAGES = 25    # pages processed per worker thread
 _PDF_MAX_WORKERS  = 4    # max concurrent threads for large PDFs
 
 
+# ---------------------------------------------------------------------------
+# pypdfium2 — primary PDF text extractor (fast, low memory)
+# ---------------------------------------------------------------------------
+
+def _extract_pdf_pypdfium2(path: Path) -> List[TextItem]:
+    """
+    Extract TextItems using pypdfium2 (Chromium's PDFium engine).
+
+    Much faster and uses far less memory than pdfplumber — critical for
+    large single-page PDFs with complex vector layouts that cause pdfplumber
+    to OOM on memory-constrained servers.
+    """
+    import pypdfium2 as pdfium
+
+    items: List[TextItem] = []
+    pdf = pdfium.PdfDocument(str(path))
+    try:
+        for page_idx in range(len(pdf)):
+            page = pdf[page_idx]
+            pw = float(page.get_width())
+            ph = float(page.get_height())
+            display_page = page_idx + 1
+            tp = page.get_textpage()
+
+            n_rects = tp.count_rects()
+            for i in range(n_rects):
+                rect = tp.get_rect(i)
+                text = tp.get_text_bounded(*rect)
+                if not text or not text.strip():
+                    continue
+                rx = float(rect[0])
+                ry = float(rect[1])
+                # Split rect text into individual words (matches pdfplumber behaviour)
+                for word in text.split():
+                    word = word.strip()
+                    if word:
+                        items.append(TextItem(word, path.name, display_page,
+                                              rx, ry, pw, ph))
+
+            tp.close()
+            page.close()
+    finally:
+        pdf.close()
+    return items
+
+
+# ---------------------------------------------------------------------------
+# pdfplumber — fallback if pypdfium2 is unavailable
+# ---------------------------------------------------------------------------
+
 def _extract_pdf_page_range(path: Path, start: int, end: int) -> List[TextItem]:
     """Extract TextItems from pages [start, end) — 0-indexed, closed file when done."""
     items: List[TextItem] = []
@@ -145,27 +195,17 @@ def _extract_pdf_page_range(path: Path, start: int, end: int) -> List[TextItem]:
     return items
 
 
-def extract_pdf_items(path: Path) -> List[TextItem]:
-    """
-    Extract text items from a PDF.
-
-    For large PDFs (> _PDF_CHUNK_PAGES pages) the file is processed in parallel
-    page-range chunks so that each thread holds only a fraction of the PDF data
-    in memory at once.  Each chunk opens and closes the file independently,
-    allowing the GC to reclaim memory between chunks.
-    """
+def _extract_pdf_pdfplumber(path: Path) -> List[TextItem]:
+    """pdfplumber-based extraction — used when pypdfium2 is not installed."""
     if pdfplumber is None:
-        raise RuntimeError("pdfplumber is required for PDF parsing")
+        raise RuntimeError("No PDF parser available (need pypdfium2 or pdfplumber)")
 
-    # Quick page count (lightweight open — no page data loaded yet)
     with pdfplumber.open(str(path)) as pdf:  # type: ignore[union-attr]
         total_pages = len(pdf.pages)
 
     if total_pages <= _PDF_CHUNK_PAGES:
-        # Small PDF — single thread, avoids thread-pool overhead
         return _extract_pdf_page_range(path, 0, total_pages)
 
-    # Large PDF — split into page-range chunks and parse concurrently
     from concurrent.futures import ThreadPoolExecutor, as_completed as _as_completed
 
     chunk_ranges = [
@@ -187,9 +227,29 @@ def extract_pdf_items(path: Path) -> List[TextItem]:
                 import sys as _sys
                 print(f"[pdf_chunk] pages {futures[fut]}: {exc}", file=_sys.stderr)
 
-    # Restore page order (futures may complete out of order)
     all_items.sort(key=lambda item: item.page)
     return all_items
+
+
+def extract_pdf_items(path: Path) -> List[TextItem]:
+    """
+    Extract text items from a PDF.
+
+    Tries pypdfium2 first (fast, low memory). Falls back to pdfplumber
+    with chunked concurrent parsing if pypdfium2 is not installed.
+    """
+    # Primary: pypdfium2 — fast C-based engine, handles complex layouts safely
+    try:
+        import pypdfium2  # noqa: F811
+        return _extract_pdf_pypdfium2(path)
+    except ImportError:
+        pass
+    except Exception as exc:
+        import sys as _sys
+        print(f"[pdf] pypdfium2 failed, falling back to pdfplumber: {exc}", file=_sys.stderr)
+
+    # Fallback: pdfplumber (slower, higher memory, may OOM on complex PDFs)
+    return _extract_pdf_pdfplumber(path)
 
 
 def _ascii_dxf_scan(content: str, path: Path) -> List[TextItem]:
