@@ -279,3 +279,42 @@ CREATE TABLE IF NOT EXISTS alerts (
     status VARCHAR(50) NOT NULL DEFAULT 'open',
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS map_layers (
+    id SERIAL PRIMARY KEY,
+    project_id INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name VARCHAR(80) NOT NULL,
+    layer_type VARCHAR(50) NOT NULL,
+    is_visible_default BOOLEAN NOT NULL DEFAULT TRUE,
+    z_index INT NOT NULL DEFAULT 0,
+    style_json JSONB,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS map_objects (
+    id SERIAL PRIMARY KEY,
+    project_id INT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    layer_id INT REFERENCES map_layers(id) ON DELETE SET NULL,
+    object_uid VARCHAR(128) NOT NULL,
+    object_type VARCHAR(64) NOT NULL,
+    subtype VARCHAR(64),
+    label VARCHAR(255),
+    geometry_type VARCHAR(32) NOT NULL DEFAULT 'point',
+    geometry_json JSONB,
+    properties_json JSONB,
+    parent_id INT REFERENCES map_objects(id) ON DELETE SET NULL,
+    source_ref TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(project_id, object_uid)
+);
+
+CREATE TABLE IF NOT EXISTS map_object_links (
+    id SERIAL PRIMARY KEY,
+    object_id INT NOT NULL REFERENCES map_objects(id) ON DELETE CASCADE,
+    asset_id INT,
+    task_id INT,
+    qc_id INT,
+    link_type VARCHAR(32),
+    note TEXT
+);

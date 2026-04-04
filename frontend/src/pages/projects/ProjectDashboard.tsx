@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import {
   Building2,
   ChevronDown,
@@ -23,6 +23,7 @@ import ProjectTesting from './ProjectTesting';
 import StringPatternBusyModal from './StringPatternBusyModal';
 import ParsePatternSelectModal from './ParsePatternSelectModal';
 import StructuredParseReportPanel from './StructuredParseReportPanel';
+import ProjectLayeredMap from '../../components/map/ProjectLayeredMap';
 import { extractStructuredParseReport } from '../../lib/parseReportUtils';
 import * as api from '../../lib/api';
 import type { Project, MaintenanceTask, Measurement, ValidationRun, MaterialIssue } from '../../lib/types';
@@ -315,18 +316,21 @@ function MobileProjectView({
             {expandedSections.has('details') ? <ChevronUp style={{ width: 16, height: 16, color: '#64748b' }} /> : <ChevronDown style={{ width: 16, height: 16, color: '#64748b' }} />}
           </button>
           {expandedSections.has('details') && (
-            <div style={{ borderTop: '1px solid #f1f5f9', padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
-              {[
-                ['Customer',  project.customer_name || '—'],
-                ['Site',      project.site_name],
-                ['Type',      project.project_type],
-                ['Created',   project.created_at ? new Date(project.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—'],
-              ].map(([l, v]) => (
-                <div key={l}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>{l}</div>
-                  <div style={{ fontSize: 13, color: '#1e293b' }}>{v}</div>
-                </div>
-              ))}
+            <div style={{ borderTop: '1px solid #f1f5f9', padding: '12px 16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px', marginBottom: 16 }}>
+                {[
+                  ['Customer',  project.customer_name || '—'],
+                  ['Site',      project.site_name],
+                  ['Type',      project.project_type],
+                  ['Created',   project.created_at ? new Date(project.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—'],
+                ].map(([l, v]) => (
+                  <div key={l}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>{l}</div>
+                    <div style={{ fontSize: 13, color: '#1e293b' }}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <ProjectLayeredMap projectId={project.id} />
             </div>
           )}
         </div>
@@ -1004,6 +1008,10 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
               </div>
             </section>
 
+            <section className="shrink-0">
+              <ProjectLayeredMap projectId={project.id} />
+            </section>
+
             {/* Sub-tabs section — takes all remaining height */}
             <section className="flex flex-col flex-1 min-h-0">
 
@@ -1019,7 +1027,7 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
                       badge: scanAnalytics?.design_metadata
                         ? ((scanAnalytics.design_metadata.validation_findings?.length ?? 0) + (scanAnalytics.design_metadata.output_validation_findings?.length ?? 0)) || undefined
                         : undefined },
-                  ] as { id: SubTabId; label: string; icon: React.ReactNode; badge?: number }[]
+                  ] as { id: SubTabId; label: string; icon: ReactNode; badge?: number }[]
                 ).map(st => (
                   <button
                     key={st.id}

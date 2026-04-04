@@ -1228,3 +1228,66 @@ export async function saveFieldConfigs(items: FieldConfigItem[]): Promise<{ save
 }
 
 export default client;
+
+export interface ProjectMapLayer {
+  id: number;
+  project_id: number;
+  name: string;
+  layer_type: string;
+  is_visible_default: boolean;
+  z_index: number;
+  style_json: Record<string, unknown>;
+}
+
+export interface ProjectMapObject {
+  id: number;
+  project_id: number;
+  layer_id: number | null;
+  object_uid: string;
+  object_type: string;
+  subtype: string | null;
+  label: string | null;
+  geometry_type: string;
+  geometry: Record<string, unknown>;
+  properties: Record<string, unknown>;
+  parent_id: number | null;
+  source_ref?: string | null;
+}
+
+export interface ProjectMapWorkspace {
+  project: Project;
+  topology: string;
+  energy_system: string;
+  layers: ProjectMapLayer[];
+  objects: ProjectMapObject[];
+  metrics: Record<string, number>;
+  inspector?: {
+    summary?: string;
+    source_files?: string[];
+  };
+}
+
+export async function getProjectMapWorkspace(projectId: number): Promise<ProjectMapWorkspace> {
+  const { data } = await client.get<ProjectMapWorkspace>(`/projects/${projectId}/map/workspace`);
+  return data;
+}
+
+export async function bootstrapProjectMapWorkspace(projectId: number, force = false): Promise<ProjectMapWorkspace> {
+  const { data } = await client.post<ProjectMapWorkspace>(`/projects/${projectId}/map/bootstrap`, { force });
+  return data;
+}
+
+export async function listProjectMapLayers(projectId: number): Promise<ProjectMapLayer[]> {
+  const { data } = await client.get<ProjectMapLayer[]>(`/projects/${projectId}/map/layers`);
+  return data;
+}
+
+export async function listProjectMapObjects(projectId: number): Promise<ProjectMapObject[]> {
+  const { data } = await client.get<ProjectMapObject[]>(`/projects/${projectId}/map/objects`);
+  return data;
+}
+
+export async function updateProjectMapObject(objectId: number, payload: Partial<ProjectMapObject> & { geometry?: Record<string, unknown>; properties?: Record<string, unknown> }): Promise<ProjectMapObject> {
+  const { data } = await client.patch<ProjectMapObject>(`/map/objects/${objectId}`, payload);
+  return data;
+}

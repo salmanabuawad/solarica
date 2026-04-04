@@ -18,6 +18,7 @@ from app.api.routes.device_inventory import router as device_inventory_router
 from app.api.routes.solar_catalog import router as solar_catalog_router
 from app.api.routes.field_config import router as field_config_router
 from app.api.routes.parser_engine import router as parser_engine_router
+from app.api.routes.map_workspace import router as map_workspace_router
 from app.core.config import get_settings
 from app.core.database import engine, SessionLocal, ensure_schema_patches
 from app.core.scheduler import start_scheduler, stop_scheduler
@@ -101,6 +102,7 @@ app.include_router(device_inventory_router,   prefix="/api/device-inventory", ta
 app.include_router(solar_catalog_router,      prefix="/api/solar-catalog",    tags=["solar-catalog"])
 app.include_router(field_config_router,       prefix="/api/field-configs",    tags=["field-configs"])
 app.include_router(parser_engine_router,      prefix="/api/parser-engine",    tags=["parser-engine"])
+app.include_router(map_workspace_router,      prefix="/api",                   tags=["map-workspace"])
 
 
 @app.get("/health")

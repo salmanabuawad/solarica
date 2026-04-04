@@ -13,6 +13,7 @@ from app.models.solar_catalog import (
     CatalogDevice, CatalogSpec, CatalogVulnerability, CatalogVulnMatch,
 )
 from app.models.field_config import FieldConfig
+from app.models.map_workspace import MapLayer, MapObject, MapObjectLink
 
 __all__ = [
     "User", "Company", "Customer",
@@ -26,4 +27,5 @@ __all__ = [
     "CatalogDataSource", "CatalogCategory", "CatalogManufacturer",
     "CatalogDevice", "CatalogSpec", "CatalogVulnerability", "CatalogVulnMatch",
     "FieldConfig",
+    "MapLayer", "MapObject", "MapObjectLink",
 ]
