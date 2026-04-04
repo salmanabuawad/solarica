@@ -11,7 +11,9 @@ import {
 import axios from 'axios';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, GetRowIdParams, RowClassParams } from 'ag-grid-community';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
+registerAgGridModules();
 interface ProjectFile {
   id:            string;
   original_name: string;

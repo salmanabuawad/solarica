@@ -1,16 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { Loader2, Package, Plus, X } from 'lucide-react';
 import * as api from '../../lib/api';
 import type { Material, MaterialCreate } from '../../lib/types';
 import DataPageShell from '../../components/layout/DataPageShell';
 import { useFieldConfig } from '../../lib/useFieldConfig';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 const EMPTY: MaterialCreate = { name:'', category:'', unit:'pcs', sku:'', min_threshold:0, unit_cost:0 };
 
 const inp: React.CSSProperties = { width:'100%', padding:'8px 10px', fontSize:13, color:'#111827', background:'#fff', border:'1px solid #d1d5db', borderRadius:6, outline:'none', boxSizing:'border-box' };

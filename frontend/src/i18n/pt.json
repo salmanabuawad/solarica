@@ -384,6 +384,42 @@
     "files_upload_error": "Falha no carregamento",
     "files_load_error": "Falha ao carregar",
     "files_delete_error": "Falha ao eliminar",
-    "files_delete_confirm": "Eliminar este ficheiro?"
+    "files_delete_confirm": "Eliminar este ficheiro?",
+    "parse_pattern": {
+      "title": "Como devem ser analisadas as strings?",
+      "description": "Use deteção automática para analisar os ficheiros e escolher a melhor regra, ou escolha um padrão de nomenclatura guardado para este projeto.",
+      "mode_label": "Padrão de nomenclatura de strings",
+      "option_auto": "Deteção automática a partir dos ficheiros",
+      "regex_label": "Regex",
+      "cancel": "Cancelar",
+      "continue": "Analisar dados",
+      "loading": "A carregar padrões…",
+      "load_error": "Não foi possível carregar os padrões de nomenclatura. A deteção automática continua disponível.",
+      "no_manual_patterns": "Não há padrões de nomenclatura de string ativos. Adicione-os nas definições do projeto ou use deteção automática."
+    }
+  },
+  "parse_report": {
+    "title": "Resumo da análise",
+    "final_status": "Estado final",
+    "site": "Site",
+    "name": "Nome",
+    "installation": "Tipo de instalação",
+    "country": "País",
+    "region": "Região",
+    "coordinates": "Coordenadas",
+    "patterns": "Padrões",
+    "string_pattern": "Padrão de strings",
+    "inverter_pattern": "Padrão de inversores",
+    "mode": "Modo",
+    "inverters": "Inversores",
+    "status": "Estado",
+    "present": "Presentes",
+    "strings": "Strings",
+    "valid": "Válidas",
+    "invalid": "Inválidas",
+    "invalid_examples": "Exemplos inválidos",
+    "spatial": "Validação espacial",
+    "duplicates_exact": "Duplicados exatos",
+    "missing": "Números de string em falta"
   }
 }

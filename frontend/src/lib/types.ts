@@ -33,6 +33,16 @@ export interface Project extends ProjectCreate {
   created_at?: string | null;
 }
 
+export interface NamingPattern {
+  id: number;
+  project_id: number;
+  asset_type: string;
+  pattern_name: string;
+  pattern_regex: string;
+  is_active: boolean;
+  created_at?: string | null;
+}
+
 export interface ProjectPhaseUpdate {
   phase: string;
 }

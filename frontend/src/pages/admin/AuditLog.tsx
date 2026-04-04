@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { ScrollText, RefreshCw } from 'lucide-react';
 import * as api from '../../lib/api';
 import DataPageShell from '../../components/layout/DataPageShell';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 interface AuditEntry {
   id:number; actor_username:string; actor_role:string; action:string;
   entity_type:string|null; entity_id:number|null; detail:string|null; created_at:string;

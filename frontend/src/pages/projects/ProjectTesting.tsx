@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import {
   Zap, CheckCircle2, XCircle, AlertTriangle, Plus, Trash2,
@@ -8,9 +7,10 @@ import {
 } from 'lucide-react';
 import * as api from '../../lib/api';
 import type { TestType, TestRecord, CommissioningStatus } from '../../lib/api';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 interface Props { projectId:number; recordedBy?:string; }
 
 const STATUS_COLORS: Record<string,string> = {

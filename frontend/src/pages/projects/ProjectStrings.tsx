@@ -5,7 +5,11 @@ import {
   FileText, FolderOpen, Trash2, X, Cpu, Activity,
 } from 'lucide-react';
 import * as api from '../../lib/api';
-import type { StringScanResult } from '../../lib/api';
+import type { ApprovedStringPattern, StringPatternDetectionResult, StringScanResult } from '../../lib/api';
+import StringPatternBusyModal from './StringPatternBusyModal';
+import StringPatternConfirmModal from './StringPatternConfirmModal';
+import StructuredParseReportPanel from './StructuredParseReportPanel';
+import { extractStructuredParseReport, isLegacyStringsBySection } from '../../lib/parseReportUtils';
 
 interface Props {
   projectId: number;
@@ -20,6 +24,11 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
   const [selectedFileIds, setSelectedFileIds] = useState<string[]>([]);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [patternModalOpen, setPatternModalOpen] = useState(false);
+  const [patternDetection, setPatternDetection] = useState<StringPatternDetectionResult | null>(null);
+  const [patternBusy, setPatternBusy] = useState(false);
+  const [patternBusyFileCount, setPatternBusyFileCount] = useState(0);
+  const uploadedFilesRef = useRef<FileList | undefined>(undefined);
 
   // Only active files appear in the scan selector; inactive ones are excluded
   const pdfFiles = projectFiles.filter(f => f.file_type === 'PDF' && f.is_active !== false);
@@ -38,7 +47,11 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
     );
   }
 
-  async function runScan(uploadedFiles?: FileList) {
+  async function runScan(
+    approvedPattern: ApprovedStringPattern,
+    uploadedFiles?: FileList,
+    detectToken?: string | null,
+  ) {
     if (!selectedFileIds.length && !uploadedFiles?.length) {
       setError('Select at least one PDF file to scan.');
       return;
@@ -51,10 +64,15 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
         projectId,
         selectedFileIds.length ? selectedFileIds : undefined,
         uploadedFiles || undefined,
+        approvedPattern,
+        detectToken,
       );
       setResult(res);
-      // auto-expand all sections
-      setExpandedSections(new Set(Object.keys(res.strings)));
+      if (isLegacyStringsBySection(res.strings)) {
+        setExpandedSections(new Set(Object.keys(res.strings)));
+      } else {
+        setExpandedSections(new Set());
+      }
     } catch (err: any) {
       setError(err?.response?.data?.detail || err?.message || 'Scan failed.');
     } finally {
@@ -64,16 +82,74 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
 
   function handleUploadScan(files: FileList) {
     setShowUploadModal(false);
-    runScan(files);
+    startScanWithPattern(files);
+  }
+
+  async function startScanWithPattern(uploadedFiles?: FileList) {
+    if (!selectedFileIds.length && !uploadedFiles?.length) {
+      setError('Select at least one PDF file to scan.');
+      return;
+    }
+    uploadedFilesRef.current = uploadedFiles;
+    setPatternBusyFileCount(uploadedFiles?.length ?? selectedFileIds.length);
+    setPatternBusy(true);
+    setError(null);
+    try {
+      const detection = await api.detectStringPattern(
+        projectId,
+        selectedFileIds.length ? selectedFileIds : undefined,
+        uploadedFiles,
+      );
+      setPatternDetection(detection);
+      setPatternModalOpen(true);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err?.message || 'Could not detect a string pattern.');
+    } finally {
+      setPatternBusy(false);
+    }
   }
 
   /* ── helpers ── */
-  const hasGaps = result && Object.keys(result.gaps).length > 0;
-  const hasDuplicates = result && result.duplicates.length > 0;
-  const hasAnomalies = result && Object.keys(result.anomalies).length > 0;
+  const structuredReport = result ? extractStructuredParseReport(result as unknown) : null;
+  const legacyStrings = result && isLegacyStringsBySection(result.strings) ? result.strings : null;
+  const hasGaps = result && Object.keys(result.gaps ?? {}).length > 0;
+  const dupExact = structuredReport?.duplicates?.exact;
+  const hasStructDup = dupExact != null && Object.keys(dupExact).length > 0;
+  const hasDuplicates =
+    (result && Array.isArray(result.duplicates) && result.duplicates.length > 0) || hasStructDup;
+  const hasAnomalies = result && Object.keys(result.anomalies ?? {}).length > 0;
+  const validTotal = structuredReport?.strings?.valid_total ?? result?.valid_count;
+  const invalidTotal = structuredReport?.strings?.invalid_total ?? result?.invalid_count;
 
   return (
     <>
+    <StringPatternBusyModal
+      open={patternBusy && !patternModalOpen && !loading}
+      projectName={`Project ${projectId}`}
+      fileCount={patternBusyFileCount}
+    />
+    <StringPatternConfirmModal
+      open={patternModalOpen}
+      detection={patternDetection}
+      busy={patternBusy}
+      onCancel={() => {
+        setPatternModalOpen(false);
+        setPatternDetection(null);
+        uploadedFilesRef.current = undefined;
+      }}
+      onConfirm={async (pattern) => {
+        setPatternBusy(true);
+        try {
+          const detectToken = patternDetection?.detect_token;
+          setPatternModalOpen(false);
+          setPatternDetection(null);
+          await runScan(pattern, uploadedFilesRef.current, detectToken);
+          uploadedFilesRef.current = undefined;
+        } finally {
+          setPatternBusy(false);
+        }
+      }}
+    />
     {showUploadModal && (
       <UploadScanModal
         onClose={() => setShowUploadModal(false)}
@@ -114,8 +190,8 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
         <div className="flex items-center gap-3 flex-wrap">
           {selectedFileIds.length > 0 && (
             <button
-              onClick={() => runScan()}
-              disabled={loading}
+              onClick={() => startScanWithPattern()}
+              disabled={loading || patternBusy}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
               {loading ? (
@@ -130,7 +206,7 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
           {pdfFiles.length === 0 && (
             <button
               onClick={() => setShowUploadModal(true)}
-              disabled={loading}
+              disabled={loading || patternBusy}
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-50 flex items-center gap-2 border border-gray-200"
             >
               <Upload className="h-4 w-4" />
@@ -150,7 +226,9 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
       {/* ── Results ── */}
       {result && (
         <>
-          {/* Site metadata */}
+          {structuredReport && <StructuredParseReportPanel report={structuredReport} />}
+
+          {/* Site metadata (legacy scan) */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Info className="h-4 w-4 text-blue-600" />
@@ -183,37 +261,60 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
 
           {/* Summary bar */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <StatCard label="Total Strings" value={result.valid_count + result.invalid_count} color="blue" icon={<Layers className="h-5 w-5" />} />
-            <StatCard label="Valid" value={result.valid_count} color="green" icon={<CheckCircle2 className="h-5 w-5" />} />
-            <StatCard label="Invalid / Dupes" value={result.invalid_count} color={result.invalid_count > 0 ? 'red' : 'gray'} icon={<XCircle className="h-5 w-5" />} />
-            <StatCard label="Gap Groups" value={Object.keys(result.gaps).length} color={hasGaps ? 'yellow' : 'gray'} icon={<BarChart2 className="h-5 w-5" />} />
+            <StatCard
+              label="Total Strings"
+              value={(validTotal ?? 0) + (invalidTotal ?? 0)}
+              color="blue"
+              icon={<Layers className="h-5 w-5" />}
+            />
+            <StatCard label="Valid" value={validTotal ?? 0} color="green" icon={<CheckCircle2 className="h-5 w-5" />} />
+            <StatCard
+              label="Invalid / Dupes"
+              value={invalidTotal ?? 0}
+              color={(invalidTotal ?? 0) > 0 ? 'red' : 'gray'}
+              icon={<XCircle className="h-5 w-5" />}
+            />
+            <StatCard
+              label="Gap Groups"
+              value={Object.keys(result.gaps ?? {}).length}
+              color={hasGaps ? 'yellow' : 'gray'}
+              icon={<BarChart2 className="h-5 w-5" />}
+            />
           </div>
 
           {/* Status banner */}
           <div className={`rounded-xl border p-4 flex items-center gap-3 ${
-            result.has_errors
+            (result.has_errors || (invalidTotal ?? 0) > 0 || structuredReport?.final_status === 'needs_cleanup')
               ? 'bg-red-50 border-red-200 text-red-700'
               : hasGaps
               ? 'bg-yellow-50 border-yellow-200 text-yellow-700'
               : 'bg-green-50 border-green-200 text-green-700'
           }`}>
-            {result.has_errors ? <XCircle className="h-5 w-5 shrink-0" /> :
-             hasGaps ? <AlertTriangle className="h-5 w-5 shrink-0" /> :
-             <CheckCircle2 className="h-5 w-5 shrink-0" />}
+            {(result.has_errors || (invalidTotal ?? 0) > 0 || structuredReport?.final_status === 'needs_cleanup') ? (
+              <XCircle className="h-5 w-5 shrink-0" />
+            ) : hasGaps ? (
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 shrink-0" />
+            )}
             <span className="font-medium text-sm">
-              {result.has_errors
-                ? `${result.invalid_count} invalid or duplicate string(s) found — review before import.`
-                : hasGaps
-                ? `All strings valid, but ${Object.keys(result.gaps).length} gap group(s) detected.`
-                : 'All strings valid with no gaps detected.'}
+              {structuredReport?.final_status != null && !legacyStrings
+                ? `${structuredReport.final_status.replace(/_/g, ' ')}${
+                    (invalidTotal ?? 0) > 0 ? ` · ${invalidTotal} invalid` : ''
+                  }`
+                : result.has_errors || (invalidTotal ?? 0) > 0
+                  ? `${invalidTotal ?? result.invalid_count} invalid or duplicate string(s) found — review before import.`
+                  : hasGaps
+                    ? `All strings valid, but ${Object.keys(result.gaps ?? {}).length} gap group(s) detected.`
+                    : 'All strings valid with no gaps detected.'}
             </span>
           </div>
 
           {/* Gaps */}
           {hasGaps && (
-            <Section title={`Sequence Gaps (${Object.keys(result.gaps).length} groups)`} color="yellow" icon={<AlertTriangle className="h-4 w-4" />}>
+            <Section title={`Sequence Gaps (${Object.keys(result.gaps ?? {}).length} groups)`} color="yellow" icon={<AlertTriangle className="h-4 w-4" />}>
               <div className="space-y-2">
-                {Object.entries(result.gaps).map(([group, missing]) => (
+                {Object.entries(result.gaps ?? {}).map(([group, missing]) => (
                   <div key={group} className="flex items-start gap-3 text-sm">
                     <span className="font-mono font-medium text-yellow-700 w-24 shrink-0">{group}</span>
                     <span className="text-gray-600">Missing: <span className="font-mono text-xs">{missing.join(', ')}</span></span>
@@ -225,20 +326,40 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
 
           {/* Duplicates */}
           {hasDuplicates && (
-            <Section title={`Duplicate Strings (${result.duplicates.length})`} color="red" icon={<XCircle className="h-4 w-4" />}>
+            <Section
+              title={`Duplicate Strings (${Array.isArray(result.duplicates) ? result.duplicates.length : dupExact ? Object.keys(dupExact).length : 0})`}
+              color="red"
+              icon={<XCircle className="h-4 w-4" />}
+            >
               <div className="flex flex-wrap gap-2">
-                {result.duplicates.map(code => (
-                  <span key={code} className="px-2 py-1 bg-red-50 text-red-700 rounded font-mono text-xs border border-red-200">{code}</span>
-                ))}
+                {dupExact != null && Object.keys(dupExact).length > 0
+                  ? Object.entries(dupExact).map(([code, count]) => (
+                      <span
+                        key={code}
+                        className="px-2 py-1 bg-red-50 text-red-700 rounded font-mono text-xs border border-red-200"
+                      >
+                        {code} ×{count}
+                      </span>
+                    ))
+                  : Array.isArray(result.duplicates)
+                    ? result.duplicates.map((code) => (
+                        <span
+                          key={code}
+                          className="px-2 py-1 bg-red-50 text-red-700 rounded font-mono text-xs border border-red-200"
+                        >
+                          {code}
+                        </span>
+                      ))
+                    : null}
               </div>
             </Section>
           )}
 
           {/* Anomalies */}
           {hasAnomalies && (
-            <Section title={`Anomalies / Malformed Codes (${Object.keys(result.anomalies).length} groups)`} color="orange" icon={<AlertTriangle className="h-4 w-4" />}>
+            <Section title={`Anomalies / Malformed Codes (${Object.keys(result.anomalies ?? {}).length} groups)`} color="orange" icon={<AlertTriangle className="h-4 w-4" />}>
               <div className="space-y-2">
-                {Object.entries(result.anomalies).map(([key, vals]) => (
+                {Object.entries(result.anomalies ?? {}).map(([key, vals]) => (
                   <div key={key} className="flex items-start gap-3 text-sm">
                     <span className="font-mono font-medium text-orange-700 w-28 shrink-0">{key}</span>
                     <span className="font-mono text-xs text-gray-600">{vals.join(', ')}</span>
@@ -247,6 +368,21 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
               </div>
             </Section>
           )}
+
+          {/* Structured missing (when no legacy inverter grid) */}
+          {structuredReport?.missing != null &&
+            Object.keys(structuredReport.missing).length > 0 &&
+            !(result.inverters && result.inverters.length > 0) && (
+              <Section title="Missing string numbers" color="yellow" icon={<AlertTriangle className="h-4 w-4" />}>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(structuredReport.missing).map(([inv, nos]) => (
+                    <span key={inv} className="font-mono text-xs bg-yellow-100 border border-yellow-300 text-yellow-900 rounded px-2 py-0.5">
+                      {inv}: [{nos.join(', ')}]
+                    </span>
+                  ))}
+                </div>
+              </Section>
+            )}
 
           {/* Inverters panel */}
           {result.inverters && result.inverters.length > 0 && (
@@ -426,16 +562,17 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
             </div>
           )}
 
-          {/* Strings by section */}
+          {/* Strings by section (legacy) */}
+          {legacyStrings && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Layers className="h-4 w-4 text-blue-600" />
               Strings by Section
             </h3>
             <div className="space-y-2">
-              {Object.entries(result.strings).map(([section, codes]) => {
+              {Object.entries(legacyStrings).map(([section, codes]) => {
                 const isOpen = expandedSections.has(section);
-                const sectionGapKeys = Object.keys(result.gaps).filter(k => k.startsWith(section + '.'));
+                const sectionGapKeys = Object.keys(result.gaps ?? {}).filter(k => k.startsWith(section + '.'));
                 return (
                   <div key={section} className="border border-gray-200 rounded-lg overflow-hidden">
                     <button
@@ -454,7 +591,7 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
                     {isOpen && (
                       <div className="px-4 py-3 flex flex-wrap gap-1.5">
                         {codes.map(code => {
-                          const inGap = Object.values(result.gaps).flat().includes(code);
+                          const inGap = Object.values(result.gaps ?? {}).flat().includes(code);
                           return (
                             <span
                               key={code}
@@ -475,6 +612,7 @@ export default function ProjectStrings({ projectId, projectFiles = [] }: Props) 
               })}
             </div>
           </div>
+          )}
         </>
       )}
     </div>

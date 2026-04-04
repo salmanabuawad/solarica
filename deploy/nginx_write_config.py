@@ -25,8 +25,8 @@ server {
     root  /opt/solarica/frontend/dist;
     index index.html;
 
-    # Allow uploads up to 100 MB (project files, task attachments)
-    client_max_body_size 100M;
+    # Allow very large project/design uploads across all API routes
+    client_max_body_size 1G;
 
     gzip on;
     gzip_vary on;
@@ -36,8 +36,21 @@ server {
     add_header X-Frame-Options SAMEORIGIN always;
     add_header X-Content-Type-Options nosniff always;
 
-    # Extended timeout for PDF/DXF scanning (can take 1-3 min for large files)
-    location ~ ^/api/projects/[0-9]+/scan-strings {
+    # Extended timeout for PDF/DXF work (scan, pattern detect, SSE stream)
+    location ~ ^/api/projects/[0-9]+/(scan-strings|detect-string-pattern|scan-stream) {
+        proxy_pass         http://127.0.0.1:8010;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_request_buffering off;
+        client_max_body_size 1G;
+    }
+
+    location ~ ^/api/projects/[0-9]+/files {
         proxy_pass         http://127.0.0.1:8010;
         proxy_http_version 1.1;
         proxy_set_header   Host              $host;
@@ -46,7 +59,7 @@ server {
         proxy_set_header   X-Forwarded-Proto $scheme;
         proxy_read_timeout 300s;
         proxy_request_buffering off;
-        client_max_body_size 200M;
+        client_max_body_size 1G;
     }
 
     location /api/ {
@@ -56,8 +69,10 @@ server {
         proxy_set_header   X-Real-IP         $remote_addr;
         proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_read_timeout 120s;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
         proxy_request_buffering off;
+        client_max_body_size 1G;
     }
 
     location /health {

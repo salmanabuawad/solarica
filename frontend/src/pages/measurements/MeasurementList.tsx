@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { Upload, FileUp, RefreshCcw, CheckCircle2, XCircle, FolderOpen, X, FileText } from 'lucide-react';
 import * as api from '../../lib/api';
 import type { Measurement } from '../../lib/types';
 import type { SuiImportResult } from '../../lib/api';
 import DataPageShell from '../../components/layout/DataPageShell';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes/1024).toFixed(1)} KB`;

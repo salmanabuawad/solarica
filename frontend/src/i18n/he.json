@@ -384,6 +384,42 @@
     "files_upload_error": "ההעלאה נכשלה",
     "files_load_error": "טעינת הקבצים נכשלה",
     "files_delete_error": "מחיקת הקובץ נכשלה",
-    "files_delete_confirm": "למחוק את הקובץ?"
+    "files_delete_confirm": "למחוק את הקובץ?",
+    "parse_pattern": {
+      "title": "כיצד לנתח מחרוזות?",
+      "description": "השתמשו בזיהוי אוטומטי כדי לנתח את הקבצים ולבחור את ההתאמה הטובה ביותר, או בחרו תבנית שמות שמורה לפרויקט.",
+      "mode_label": "תבנית שמות מחרוזות",
+      "option_auto": "זיהוי אוטומטי מהקבצים",
+      "regex_label": "Regex",
+      "cancel": "ביטול",
+      "continue": "נתח נתונים",
+      "loading": "טוען תבניות…",
+      "load_error": "לא ניתן לטעון תבניות שמות. עדיין ניתן להשתמש בזיהוי אוטומטי.",
+      "no_manual_patterns": "לא הוגדרו תבניות שמות מחרוזות פעילות. הוסיפו בהגדרות הפרויקט או השתמשו בזיהוי אוטומטי."
+    }
+  },
+  "parse_report": {
+    "title": "סיכום ניתוח",
+    "final_status": "סטטוס סופי",
+    "site": "אתר",
+    "name": "שם",
+    "installation": "סוג התקנה",
+    "country": "מדינה",
+    "region": "אזור",
+    "coordinates": "קואורדינטות",
+    "patterns": "תבניות",
+    "string_pattern": "תבנית מחרוזות",
+    "inverter_pattern": "תבנית ממירים",
+    "mode": "מצב",
+    "inverters": "ממירים",
+    "status": "סטטוס",
+    "present": "קיימים",
+    "strings": "מחרוזות",
+    "valid": "תקינים",
+    "invalid": "לא תקינים",
+    "invalid_examples": "דוגמאות לא תקינות",
+    "spatial": "אימות מרחבי",
+    "duplicates_exact": "כפילות מדויקות",
+    "missing": "מספרי מחרוזות חסרים"
   }
 }

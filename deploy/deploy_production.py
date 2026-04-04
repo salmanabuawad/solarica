@@ -8,6 +8,9 @@ import sys
 import posixpath
 import paramiko
 
+# Repository root (directory that contains backend/, frontend/, deploy/, parser_engine/)
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+
 HOST = "185.229.226.37"
 PORT = 22
 USER = "root"
@@ -34,6 +37,8 @@ BACKEND_FILES = [
      "/opt/solarica/backend/app/repositories/project_repo.py"),
     (r"C:\Solarica_OM\backend\app\api\routes\projects.py",
      "/opt/solarica/backend/app/api/routes/projects.py"),
+    (r"C:\Solarica_OM\backend\app\api\routes\project_files.py",
+     "/opt/solarica/backend/app/api/routes/project_files.py"),
     (r"C:\Solarica_OM\backend\app\api\routes\string_scan.py",
      "/opt/solarica/backend/app/api/routes/string_scan.py"),
     (r"C:\Solarica_OM\backend\app\parsers\design\pdf_string_extractor.py",
@@ -42,6 +47,12 @@ BACKEND_FILES = [
      "/opt/solarica/backend/app/parsers/design/extra_patterns.py"),
     (r"C:\Solarica_OM\backend\app\parsers\design\normalization.py",
      "/opt/solarica/backend/app/parsers/design/normalization.py"),
+    (r"C:\Solarica_OM\backend\app\parsers\design\final_engine.py",
+     "/opt/solarica/backend/app/parsers/design/final_engine.py"),
+    (r"C:\Solarica_OM\backend\app\parsers\design\strict_map_parser.py",
+     "/opt/solarica/backend/app/parsers/design/strict_map_parser.py"),
+    (r"C:\Solarica_OM\backend\app\api\routes\parser_engine.py",
+     "/opt/solarica/backend/app/api/routes/parser_engine.py"),
     (r"C:\Solarica_OM\backend\app\services\output_validation.py",
      "/opt/solarica/backend/app/services/output_validation.py"),
     (r"C:\Solarica_OM\backend\app\main.py",
@@ -96,34 +107,77 @@ DEVICE_REPO_FILES = [
      "/opt/solarica/device_repo/device_repository/solar_db_dump_real/vulnerability_matches.csv"),
 ]
 
-# parser_engine package — uploaded to /opt/solarica/parser_engine and installed via pip
-PARSER_ENGINE_FILES = [
-    (r"C:\Solarica_OM\parser_engine\pyproject.toml",
-     "/opt/solarica/parser_engine/pyproject.toml"),
-    (r"C:\Solarica_OM\parser_engine\requirements.txt",
-     "/opt/solarica/parser_engine/requirements.txt"),
-    # map_parser_v7 package
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\__init__.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/__init__.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\cli.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/cli.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\core\engine.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/core/engine.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\core\extractors.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/core/extractors.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\core\progress.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/core/progress.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\schemas\models.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/schemas/models.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\steps\registry.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/steps/registry.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\utils\io.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/utils/io.py"),
-    (r"C:\Solarica_OM\parser_engine\src\map_parser_v7\utils\text_patterns.py",
-     "/opt/solarica/parser_engine/src/map_parser_v7/utils/text_patterns.py"),
-]
+PARSER_ENGINE_REMOTE_BASE = "/opt/solarica/parser_engine"
 
-FRONTEND_LOCAL_DIST = r"C:\Solarica_OM\frontend\dist"
+# Directory names skipped while walking parser_engine/src (and pruned from os.walk)
+_PARSER_ENGINE_SKIP_DIRS = frozenset({
+    "__pycache__", ".git", ".venv", "venv", ".mypy_cache", ".pytest_cache", "node_modules",
+})
+
+# Optional package-root files under parser_engine/
+_PARSER_ENGINE_ROOT_FILES = (
+    "pyproject.toml",
+    "setup.py",
+    "setup.cfg",
+    "README.md",
+    "requirements.txt",
+)
+
+
+def collect_parser_engine_uploads() -> tuple[list[tuple[str, str]], bool]:
+    """
+    Build (local_path, remote_posix_path) for parser_engine.
+
+    - Uploads package metadata files at parser_engine/ root if present.
+    - Recursively uploads parser_engine/src/** (exclusive source of map_parser_v7).
+    - Does NOT upload parser_engine/backend/ (local stub tree).
+
+    Returns (pairs, has_map_parser_v7) where has_map_parser_v7 is True iff
+    src/map_parser_v7/__init__.py exists locally (so pip install -e is safe).
+    """
+    base = os.path.join(REPO_ROOT, "parser_engine")
+    pairs: list[tuple[str, str]] = []
+    if not os.path.isdir(base):
+        return pairs, False
+
+    for name in _PARSER_ENGINE_ROOT_FILES:
+        local_path = os.path.join(base, name)
+        if os.path.isfile(local_path):
+            pairs.append(
+                (local_path, posixpath.join(PARSER_ENGINE_REMOTE_BASE, name.replace("\\", "/")))
+            )
+
+    src_root = os.path.join(base, "src")
+    if os.path.isdir(src_root):
+        for dirpath, dirnames, filenames in os.walk(src_root):
+            dirnames[:] = sorted(
+                d for d in dirnames
+                if d not in _PARSER_ENGINE_SKIP_DIRS and not d.startswith(".")
+            )
+            for filename in sorted(filenames):
+                if filename.endswith((".pyc", ".pyo")):
+                    continue
+                local_file = os.path.join(dirpath, filename)
+                rel_from_engine = os.path.relpath(local_file, base)
+                rel_posix = rel_from_engine.replace("\\", "/")
+                remote = posixpath.join(PARSER_ENGINE_REMOTE_BASE, rel_posix)
+                pairs.append((local_file, remote))
+
+    v7_init = os.path.join(base, "src", "map_parser_v7", "__init__.py")
+    return pairs, os.path.isfile(v7_init)
+
+
+FRONTEND_LOCAL_DIST = os.path.join(REPO_ROOT, "frontend", "dist")
+
+
+def _print_remote_line(prefix: str, line: str) -> None:
+    """Avoid UnicodeEncodeError on Windows consoles when printing SSH output."""
+    text = f"{prefix}{line}"
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        enc = getattr(sys.stdout, "encoding", None) or "utf-8"
+        print(text.encode(enc, errors="replace").decode(enc))
 
 
 def sftp_makedirs(sftp, remote_path):
@@ -168,9 +222,21 @@ def deploy():
 
     # --- Upload backend files ---
     print("\n[2/4] Uploading backend files...")
+    parser_engine_upload, parser_engine_has_v7 = collect_parser_engine_uploads()
+    if not parser_engine_upload:
+        print(
+            "  (Note: parser_engine/ missing or has no deployable files — "
+            "nothing uploaded under /opt/solarica/parser_engine.)"
+        )
+    elif not parser_engine_has_v7:
+        print(
+            "  (Note: parser_engine/src/map_parser_v7/ not found (no __init__.py) — "
+            "uploaded package root / src/* only; pip install -e will be skipped. "
+            "Add the full package under parser_engine/src/map_parser_v7/ to sync it.)"
+        )
     backend_ok = 0
     backend_fail = 0
-    for local_path, remote_path in BACKEND_FILES + PARSER_ENGINE_FILES + DEVICE_REPO_FILES:
+    for local_path, remote_path in BACKEND_FILES + parser_engine_upload + DEVICE_REPO_FILES:
         remote_dir = posixpath.dirname(remote_path)
         sftp_makedirs(sftp, remote_dir)
         try:
@@ -222,7 +288,7 @@ def deploy():
     # --- Post-deploy commands ---
     print("\n[4/4] Running post-deploy commands on server...")
 
-    commands = [
+    commands: list[tuple[str, str]] = [
         (
             "Install ezdxf",
             '/opt/solarica/venv/bin/pip install "ezdxf>=1.1.0" 2>&1'
@@ -231,22 +297,29 @@ def deploy():
             "Create device_repo dirs",
             "mkdir -p /opt/solarica/device_repo/device_repository/solar_db_dump_real"
         ),
-        (
-            "Create parser_engine sub-package dirs",
+    ]
+    if parser_engine_has_v7:
+        commands.append((
+            "Create parser_engine map_parser_v7 dirs",
             "mkdir -p /opt/solarica/parser_engine/src/map_parser_v7/core "
             "/opt/solarica/parser_engine/src/map_parser_v7/schemas "
             "/opt/solarica/parser_engine/src/map_parser_v7/steps "
             "/opt/solarica/parser_engine/src/map_parser_v7/utils"
-        ),
-        (
+        ))
+        commands.append((
             "Install parser_engine (map_parser_v7)",
             '/opt/solarica/venv/bin/pip install -e /opt/solarica/parser_engine --quiet 2>&1'
-        ),
-        (
-            "Restart solarica-backend",
-            "systemctl restart solarica-backend && sleep 3 && systemctl status solarica-backend | head -20"
-        ),
-    ]
+        ))
+    elif parser_engine_upload:
+        print(
+            "\n  (Skipping pip install -e /opt/solarica/parser_engine — "
+            "map_parser_v7 sources not in this workspace.)"
+        )
+
+    commands.append((
+        "Restart solarica-backend",
+        "systemctl restart solarica-backend && sleep 3 && systemctl status solarica-backend | head -20"
+    ))
 
     for label, cmd in commands:
         print(f"\n  --- {label} ---")
@@ -258,10 +331,10 @@ def deploy():
             exit_code = stdout.channel.recv_exit_status()
             if out:
                 for line in out.rstrip().splitlines():
-                    print(f"    {line}")
+                    _print_remote_line("    ", line)
             if err:
                 for line in err.rstrip().splitlines():
-                    print(f"  STDERR: {line}")
+                    _print_remote_line("  STDERR: ", line)
             print(f"  Exit code: {exit_code}")
         except Exception as e:
             print(f"  FAILED: {e}")

@@ -1,34 +1,12 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "map-parser-v6-full"
+name = "map-parser-v7"
 version = "0.1.0"
-description = "Step-based parser engine for solar site PDF/DXF maps"
-readme = "README.md"
+description = "Solarica design map parser; Python package lives under src/map_parser_v7"
 requires-python = ">=3.10"
-dependencies = [
-  "fastapi>=0.111.0",
-  "uvicorn>=0.30.0",
-  "pydantic>=2.7.0",
-  "pypdf>=4.2.0",
-  "pdfplumber>=0.11.0",
-  "python-multipart>=0.0.9",
-  "PyMuPDF>=1.24.0",
-  "Pillow>=10.3.0",
-  "pytesseract>=0.3.10"
-]
-
-[project.optional-dependencies]
-dxf = ["ezdxf>=1.3.0"]
-ocr = ["pdf2image>=1.17.0", "pytesseract>=0.3.10", "Pillow>=10.3.0"]
-
-[project.scripts]
-map-parser-v6 = "map_parser_v6.cli:main"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

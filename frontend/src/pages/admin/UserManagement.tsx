@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { Shield, Users, UserPlus } from 'lucide-react';
 import DataPageShell from '../../components/layout/DataPageShell';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 interface MockUser { id:number; username:string; display_name:string; role:string; status:string; }
 
 const MOCK_USERS: MockUser[] = [

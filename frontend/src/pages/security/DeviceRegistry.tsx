@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import type React from 'react';
 import { Cpu, Plus, RefreshCcw, X } from 'lucide-react';
 import * as api from '../../lib/api';
 import DataPageShell from '../../components/layout/DataPageShell';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 interface Device {
   id:string; project_id:string; device_name:string; device_type:string; manufacturer:string; model:string;
   firmware_version:string|null; ip_address:string|null; mac_address:string|null; protocol:string|null;

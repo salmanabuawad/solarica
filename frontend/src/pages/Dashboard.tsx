@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useMemo } from 'react';
 import { FolderKanban, ClipboardCheck, ShieldCheck, AlertTriangle, Plus, Upload } from 'lucide-react';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import * as api from '../lib/api';
 import type { Project, MaintenanceTask } from '../lib/types';
 import { useTabs } from '../contexts/AppContext';
+import { registerAgGridModules } from '../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 interface StatsCard {
   label: string;
   count: number;

@@ -6,14 +6,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { RowDoubleClickedEvent, IDatasource, IGetRowsParams, GridReadyEvent, SortChangedEvent } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { RefreshCw, X, Zap, Download, Upload, FileDown } from 'lucide-react';
 import * as api from '../../lib/api';
 import type { SolarCatalogDevice, SolarCatalogStatus, SolarCatalogSpec } from '../../lib/types';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 const BLOCK = 100; // rows per fetch — matches default paginationPageSize
 
 /* ── Catalog Device Modal ───────────────────────────────────────── */

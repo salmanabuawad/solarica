@@ -14,7 +14,7 @@ router = APIRouter()
 
 UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "uploads", "projects")
 ALLOWED_EXT = {".pdf", ".dxf"}
-MAX_SIZE_MB = 50
+MAX_SIZE_MB = 1024
 
 
 def _project_dir(project_id: int) -> str:

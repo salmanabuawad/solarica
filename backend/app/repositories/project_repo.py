@@ -1,6 +1,18 @@
 import re
 from sqlalchemy.orm import Session
-from app.models.project import Project, DesignValidationRun, DesignValidationIssue
+from app.models.project import Project, DesignValidationRun, DesignValidationIssue, NamingPattern
+
+
+DEFAULT_STRING_PATTERNS = [
+    {
+        "pattern_name": "S.N.N.N",
+        "pattern_regex": r"^S\.\d+\.\d+\.\d+$",
+    },
+    {
+        "pattern_name": "SN.N.N.N",
+        "pattern_regex": r"^S\d+\.\d+\.\d+\.\d+$",
+    },
+]
 
 
 def list_projects(db: Session) -> list[Project]:
@@ -26,7 +38,132 @@ def create_project(db: Session, *, name: str, customer_name: str | None = None,
     )
     db.add(proj)
     db.flush()
+    ensure_default_string_patterns(db, proj.id)
     return proj
+
+
+def list_naming_patterns(
+    db: Session,
+    project_id: int,
+    asset_type: str | None = None,
+) -> list[NamingPattern]:
+    q = db.query(NamingPattern).filter(NamingPattern.project_id == project_id)
+    if asset_type:
+        q = q.filter(NamingPattern.asset_type == asset_type)
+    return q.order_by(NamingPattern.asset_type, NamingPattern.id).all()
+
+
+def create_naming_pattern(
+    db: Session,
+    *,
+    project_id: int,
+    asset_type: str,
+    pattern_name: str,
+    pattern_regex: str,
+    is_active: bool = True,
+) -> NamingPattern:
+    pattern = NamingPattern(
+        project_id=project_id,
+        asset_type=asset_type,
+        pattern_name=pattern_name,
+        pattern_regex=pattern_regex,
+        is_active=is_active,
+    )
+    db.add(pattern)
+    db.flush()
+    return pattern
+
+
+def get_naming_pattern(db: Session, project_id: int, pattern_id: int) -> NamingPattern | None:
+    return (
+        db.query(NamingPattern)
+        .filter(NamingPattern.project_id == project_id, NamingPattern.id == pattern_id)
+        .first()
+    )
+
+
+def update_naming_pattern(
+    db: Session,
+    project_id: int,
+    pattern_id: int,
+    *,
+    pattern_name: str | None = None,
+    pattern_regex: str | None = None,
+    is_active: bool | None = None,
+) -> NamingPattern | None:
+    pattern = get_naming_pattern(db, project_id, pattern_id)
+    if not pattern:
+        return None
+    if pattern_name is not None:
+        pattern.pattern_name = pattern_name
+    if pattern_regex is not None:
+        pattern.pattern_regex = pattern_regex
+    if is_active is not None:
+        pattern.is_active = is_active
+    db.flush()
+    return pattern
+
+
+def delete_naming_pattern(db: Session, project_id: int, pattern_id: int) -> NamingPattern | None:
+    pattern = get_naming_pattern(db, project_id, pattern_id)
+    if not pattern:
+        return None
+    db.delete(pattern)
+    db.flush()
+    return pattern
+
+
+def ensure_default_string_patterns(db: Session, project_id: int) -> None:
+    existing = (
+        db.query(NamingPattern)
+        .filter(NamingPattern.project_id == project_id, NamingPattern.asset_type == "string")
+        .count()
+    )
+    if existing > 0:
+        return
+    for item in DEFAULT_STRING_PATTERNS:
+        db.add(
+            NamingPattern(
+                project_id=project_id,
+                asset_type="string",
+                pattern_name=item["pattern_name"],
+                pattern_regex=item["pattern_regex"],
+                is_active=True,
+            )
+        )
+    db.flush()
+
+
+def get_active_string_patterns(db: Session, project_id: int) -> list[dict]:
+    patterns = (
+        db.query(NamingPattern)
+        .filter(
+            NamingPattern.project_id == project_id,
+            NamingPattern.asset_type == "string",
+            NamingPattern.is_active.is_(True),
+        )
+        .order_by(NamingPattern.id)
+        .all()
+    )
+    if patterns:
+        return [
+            {
+                "id": item.id,
+                "pattern_name": item.pattern_name,
+                "pattern_regex": item.pattern_regex,
+                "source": "project",
+            }
+            for item in patterns
+        ]
+    return [
+        {
+            "id": None,
+            "pattern_name": item["pattern_name"],
+            "pattern_regex": item["pattern_regex"],
+            "source": "default",
+        }
+        for item in DEFAULT_STRING_PATTERNS
+    ]
 
 
 def update_phase(db: Session, project_id: int, phase: str) -> Project | None:
@@ -155,4 +292,5 @@ def seed_projects(db: Session) -> None:
     for s in seeds:
         p = Project(**s)
         db.add(p)
-    db.flush()
+        db.flush()
+        ensure_default_string_patterns(db, p.id)

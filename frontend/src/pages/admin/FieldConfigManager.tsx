@@ -8,7 +8,9 @@ import type { FieldConfigItem } from '../../lib/api';
 import { GRID_DEFAULTS } from '../../lib/fieldConfigDefaults';
 import { useFieldConfigContext } from '../../lib/FieldConfigContext';
 import DataPageShell from '../../components/layout/DataPageShell';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
+registerAgGridModules();
 interface Row {
   field_name: string;
   header:     string;

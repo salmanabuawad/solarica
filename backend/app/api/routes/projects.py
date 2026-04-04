@@ -9,6 +9,18 @@ from app.schemas.project import ProjectCreate, ProjectRead, ProjectPhaseUpdate, 
 router = APIRouter()
 
 
+def _naming_pattern_to_dict(pattern) -> dict:
+    return {
+        "id": pattern.id,
+        "project_id": pattern.project_id,
+        "asset_type": pattern.asset_type,
+        "pattern_name": pattern.pattern_name,
+        "pattern_regex": pattern.pattern_regex,
+        "is_active": pattern.is_active,
+        "created_at": pattern.created_at.isoformat() if pattern.created_at else None,
+    }
+
+
 @router.post("", response_model=ProjectRead)
 def create_project(
     payload: ProjectCreate,
@@ -42,6 +54,110 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
     if not proj:
         raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
     return proj.to_dict()
+
+
+@router.get("/{project_id}/naming-patterns")
+def list_naming_patterns(
+    project_id: int,
+    asset_type: str | None = None,
+    db: Session = Depends(get_db),
+):
+    if project_repo.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+    project_repo.ensure_default_string_patterns(db, project_id)
+    return [
+        _naming_pattern_to_dict(p)
+        for p in project_repo.list_naming_patterns(db, project_id, asset_type=asset_type)
+    ]
+
+
+@router.post("/{project_id}/naming-patterns")
+def create_naming_pattern(
+    project_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("admin", "manager")),
+):
+    if project_repo.get_project(db, project_id) is None:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+    asset_type = str(payload.get("asset_type", "")).strip() or "string"
+    pattern_name = str(payload.get("pattern_name", "")).strip()
+    pattern_regex = str(payload.get("pattern_regex", "")).strip()
+    if not pattern_name or not pattern_regex:
+        raise HTTPException(status_code=400, detail="pattern_name and pattern_regex are required")
+    pattern = project_repo.create_naming_pattern(
+        db,
+        project_id=project_id,
+        asset_type=asset_type,
+        pattern_name=pattern_name,
+        pattern_regex=pattern_regex,
+        is_active=bool(payload.get("is_active", True)),
+    )
+    audit_repo.log_action(
+        db,
+        actor_username=current_user["username"],
+        actor_role=current_user["role"],
+        action="create_naming_pattern",
+        entity_type="project",
+        entity_id=project_id,
+        detail=f"{asset_type}: {pattern_name}",
+    )
+    db.commit()
+    return _naming_pattern_to_dict(pattern)
+
+
+@router.patch("/{project_id}/naming-patterns/{pattern_id}")
+def update_naming_pattern(
+    project_id: int,
+    pattern_id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("admin", "manager")),
+):
+    pattern = project_repo.update_naming_pattern(
+        db,
+        project_id,
+        pattern_id,
+        pattern_name=(str(payload["pattern_name"]).strip() if "pattern_name" in payload else None),
+        pattern_regex=(str(payload["pattern_regex"]).strip() if "pattern_regex" in payload else None),
+        is_active=payload.get("is_active") if "is_active" in payload else None,
+    )
+    if not pattern:
+        raise HTTPException(status_code=404, detail="Naming pattern not found")
+    audit_repo.log_action(
+        db,
+        actor_username=current_user["username"],
+        actor_role=current_user["role"],
+        action="update_naming_pattern",
+        entity_type="project",
+        entity_id=project_id,
+        detail=f"{pattern.asset_type}: {pattern.pattern_name}",
+    )
+    db.commit()
+    return _naming_pattern_to_dict(pattern)
+
+
+@router.delete("/{project_id}/naming-patterns/{pattern_id}")
+def delete_naming_pattern(
+    project_id: int,
+    pattern_id: int,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_roles("admin", "manager")),
+):
+    pattern = project_repo.delete_naming_pattern(db, project_id, pattern_id)
+    if not pattern:
+        raise HTTPException(status_code=404, detail="Naming pattern not found")
+    audit_repo.log_action(
+        db,
+        actor_username=current_user["username"],
+        actor_role=current_user["role"],
+        action="delete_naming_pattern",
+        entity_type="project",
+        entity_id=project_id,
+        detail=f"{pattern.asset_type}: {pattern.pattern_name}",
+    )
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/{project_id}/strings")

@@ -384,6 +384,42 @@
     "files_upload_error": "Error al subir",
     "files_load_error": "Error al cargar archivos",
     "files_delete_error": "Error al eliminar",
-    "files_delete_confirm": "¿Eliminar este archivo?"
+    "files_delete_confirm": "¿Eliminar este archivo?",
+    "parse_pattern": {
+      "title": "¿Cómo deben analizarse las cadenas?",
+      "description": "Use detección automática para analizar los archivos y elegir la mejor coincidencia, o elija un patrón de nombres guardado para este proyecto.",
+      "mode_label": "Patrón de nombres de cadenas",
+      "option_auto": "Detección automática desde archivos",
+      "regex_label": "Regex",
+      "cancel": "Cancelar",
+      "continue": "Analizar datos",
+      "loading": "Cargando patrones…",
+      "load_error": "No se pudieron cargar los patrones de nombres. Aún puede usar detección automática.",
+      "no_manual_patterns": "No hay patrones de nombres de cadena activos. Añádalos en la configuración del proyecto o use detección automática."
+    }
+  },
+  "parse_report": {
+    "title": "Resumen del análisis",
+    "final_status": "Estado final",
+    "site": "Sitio",
+    "name": "Nombre",
+    "installation": "Tipo de instalación",
+    "country": "País",
+    "region": "Región",
+    "coordinates": "Coordenadas",
+    "patterns": "Patrones",
+    "string_pattern": "Patrón de strings",
+    "inverter_pattern": "Patrón de inversores",
+    "mode": "Modo",
+    "inverters": "Inversores",
+    "status": "Estado",
+    "present": "Presentes",
+    "strings": "Strings",
+    "valid": "Válidos",
+    "invalid": "Inválidos",
+    "invalid_examples": "Ejemplos inválidos",
+    "spatial": "Validación espacial",
+    "duplicates_exact": "Duplicados exactos",
+    "missing": "Números de string faltantes"
   }
 }

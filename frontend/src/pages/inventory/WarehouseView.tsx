@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { Warehouse, Plus, AlertTriangle, Send, RefreshCcw, Trash2 } from 'lucide-react';
 import * as api from '../../lib/api';
 import DataPageShell from '../../components/layout/DataPageShell';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 interface IssueItem {
   material_name: string; quantity_issued: number; quantity_returned: number;
   quantity_consumed: number; quantity_missing: number; unit: string;

@@ -385,6 +385,42 @@
     "files_upload_error": "Upload failed",
     "files_load_error": "Failed to load files",
     "files_delete_error": "Failed to delete file",
-    "files_delete_confirm": "Delete this file?"
+    "files_delete_confirm": "Delete this file?",
+    "parse_pattern": {
+      "title": "How should strings be parsed?",
+      "description": "Use auto-detect to analyze your files and pick the best match, or choose a saved string naming pattern for this project.",
+      "mode_label": "String naming pattern",
+      "option_auto": "Auto-detect from files",
+      "regex_label": "Regex",
+      "cancel": "Cancel",
+      "continue": "Parse data",
+      "loading": "Loading patterns…",
+      "load_error": "Could not load naming patterns. You can still use auto-detect.",
+      "no_manual_patterns": "No active string naming patterns are configured for this project. Add patterns under project settings, or use auto-detect."
+    }
+  },
+  "parse_report": {
+    "title": "Parse summary",
+    "final_status": "Final status",
+    "site": "Site",
+    "name": "Name",
+    "installation": "Installation type",
+    "country": "Country",
+    "region": "Region",
+    "coordinates": "Coordinates",
+    "patterns": "Patterns",
+    "string_pattern": "String pattern",
+    "inverter_pattern": "Inverter pattern",
+    "mode": "Mode",
+    "inverters": "Inverters",
+    "status": "Status",
+    "present": "Present",
+    "strings": "Strings",
+    "valid": "Valid",
+    "invalid": "Invalid",
+    "invalid_examples": "Invalid examples",
+    "spatial": "Spatial validation",
+    "duplicates_exact": "Exact duplicates",
+    "missing": "Missing string numbers"
   }
 }

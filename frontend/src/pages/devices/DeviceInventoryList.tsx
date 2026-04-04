@@ -5,14 +5,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { RowDoubleClickedEvent } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import { AlertTriangle, CheckCircle, RefreshCw, MapPin, X, Shield, Download, Upload, FileDown } from 'lucide-react';
 import * as api from '../../lib/api';
 import type { DeviceInventoryItem, DeviceSite, DeviceInventorySummary } from '../../lib/types';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 const SEVERITY_COLORS: Record<string, string> = {
   Critical: '#dc2626', High: '#ea580c', Medium: '#ca8a04', Low: '#16a34a',
 };

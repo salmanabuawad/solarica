@@ -384,6 +384,42 @@
     "files_upload_error": "فشل الرفع",
     "files_load_error": "فشل تحميل الملفات",
     "files_delete_error": "فشل حذف الملف",
-    "files_delete_confirm": "هل تريد حذف هذا الملف؟"
+    "files_delete_confirm": "هل تريد حذف هذا الملف؟",
+    "parse_pattern": {
+      "title": "كيف يجب تحليل السلاسل؟",
+      "description": "استخدم الكشف التلقائي لتحليل الملفات واختيار أفضل تطابق، أو اختر نمط تسمية محفوظًا لهذا المشروع.",
+      "mode_label": "نمط تسمية السلاسل",
+      "option_auto": "كشف تلقائي من الملفات",
+      "regex_label": "تعبير منتظم",
+      "cancel": "إلغاء",
+      "continue": "تحليل البيانات",
+      "loading": "جارٍ تحميل الأنماط…",
+      "load_error": "تعذّر تحميل أنماط التسمية. لا يزال بإمكانك استخدام الكشف التلقائي.",
+      "no_manual_patterns": "لا توجد أنماط تسمية سلاسل نشطة. أضفها من إعدادات المشروع أو استخدم الكشف التلقائي."
+    }
+  },
+  "parse_report": {
+    "title": "ملخص التحليل",
+    "final_status": "الحالة النهائية",
+    "site": "الموقع",
+    "name": "الاسم",
+    "installation": "نوع التثبيت",
+    "country": "الدولة",
+    "region": "المنطقة",
+    "coordinates": "الإحداثيات",
+    "patterns": "أنماط التسمية",
+    "string_pattern": "نمط السلسلة",
+    "inverter_pattern": "نمط العاكس",
+    "mode": "الوضع",
+    "inverters": "العاكسات",
+    "status": "الحالة",
+    "present": "الموجود",
+    "strings": "السلاسل",
+    "valid": "صالح",
+    "invalid": "غير صالح",
+    "invalid_examples": "أمثلة غير صالحة",
+    "spatial": "التحقق المكاني",
+    "duplicates_exact": "تكرارات مطابقة",
+    "missing": "أرقام سلاسل مفقودة"
   }
 }

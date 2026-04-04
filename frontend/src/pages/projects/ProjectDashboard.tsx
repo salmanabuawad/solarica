@@ -20,11 +20,22 @@ import { AgGridReact } from 'ag-grid-react';
 import type { ColDef } from 'ag-grid-community';
 import ProjectFiles from './ProjectFiles';
 import ProjectTesting from './ProjectTesting';
+import StringPatternBusyModal from './StringPatternBusyModal';
+import ParsePatternSelectModal from './ParsePatternSelectModal';
+import StructuredParseReportPanel from './StructuredParseReportPanel';
+import { extractStructuredParseReport } from '../../lib/parseReportUtils';
 import * as api from '../../lib/api';
 import type { Project, MaintenanceTask, Measurement, ValidationRun, MaterialIssue } from '../../lib/types';
-import type { ProjectTopologyInverter, ProjectDesignString, ScanAnalytics } from '../../lib/api';
+import type {
+  ApprovedStringPattern,
+  ProjectTopologyInverter,
+  ProjectDesignString,
+  ScanAnalytics,
+} from '../../lib/api';
 import { useApp } from '../../contexts/AppContext';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
+registerAgGridModules();
 interface ProjectDashboardProps {
   projectId: string;
 }
@@ -447,9 +458,6 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
   const [suiUploading, setSuiUploading] = useState(false);
   const [activeBusy, setActiveBusy] = useState(false);
   const [scanBusy, setScanBusy] = useState(false);
-  const [patternEditing, setPatternEditing] = useState(false);
-  const [patternDraft, setPatternDraft] = useState('');
-  const [patternBusy, setPatternBusy] = useState(false);
   // Step-progress modal state
   type ScanStep = { label: string; state: 'pending' | 'running' | 'done' | 'error' };
   const [scanSteps, setScanSteps] = useState<ScanStep[]>([]);
@@ -461,6 +469,9 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
   // Confirmation modal (shown before re-parse when existing data is present)
   const [confirmScanOpen, setConfirmScanOpen] = useState(false);
   const [pendingScanIds, setPendingScanIds] = useState<string[]>([]);
+  const [parsePatternModalOpen, setParsePatternModalOpen] = useState(false);
+  const [patternBusy, setPatternBusy] = useState(false);
+  const [patternBusyFileCount, setPatternBusyFileCount] = useState(0);
   const suiInputRef = useRef<HTMLInputElement>(null);
 
   // ── Mobile detection (must be at top level, before any early returns) ──
@@ -483,6 +494,45 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
     return map;
   }, [designStrings]);
 
+  const allInvalidRows = useMemo(() => {
+    const rows = [...(scanAnalytics?.invalid_rows ?? [])];
+    const suffixRows = (scanAnalytics?.design_metadata?.suffix_string_issues ?? []).map((issue) => ({
+      string_code: null,
+      raw_value: issue.found,
+      inverter_key: null,
+      invalid_reason: issue.issue,
+    }));
+    const invalidAbRows = (scanAnalytics?.design_metadata?.invalid_ab_labels ?? []).map((label) => ({
+      string_code: null,
+      raw_value: label,
+      inverter_key: null,
+      invalid_reason: 'String has alphabetic A/B suffix and does not match the configured naming pattern.',
+    }));
+    const merged = [...rows, ...suffixRows, ...invalidAbRows];
+    const seen = new Set<string>();
+    return merged.filter((row) => {
+      const key = JSON.stringify([
+        row.string_code ?? null,
+        row.raw_value ?? null,
+        row.inverter_key ?? null,
+        row.invalid_reason ?? null,
+      ]);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [scanAnalytics]);
+
+  const dashboardStructuredReport = useMemo(() => {
+    if (!scanAnalytics) return null;
+    if (scanAnalytics.parse_report) return scanAnalytics.parse_report;
+    const dm = scanAnalytics.design_metadata;
+    if (dm && typeof dm === 'object' && 'parse_report' in dm && dm.parse_report) {
+      return dm.parse_report;
+    }
+    return extractStructuredParseReport(dm as unknown);
+  }, [scanAnalytics]);
+
   const refreshProjectFiles = useCallback(() => {
     fetch(`/api/projects/${projectId}/files`)
       .then((r) => r.json())
@@ -496,7 +546,7 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
   }, [refreshProjectFiles]);
 
   /** Internal: actually start the SSE scan (called after confirmation). */
-  const _runScan = useCallback((newFileIds: string[]) => {
+  const _runScan = useCallback((newFileIds: string[], approvedPattern?: ApprovedStringPattern, detectToken?: string | null) => {
     const STEPS: ScanStep[] = [
       { label: 'Parsing design file',           state: 'pending' },
       { label: 'Extracting strings & inverters', state: 'pending' },
@@ -516,7 +566,16 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
     setScanModalOpen(true);
     setScanBusy(true);
 
-    const url = `/api/projects/${projectId}/scan-stream?file_ids=${newFileIds.join(',')}`;
+    const params = new URLSearchParams({ file_ids: newFileIds.join(',') });
+    if (approvedPattern) {
+      params.set('approved_pattern_name', approvedPattern.pattern_name);
+      params.set('approved_pattern_regex', approvedPattern.pattern_regex);
+      setProject((prev) => (prev ? { ...prev, string_pattern: approvedPattern.pattern_name } : prev));
+    }
+    if (detectToken) {
+      params.set('detect_token', detectToken);
+    }
+    const url = `/api/projects/${projectId}/scan-stream?${params.toString()}`;
     const evtSource = new EventSource(url);
 
     evtSource.onmessage = (e: MessageEvent) => {
@@ -574,6 +633,13 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
     };
   }, [projectId]);
 
+  const openParsePatternChoice = useCallback((fileIds: string[]) => {
+    if (!fileIds.length) return;
+    setPendingScanIds(fileIds);
+    setPatternBusyFileCount(fileIds.length);
+    setParsePatternModalOpen(true);
+  }, []);
+
   /** Called when user clicks "Parse Data" — shows confirmation if existing data. */
   const onParseFiles = useCallback((fileIds: string[]) => {
     if (!fileIds.length) return;
@@ -581,9 +647,9 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
       setPendingScanIds(fileIds);
       setConfirmScanOpen(true);
     } else {
-      _runScan(fileIds);
+      openParsePatternChoice(fileIds);
     }
-  }, [topologyInverters.length, designStrings.length, _runScan]);
+  }, [topologyInverters.length, designStrings.length, openParsePatternChoice]);
 
   const phases = ['design','validation','implementation','testing','commissioning','maintenance','closed'];
 
@@ -653,19 +719,6 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
       setPhaseDropdownOpen(false);
     } catch (err) {
       console.error('Failed to update phase:', err);
-    }
-  }
-
-  async function handleSavePattern() {
-    setPatternBusy(true);
-    try {
-      const updated = await api.updateStringPattern(Number(projectId), patternDraft.trim() || null);
-      setProject(updated);
-      setPatternEditing(false);
-    } catch (err) {
-      console.error('Failed to update pattern:', err);
-    } finally {
-      setPatternBusy(false);
     }
   }
 
@@ -895,56 +948,6 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
                   ))}
                 </dl>
 
-                {/* String pattern row */}
-                <div className="px-3 py-2 border-t border-gray-100 flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <dt className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">String Naming Pattern</dt>
-                    {patternEditing ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={patternDraft}
-                          onChange={e => setPatternDraft(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') void handleSavePattern(); if (e.key === 'Escape') setPatternEditing(false); }}
-                          placeholder="e.g. S.N.N.N"
-                          className="border border-blue-400 rounded px-2 py-0.5 text-sm font-mono w-44 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        />
-                        <button
-                          type="button"
-                          disabled={patternBusy}
-                          onClick={() => void handleSavePattern()}
-                          className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-60"
-                        >
-                          {patternBusy ? '…' : 'Save'}
-                        </button>
-                        <button type="button" onClick={() => setPatternEditing(false)} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const pat = project.string_pattern || scanAnalytics?.pattern || null;
-                          return pat
-                            ? <span className="font-mono text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-0.5">{pat}</span>
-                            : <span className="text-sm text-gray-400 italic">Not configured</span>;
-                        })()}
-                        {!project.string_pattern && scanAnalytics?.pattern && (
-                          <span className="text-[10px] text-gray-400">(auto-detected)</span>
-                        )}
-                        {canManageProject && (
-                          <button
-                            type="button"
-                            onClick={() => { setPatternDraft(project.string_pattern ?? scanAnalytics?.pattern ?? ''); setPatternEditing(true); }}
-                            className="text-[11px] text-blue-500 hover:text-blue-700 underline underline-offset-2"
-                          >
-                            {project.string_pattern ? 'Edit' : 'Set pattern'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 {project.description?.trim() && (
                   <div className="px-3 py-2 border-t border-gray-100">
                     <dt className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Description</dt>
@@ -1026,21 +1029,19 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
                     })));
 
                   // Exclude "invalid" rows that are really just duplicate reports — they already appear in dupRows
-                  const invalidRows = (scanAnalytics?.invalid_rows ?? [])
+                  const invalidRows = allInvalidRows
                     .filter(r => !r.invalid_reason?.toLowerCase().includes('duplicate'));
-                  const pattern = scanAnalytics?.pattern ?? topologyInverters[0]?.detection_pattern ?? null;
                   const hasAnalytics = !!scanAnalytics;
 
                   return (
                     <div className="flex flex-col h-full gap-2">
+                      {dashboardStructuredReport && (
+                        <div className="shrink-0 overflow-y-auto max-h-[min(480px,45vh)]">
+                          <StructuredParseReportPanel report={dashboardStructuredReport} />
+                        </div>
+                      )}
                       {/* Pattern badge + totals */}
                       <div className="shrink-0 flex items-center gap-3 flex-wrap">
-                        {pattern && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium border border-blue-200">
-                            <span className="text-blue-400">pattern</span>
-                            <span className="font-mono font-semibold">{pattern}</span>
-                          </span>
-                        )}
                         <span className="text-xs text-gray-400">
                           {topologyInverters.length} inverters · {designStrings.length} strings
                           {scanAnalytics && (<>
@@ -1122,32 +1123,76 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
 
                 {/* Strings */}
                 {activeSubTab === 'strings' && (
-                  designStrings.length === 0
-                    ? <GridEmpty msg={t('project.overview_none_strings', 'No DC strings in the design model yet.')} />
-                    : <div className="ag-theme-quartz flex-1 min-h-0 rounded-lg overflow-hidden border border-gray-200">
-                        <AgGridReact<ProjectDesignString>
-                          rowData={designStrings}
-                          columnDefs={STR_COLS}
-                          rowHeight={38}
-                          headerHeight={34}
-                          suppressCellFocus
-                        />
+                  <div className="flex flex-col h-full min-h-0">
+                    {designStrings.length === 0 && allInvalidRows.length === 0 ? (
+                      <GridEmpty msg={t('project.overview_none_strings', 'No DC strings in the design model yet.')} />
+                    ) : (
+                      <div className="flex flex-col flex-1 min-h-0 gap-2">
+                        <div className="shrink-0 text-xs text-gray-500">
+                          <span>{designStrings.length} synced design strings</span>
+                          {allInvalidRows.length > 0 && (
+                            <span>{' · '}<span className="text-red-600">{allInvalidRows.length} invalid strings</span></span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 flex-1 min-h-0">
+                          <div className="flex flex-col min-h-0">
+                            <p className="text-[11px] font-semibold text-gray-700 mb-1 shrink-0">
+                              Design strings ({designStrings.length})
+                            </p>
+                            {designStrings.length === 0 ? (
+                              <GridEmpty msg={t('project.overview_none_strings', 'No DC strings in the design model yet.')} />
+                            ) : (
+                              <div className="ag-theme-quartz flex-1 min-h-0 rounded-lg overflow-hidden border border-gray-200">
+                                <AgGridReact<ProjectDesignString>
+                                  rowData={designStrings}
+                                  columnDefs={STR_COLS}
+                                  rowHeight={38}
+                                  headerHeight={34}
+                                  suppressCellFocus
+                                />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col min-h-0">
+                            <p className="text-[11px] font-semibold text-red-600 mb-1 shrink-0">
+                              Invalid strings ({allInvalidRows.length})
+                            </p>
+                            {allInvalidRows.length === 0 ? (
+                              <GridEmpty msg="No invalid strings detected." />
+                            ) : (
+                              <div className="ag-theme-quartz flex-1 min-h-0 rounded-lg overflow-hidden border border-red-200">
+                                <AgGridReact
+                                  rowData={allInvalidRows}
+                                  columnDefs={INVALID_COLS}
+                                  rowHeight={34}
+                                  headerHeight={30}
+                                  suppressCellFocus
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Materials */}
                 {activeSubTab === 'materials' && (
-                  projectIssues.length === 0
-                    ? <GridEmpty msg={t('project.overview_none_inventory', 'No material issues recorded for this project.')} />
-                    : <div className="ag-theme-quartz flex-1 min-h-0 rounded-lg overflow-hidden border border-gray-200">
-                        <AgGridReact<MaterialIssue>
-                          rowData={projectIssues}
-                          columnDefs={MAT_COLS}
-                          rowHeight={38}
-                          headerHeight={34}
-                          suppressCellFocus
-                        />
-                      </div>
+                  <div className="flex flex-col h-full min-h-0">
+                    {projectIssues.length === 0
+                      ? <GridEmpty msg={t('project.overview_none_inventory', 'No material issues recorded for this project.')} />
+                      : <div className="ag-theme-quartz flex-1 min-h-0 rounded-lg overflow-hidden border border-gray-200">
+                          <AgGridReact<MaterialIssue>
+                            rowData={projectIssues}
+                            columnDefs={MAT_COLS}
+                            rowHeight={38}
+                            headerHeight={34}
+                            suppressCellFocus
+                          />
+                        </div>
+                    }
+                  </div>
                 )}
 
                 {/* Design Scan metadata */}
@@ -1478,6 +1523,54 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
       </div>
     </div>
 
+    <StringPatternBusyModal
+      open={patternBusy && !parsePatternModalOpen && !scanModalOpen}
+      projectName={project?.name ?? `Project ${projectId}`}
+      fileCount={patternBusyFileCount}
+    />
+
+    <ParsePatternSelectModal
+      open={parsePatternModalOpen}
+      projectId={Number(projectId)}
+      defaultPatternName={project?.string_pattern ?? null}
+      onCancel={() => {
+        setParsePatternModalOpen(false);
+        setPendingScanIds([]);
+      }}
+      onStartAuto={async () => {
+        const ids = [...pendingScanIds];
+        setParsePatternModalOpen(false);
+        setPatternBusy(true);
+        setError(null);
+        try {
+          const detection = await api.detectStringPattern(Number(projectId), ids);
+          const name = detection.selected_pattern_name ?? detection.detected_pattern_name;
+          const pat =
+            detection.patterns.find((p) => p.pattern_name === name) ?? detection.patterns[0];
+          if (!pat) {
+            setError('No string pattern could be determined from the files.');
+            return;
+          }
+          _runScan(
+            ids,
+            { pattern_name: pat.pattern_name, pattern_regex: pat.pattern_regex },
+            detection.detect_token ?? null,
+          );
+        } catch (err: any) {
+          setError(err?.response?.data?.detail || err?.message || 'Could not detect a string pattern.');
+        } finally {
+          setPatternBusy(false);
+          setPendingScanIds([]);
+        }
+      }}
+      onStartManual={(pattern) => {
+        const ids = [...pendingScanIds];
+        setParsePatternModalOpen(false);
+        _runScan(ids, pattern, null);
+        setPendingScanIds([]);
+      }}
+    />
+
     {/* ── Re-parse confirmation modal ── */}
     {confirmScanOpen && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -1508,7 +1601,10 @@ export default function ProjectDashboard({ projectId }: ProjectDashboardProps) {
               Cancel
             </button>
             <button
-              onClick={() => { setConfirmScanOpen(false); _runScan(pendingScanIds); setPendingScanIds([]); }}
+              onClick={() => {
+                setConfirmScanOpen(false);
+                openParsePatternChoice(pendingScanIds);
+              }}
               className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-lg hover:bg-amber-700"
             >
               Yes, replace data

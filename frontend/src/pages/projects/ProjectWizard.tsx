@@ -6,8 +6,18 @@ import {
   Building2, Users, Plus,
 } from 'lucide-react';
 import * as api from '../../lib/api';
-import type { Company, Customer, StringScanResult } from '../../lib/api';
+import type {
+  ApprovedStringPattern,
+  Company,
+  Customer,
+  StringPatternDetectionResult,
+  StringScanResult,
+} from '../../lib/api';
 import type { ProjectCreate } from '../../lib/types';
+import StringPatternBusyModal from './StringPatternBusyModal';
+import StringPatternConfirmModal from './StringPatternConfirmModal';
+import StructuredParseReportPanel from './StructuredParseReportPanel';
+import { extractStructuredParseReport } from '../../lib/parseReportUtils';
 
 interface ProjectWizardProps {
   onClose: () => void;
@@ -81,6 +91,12 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
   const [parsing, setParsing]         = useState(false);
   const [parseResult, setParseResult] = useState<StringScanResult | null>(null);
   const [parseError, setParseError]   = useState<string | null>(null);
+  const [approvedPattern, setApprovedPattern] = useState<ApprovedStringPattern | null>(null);
+  const [patternDetection, setPatternDetection] = useState<StringPatternDetectionResult | null>(null);
+  const [patternModalOpen, setPatternModalOpen] = useState(false);
+  const [patternBusy, setPatternBusy] = useState(false);
+  const [patternBusyFileCount, setPatternBusyFileCount] = useState(0);
+  const pendingParseFilesRef = useRef<File[]>([]);
 
   // Step 4 — details form
   const [form, setForm] = useState<FormData>(INIT);
@@ -105,7 +121,7 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
     if (step !== 3) return;
     const pdfs = stagedFiles.filter(f => f.name.toLowerCase().endsWith('.pdf'));
     if (!pdfs.length) return;
-    runParse(pdfs);
+    startPatternApproval(pdfs);
   }, [step]); // eslint-disable-line
 
   const pdfs = stagedFiles.filter(f => f.name.toLowerCase().endsWith('.pdf'));
@@ -137,26 +153,52 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
   }
 
   function addFiles(files: File[]) {
+    setApprovedPattern(null);
+    setParseResult(null);
+    setParseError(null);
     setStagedFiles(prev => {
       const seen = new Set(prev.map(f => f.name + f.size));
       return [...prev, ...files.filter(f => !seen.has(f.name + f.size))];
     });
   }
 
-  async function runParse(pdfFiles: File[]) {
+  async function startPatternApproval(pdfFiles: File[]) {
+    pendingParseFilesRef.current = pdfFiles;
+    setPatternBusyFileCount(pdfFiles.length);
+    setPatternBusy(true);
+    setParseError(null);
+    setParseResult(null);
+    try {
+      const dt = new DataTransfer();
+      pdfFiles.forEach(f => dt.items.add(f));
+      const detection = await api.detectStringPattern(0, undefined, dt.files);
+      setPatternDetection(detection);
+      setPatternModalOpen(true);
+    } catch (e: any) {
+      setParseError(e?.response?.data?.detail || e?.message || 'Could not detect a string pattern.');
+    } finally {
+      setPatternBusy(false);
+    }
+  }
+
+  async function runParse(pdfFiles: File[], pattern: ApprovedStringPattern, detectToken?: string | null) {
     setParsing(true); setParseError(null); setParseResult(null);
     try {
       const dt = new DataTransfer();
       pdfFiles.forEach(f => dt.items.add(f));
-      const res = await api.scanProjectStrings(0, undefined, dt.files);
+      const res = await api.scanProjectStrings(0, undefined, dt.files, pattern, detectToken);
+      setApprovedPattern(pattern);
       setParseResult(res);
+      const pr = extractStructuredParseReport(res as unknown);
+      const siteLabel = pr?.site?.name ?? res.site_name ?? res.site_code ?? '';
+      const invTotal = pr?.inverters?.total ?? res.inverter_count_detected;
       setForm(prev => ({
         ...prev,
-        name: prev.name || res.site_name || res.site_code || '',
-        site_name: prev.site_name || res.site_name || res.site_code || '',
+        name: prev.name || siteLabel,
+        site_name: prev.site_name || siteLabel,
         capacity_kw: prev.capacity_kw || (res.plant_capacity_mw != null ? String(res.plant_capacity_mw * 1000) : ''),
         naming_prefix: prev.naming_prefix || res.site_code || '',
-        inverter_count: prev.inverter_count || (res.inverter_count_detected > 0 ? String(res.inverter_count_detected) : ''),
+        inverter_count: prev.inverter_count || (invTotal != null && invTotal > 0 ? String(invTotal) : ''),
       }));
     } catch (e: any) {
       setParseError(e?.response?.data?.detail || e?.message || 'Parse failed.');
@@ -182,6 +224,11 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
         description: form.description.trim() || null,
       };
       const project = await api.createProject(payload);
+      if (approvedPattern?.pattern_name) {
+        try {
+          await api.updateStringPattern(project.id, approvedPattern.pattern_name);
+        } catch {}
+      }
       if (stagedFiles.length > 0) {
         try { await api.uploadProjectFiles(project.id, stagedFiles); } catch {}
       }
@@ -222,6 +269,31 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)', padding: 16 }}>
+      <StringPatternBusyModal
+        open={patternBusy && !patternModalOpen && !parsing}
+        projectName={form.name.trim() || 'new project'}
+        fileCount={patternBusyFileCount}
+      />
+      <StringPatternConfirmModal
+        open={patternModalOpen}
+        detection={patternDetection}
+        busy={patternBusy}
+        onCancel={() => {
+          setPatternModalOpen(false);
+          setPatternDetection(null);
+        }}
+        onConfirm={async (pattern) => {
+          setPatternBusy(true);
+          try {
+            const detectToken = patternDetection?.detect_token;
+            setPatternModalOpen(false);
+            setPatternDetection(null);
+            await runParse(pendingParseFilesRef.current, pattern, detectToken);
+          } finally {
+            setPatternBusy(false);
+          }
+        }}
+      />
       <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 620, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', maxHeight: '92vh', overflow: 'hidden' }}>
 
         {/* Header */}
@@ -360,7 +432,12 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
                       <FileText size={13} style={{ color: /\.pdf$/i.test(f.name) ? '#2563eb' : '#6b7280', flexShrink: 0 }} />
                       <span style={{ flex: 1, fontSize: 13, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                       <span style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0 }}>{fmt(f.size)}</span>
-                      <button onClick={() => setStagedFiles(p => p.filter((_, idx) => idx !== i))}
+                      <button onClick={() => {
+                        setApprovedPattern(null);
+                        setParseResult(null);
+                        setParseError(null);
+                        setStagedFiles(p => p.filter((_, idx) => idx !== i));
+                      }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db', padding: 2, display: 'flex' }}
                         onMouseEnter={e => (e.currentTarget.style.color = '#ef4444')}
                         onMouseLeave={e => (e.currentTarget.style.color = '#d1d5db')}>
@@ -398,22 +475,35 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
               )}
               {parseResult && !parsing && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {extractStructuredParseReport(parseResult as unknown) && (
+                    <StructuredParseReportPanel report={extractStructuredParseReport(parseResult as unknown)!} />
+                  )}
+                  {approvedPattern && (
+                    <div style={{ padding: '8px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1d4ed8' }}>
+                      Approved string pattern: <strong>{approvedPattern.pattern_name}</strong>
+                    </div>
+                  )}
                   <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '12px 16px' }}>
                     <p style={{ fontWeight: 600, fontSize: 13, color: '#15803d', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <CheckCircle2 size={14} /> Extracted from design
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12 }}>
-                      {[
-                        ['Strings', parseResult.valid_count],
-                        ['Inverters', parseResult.inverter_count_detected || '—'],
-                        ['AC Assets', parseResult.ac_assets?.length || '—'],
-                        ['Capacity', parseResult.plant_capacity_mw != null ? `${parseResult.plant_capacity_mw} MW` : '—'],
-                        ['Module Pwr', parseResult.module_power_wp != null ? `${parseResult.module_power_wp} Wp` : '—'],
-                        ['Modules/Str', parseResult.modules_per_string ?? '—'],
-                        ['Tracker', parseResult.tracker_enabled ? 'Yes' : 'No'],
-                        ['BESS', parseResult.batteries?.length ? `${parseResult.batteries.length}` : '—'],
-                        ['Gaps', Object.keys(parseResult.gaps).length || '—'],
-                      ].map(([k, v]) => (
+                      {(() => {
+                        const pr = extractStructuredParseReport(parseResult as unknown);
+                        const vStr = pr?.strings?.valid_total ?? parseResult.valid_count;
+                        const invN = pr?.inverters?.total ?? parseResult.inverter_count_detected;
+                        return [
+                          ['Strings', vStr],
+                          ['Inverters', invN || '—'],
+                          ['AC Assets', parseResult.ac_assets?.length || '—'],
+                          ['Capacity', parseResult.plant_capacity_mw != null ? `${parseResult.plant_capacity_mw} MW` : '—'],
+                          ['Module Pwr', parseResult.module_power_wp != null ? `${parseResult.module_power_wp} Wp` : '—'],
+                          ['Modules/Str', parseResult.modules_per_string ?? '—'],
+                          ['Tracker', parseResult.tracker_enabled ? 'Yes' : 'No'],
+                          ['BESS', parseResult.batteries?.length ? `${parseResult.batteries.length}` : '—'],
+                          ['Gaps', Object.keys(parseResult.gaps ?? {}).length || '—'],
+                        ] as [string, string | number][];
+                      })().map(([k, v]) => (
                         <div key={k as string}>
                           <p style={{ fontSize: 10, color: '#6b7280' }}>{k}</p>
                           <p style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{v}</p>
@@ -431,9 +521,13 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
                       ))}
                     </div>
                   )}
-                  {parseResult.has_errors && (
+                  {(parseResult.has_errors ||
+                    (extractStructuredParseReport(parseResult as unknown)?.strings?.invalid_total ?? 0) > 0) && (
                     <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <XCircle size={13} /> {parseResult.invalid_count} invalid string(s) — review in Strings tab after creation.
+                      <XCircle size={13} />{' '}
+                      {extractStructuredParseReport(parseResult as unknown)?.strings?.invalid_total ??
+                        parseResult.invalid_count}{' '}
+                      invalid string(s) — review in Strings tab after creation.
                     </div>
                   )}
                 </div>
@@ -469,7 +563,15 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
                   <Field type="text" value={form.naming_prefix} onChange={e => upd('naming_prefix', e.target.value)} placeholder="e.g. SFA" />
                 </div>
                 <div>
-                  <label style={lbl}>Inverters (detected: {parseResult?.inverter_count_detected ?? '—'})</label>
+                  <label style={lbl}>
+                    Inverters (detected:{' '}
+                    {parseResult
+                      ? extractStructuredParseReport(parseResult as unknown)?.inverters?.total ??
+                        parseResult.inverter_count_detected ??
+                        '—'
+                      : '—'}
+                    )
+                  </label>
                   <Field type="number" value={form.inverter_count} onChange={e => upd('inverter_count', e.target.value)} placeholder="Count" />
                 </div>
                 <div>
@@ -510,7 +612,17 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
               )}
               {parseResult && (
                 <div style={{ padding: '8px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 13, color: '#15803d' }}>
-                  <strong>{parseResult.valid_count}</strong> valid strings · <strong>{parseResult.inverter_count_detected}</strong> inverters detected
+                  <strong>
+                    {extractStructuredParseReport(parseResult as unknown)?.strings?.valid_total ??
+                      parseResult.valid_count}
+                  </strong>{' '}
+                  valid strings ·{' '}
+                  <strong>
+                    {extractStructuredParseReport(parseResult as unknown)?.inverters?.total ??
+                      parseResult.inverter_count_detected}
+                  </strong>{' '}
+                  inverters detected
+                  {approvedPattern && <span> · pattern <strong>{approvedPattern.pattern_name}</strong></span>}
                   {parseResult.validation_findings?.length > 0 && <span style={{ color: '#d97706' }}> · {parseResult.validation_findings.length} finding(s) to review</span>}
                 </div>
               )}
@@ -525,7 +637,7 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
               <ChevronLeft size={16} /> Cancel
             </button>
           ) : (
-            <button onClick={goBack} disabled={step === 3 && parsing} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#6b7280', padding: '8px 4px', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={goBack} disabled={step === 3 && (parsing || patternBusy)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#6b7280', padding: '8px 4px', display: 'flex', alignItems: 'center', gap: 4, opacity: step === 3 && (parsing || patternBusy) ? 0.6 : 1 }}>
               <ChevronLeft size={16} /> Back
             </button>
           )}
@@ -544,9 +656,14 @@ export default function ProjectWizard({ onClose, onCreated }: ProjectWizardProps
                 {pdfs.length > 0 ? <><Zap size={14} /> Parse & Continue</> : <>Next <ChevronRight size={16} /></>}
               </button>
             )}
-            {step === 3 && !parsing && (
+            {step === 3 && !parsing && !patternBusy && (
               <button onClick={() => setStep(4)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                 Continue <ChevronRight size={16} />
+              </button>
+            )}
+            {step === 3 && patternBusy && !parsing && (
+              <button disabled style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 20px', background: '#93c5fd', color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'not-allowed' }}>
+                <Loader2 size={14} className="animate-spin" /> Detecting pattern…
               </button>
             )}
             {step === 3 && parsing && (

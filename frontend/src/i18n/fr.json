@@ -384,6 +384,42 @@
     "files_upload_error": "Échec du téléversement",
     "files_load_error": "Échec du chargement",
     "files_delete_error": "Échec de la suppression",
-    "files_delete_confirm": "Supprimer ce fichier ?"
+    "files_delete_confirm": "Supprimer ce fichier ?",
+    "parse_pattern": {
+      "title": "Comment analyser les chaînes ?",
+      "description": "Utilisez la détection automatique pour analyser les fichiers et choisir la meilleure règle, ou sélectionnez un modèle de nommage enregistré pour ce projet.",
+      "mode_label": "Modèle de nommage des chaînes",
+      "option_auto": "Détection automatique à partir des fichiers",
+      "regex_label": "Regex",
+      "cancel": "Annuler",
+      "continue": "Analyser les données",
+      "loading": "Chargement des modèles…",
+      "load_error": "Impossible de charger les modèles de nommage. La détection automatique reste disponible.",
+      "no_manual_patterns": "Aucun modèle de nommage de chaîne actif n'est configuré. Ajoutez-en dans les paramètres du projet, ou utilisez la détection automatique."
+    }
+  },
+  "parse_report": {
+    "title": "Résumé d'analyse",
+    "final_status": "Statut final",
+    "site": "Site",
+    "name": "Nom",
+    "installation": "Type d'installation",
+    "country": "Pays",
+    "region": "Région",
+    "coordinates": "Coordonnées",
+    "patterns": "Motifs",
+    "string_pattern": "Motif des strings",
+    "inverter_pattern": "Motif des onduleurs",
+    "mode": "Mode",
+    "inverters": "Onduleurs",
+    "status": "Statut",
+    "present": "Présents",
+    "strings": "Strings",
+    "valid": "Valides",
+    "invalid": "Invalides",
+    "invalid_examples": "Exemples invalides",
+    "spatial": "Validation spatiale",
+    "duplicates_exact": "Doublons exacts",
+    "missing": "Numéros de string manquants"
   }
 }

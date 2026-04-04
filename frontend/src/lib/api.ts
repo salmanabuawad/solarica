@@ -19,6 +19,7 @@ import type {
   Project,
   ProjectCreate,
   ProjectPhaseUpdate,
+  NamingPattern,
   TaskApproval,
   TaskCreate,
   TaskMessage,
@@ -148,6 +149,34 @@ export async function updatePhase(id: number, phase: string): Promise<Project> {
 export async function updateStringPattern(id: number, string_pattern: string | null): Promise<Project> {
   const { data } = await client.patch<Project>(`/projects/${id}/string-pattern`, { string_pattern });
   return data;
+}
+
+export async function listProjectNamingPatterns(projectId: number, asset_type?: string): Promise<NamingPattern[]> {
+  const { data } = await client.get<NamingPattern[]>(`/projects/${projectId}/naming-patterns`, {
+    params: asset_type ? { asset_type } : undefined,
+  });
+  return data;
+}
+
+export async function createProjectNamingPattern(
+  projectId: number,
+  payload: Pick<NamingPattern, 'asset_type' | 'pattern_name' | 'pattern_regex' | 'is_active'>,
+): Promise<NamingPattern> {
+  const { data } = await client.post<NamingPattern>(`/projects/${projectId}/naming-patterns`, payload);
+  return data;
+}
+
+export async function updateProjectNamingPattern(
+  projectId: number,
+  patternId: number,
+  payload: Partial<Pick<NamingPattern, 'pattern_name' | 'pattern_regex' | 'is_active'>>,
+): Promise<NamingPattern> {
+  const { data } = await client.patch<NamingPattern>(`/projects/${projectId}/naming-patterns/${patternId}`, payload);
+  return data;
+}
+
+export async function deleteProjectNamingPattern(projectId: number, patternId: number): Promise<void> {
+  await client.delete(`/projects/${projectId}/naming-patterns/${patternId}`);
 }
 
 export async function validateDesign(id: number): Promise<ValidationRun> {
@@ -304,6 +333,41 @@ export async function listProjectDesignStrings(projectId: number): Promise<Proje
   return data;
 }
 
+/** Compact parse summary (parser engine / future scan API). */
+export interface StructuredParseReport {
+  site?: {
+    name?: string;
+    installation_type?: string;
+    country?: string;
+    region?: string;
+    coordinates?: { lat?: number; lon?: number };
+  };
+  patterns?: {
+    valid_string_pattern?: string;
+    valid_inverter_pattern?: string;
+    mode?: string;
+  };
+  inverters?: {
+    total?: number;
+    present?: string[];
+    status?: string;
+  };
+  strings?: {
+    valid_total?: number;
+    invalid_total?: number;
+    invalid_examples?: string[];
+  };
+  duplicates?: {
+    exact?: Record<string, number>;
+  };
+  missing?: Record<string, number[]>;
+  spatial_validation?: {
+    status?: string;
+    reason?: string;
+  };
+  final_status?: string;
+}
+
 export interface DesignMetadata {
   project_name?:              string | null;
   site_code?:                 string | null;
@@ -335,14 +399,21 @@ export interface DesignMetadata {
   inverter_models?:           string[];
   inverter_count_detected?:   number;
   page_count?:                number | null;
+  invalid_ab_labels?:         string[];
   validation_findings?:       { risk_code: string; severity: string; title: string; description: string; recommendations?: string[] }[];
   output_validation_findings?: { risk_code: string; severity: string; title: string; description: string; recommendations?: string[] }[];
   suffix_string_issues?:      { base_id: string; issue: string; found: string }[];
   mppt_validation_issues?:    { mppt_no: number; issue: string }[];
+  /** Embedded compact parse summary when backend provides it. */
+  parse_report?:             StructuredParseReport;
 }
 
 export interface ScanAnalytics {
   pattern:       string | null;
+  approved_pattern_name?: string | null;
+  approved_pattern_regex?: string | null;
+  /** Compact parse summary for dashboard (optional). */
+  parse_report?: StructuredParseReport;
   valid_count:   number;
   invalid_count: number;
   invalid_rows:  { string_code: string | null; raw_value: string; inverter_key: string | null; invalid_reason: string | null }[];
@@ -365,6 +436,10 @@ export async function syncStringsFromScan(
   projectId: number,
   scanResult: StringScanResult,
 ): Promise<{ inverters_synced: number; strings_synced: number }> {
+  const { extractStructuredParseReport } = await import('./parseReportUtils');
+  const parse_report_embedded =
+    scanResult.parse_report ?? extractStructuredParseReport(scanResult as unknown) ?? undefined;
+
   // Build condensed analytics to persist alongside the sync
   const design_metadata: DesignMetadata = {
     project_name:              scanResult.project_name ?? null,
@@ -399,13 +474,15 @@ export async function syncStringsFromScan(
     output_validation_findings: scanResult.output_validation_findings ?? [],
     suffix_string_issues:      scanResult.suffix_string_issues ?? [],
     mppt_validation_issues:    scanResult.mppt_validation_issues ?? [],
+    parse_report:              parse_report_embedded,
   };
 
   const analytics: ScanAnalytics = {
     pattern:       scanResult.inverters?.[0]?.pattern ?? null,
-    valid_count:   scanResult.valid_count,
-    invalid_count: scanResult.invalid_count,
-    invalid_rows:  scanResult.string_rows
+    parse_report:  parse_report_embedded,
+    valid_count:   scanResult.valid_count ?? parse_report_embedded?.strings?.valid_total ?? 0,
+    invalid_count: scanResult.invalid_count ?? parse_report_embedded?.strings?.invalid_total ?? 0,
+    invalid_rows:  (scanResult.string_rows ?? [])
       .filter(r => !r.is_valid)
       .map(r => ({
         string_code:    r.string_code,
@@ -420,7 +497,7 @@ export async function syncStringsFromScan(
   };
   const { data } = await client.post(`/projects/${projectId}/strings/sync`, {
     inverters:   scanResult.inverters,
-    string_rows: scanResult.string_rows,
+    string_rows: scanResult.string_rows ?? [],
     analytics,
   });
   return data;
@@ -848,6 +925,8 @@ export async function createCustomer(payload: { company_id: number; name: string
 }
 
 export interface StringScanResult {
+  /** When API returns compact summary only or embeds it alongside legacy fields. */
+  parse_report?: StructuredParseReport;
   site_code: string | null;
   site_name: string | null;
   layout_name: string | null;
@@ -860,7 +939,7 @@ export interface StringScanResult {
   plant_capacity_mw: number | null;
   module_type: string | null;
   module_count: number | null;
-  string_rows: {
+  string_rows?: {
     row_id: number;
     raw_value: string;
     string_code: string | null;
@@ -870,13 +949,13 @@ export interface StringScanResult {
     is_valid: boolean;
     invalid_reason: string | null;
   }[];
-  strings: Record<string, string[]>;
-  gaps: Record<string, string[]>;
-  duplicates: string[];
-  anomalies: Record<string, string[]>;
-  valid_count: number;
-  invalid_count: number;
-  has_errors: boolean;
+  strings?: Record<string, string[]>;
+  gaps?: Record<string, string[]>;
+  duplicates?: string[];
+  anomalies?: Record<string, string[]>;
+  valid_count?: number;
+  invalid_count?: number;
+  has_errors?: boolean;
   // Extended metadata (from_chatgpt integration)
   module_power_wp: number | null;
   modules_per_string: number | null;
@@ -926,6 +1005,28 @@ export interface StringScanResult {
   suffix_string_issues?:      { base_id: string; issue: string; found: string }[];
   mppt_validation_issues?:    { mppt_no: number; issue: string }[];
   output_validation_findings?: { risk_code: string; severity: string; title: string; description: string; recommendations?: string[] }[];
+  approved_pattern_name?: string | null;
+  approved_pattern_regex?: string | null;
+}
+
+export interface ApprovedStringPattern {
+  pattern_name: string;
+  pattern_regex: string;
+}
+
+export interface StringPatternOption extends ApprovedStringPattern {
+  id?: number | null;
+  source?: 'project' | 'default';
+  match_count: number;
+}
+
+export interface StringPatternDetectionResult {
+  patterns: StringPatternOption[];
+  detected_pattern_name: string | null;
+  selected_pattern_name: string | null;
+  saved_pattern_name: string | null;
+  file_count: number;
+  detect_token?: string | null;
 }
 
 export interface ProjectFile {
@@ -955,12 +1056,35 @@ export async function scanProjectStrings(
   projectId: number,
   fileIds?: string[],
   files?: FileList,
+  approvedPattern?: ApprovedStringPattern,
+  detectToken?: string | null,
 ): Promise<StringScanResult> {
   const form = new FormData();
   if (fileIds?.length) form.append('file_ids', fileIds.join(','));
   if (files) Array.from(files).forEach(f => form.append('files', f));
+  if (approvedPattern) {
+    form.append('approved_pattern_name', approvedPattern.pattern_name);
+    form.append('approved_pattern_regex', approvedPattern.pattern_regex);
+  }
+  if (detectToken) form.append('detect_token', detectToken);
   const { data } = await client.post<StringScanResult>(
     `/projects/${projectId}/scan-strings`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return data;
+}
+
+export async function detectStringPattern(
+  projectId: number,
+  fileIds?: string[],
+  files?: FileList,
+): Promise<StringPatternDetectionResult> {
+  const form = new FormData();
+  if (fileIds?.length) form.append('file_ids', fileIds.join(','));
+  if (files) Array.from(files).forEach(f => form.append('files', f));
+  const { data } = await client.post<StringPatternDetectionResult>(
+    `/projects/${projectId}/detect-string-pattern`,
     form,
     { headers: { 'Content-Type': 'multipart/form-data' } },
   );

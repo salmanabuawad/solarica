@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef } from 'ag-grid-community';
 import type React from 'react';
 import { BarChart2, TrendingUp, ClipboardList, Package, CheckCircle, Clock, AlertTriangle, Activity } from 'lucide-react';
 import * as api from '../../lib/api';
 import type { Project, MaintenanceTask, Material } from '../../lib/types';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 interface StatCard { label:string; value:string|number; icon:React.ReactNode; color:string; sub?:string; }
 
 function KpiCard({ label, value, icon, color, sub }: StatCard) {

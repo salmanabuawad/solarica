@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Plus, RefreshCcw, Download, FolderKanban, Trash2, Loader2 } from 'lucide-react';
 import * as api from '../../lib/api';
@@ -10,9 +9,10 @@ import type { Project } from '../../lib/types';
 import { useTabs, useApp } from '../../contexts/AppContext';
 import DataPageShell from '../../components/layout/DataPageShell';
 import { useFieldConfig } from '../../lib/useFieldConfig';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 const PHASE_COLORS: Record<string, { bg: string; color: string }> = {
   design:         { bg: '#ede9fe', color: '#7c3aed' },
   validation:     { bg: '#fef3c7', color: '#d97706' },

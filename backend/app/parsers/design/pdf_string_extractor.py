@@ -54,13 +54,19 @@ STRING_PATTERN = re.compile(r"^S\.?(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?$", re.IGNOREC
 STRING_EXTRACT_PATTERN = re.compile(
     r"S\.?(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?(?![\d.A-Za-z])", re.IGNORECASE
 )
-# Catches strings with an alpha suffix at any level: S.1.2.3A, S.1.2.3.4A, etc.
-# These are non-standard and must be marked invalid.
-AB_SUFFIX_RE = re.compile(
-    r"\bS\.?(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?([A-Za-z]+)\b", re.IGNORECASE
+STRING_TOKEN_PATTERN = re.compile(
+    r"\bS\.?[A-Za-z0-9]+(?:\.[A-Za-z0-9]+){2,4}\b", re.IGNORECASE
 )
 ANOMALY_PATTERN = re.compile(
     r"\b(S\.?\d+\.\d+\.\d+\.[0-9]*[A-Za-z][0-9A-Za-z]*)\b", re.IGNORECASE
+)
+
+# Catches dotted string-like labels STRING_TOKEN_PATTERN can miss (extra segments,
+# letters/suffixes, hyphens) so they still surface as invalid when they fail the
+# configured regex. Used by PDF and DXF via _extract_string_rows.
+LOOSE_STRING_CANDIDATE_RE = re.compile(
+    r"\bS\.?[A-Za-z0-9]+(?:[.\-][A-Za-z0-9]+){2,}\b",
+    re.IGNORECASE,
 )
 
 # ---------------------------------------------------------------------------
@@ -180,60 +186,181 @@ def _extract_text_from_pdf(content: bytes, regions: list[dict] | None = None) ->
 # Code normalisation & row building
 # ---------------------------------------------------------------------------
 
-def _extract_string_rows(text: str) -> list[dict[str, Any]]:
+def _pattern_search_regex(pattern_regex: str | None) -> re.Pattern[str]:
+    if not pattern_regex:
+        return STRING_EXTRACT_PATTERN
+    inner = pattern_regex.strip()
+    if inner.startswith("^"):
+        inner = inner[1:]
+    if inner.endswith("$"):
+        inner = inner[:-1]
+    return re.compile(rf"(?<![A-Za-z0-9])(?:{inner})(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+def _pattern_inner_for_partial(pattern_regex: str | None) -> str:
+    """Inner regex fragment (no anchors) used to build a relaxed scan for near-misses."""
+    if not pattern_regex:
+        return r"S\.?\d+\.\d+\.\d+(?:\.\d+)?"
+    inner = pattern_regex.strip()
+    if inner.startswith("^"):
+        inner = inner[1:]
+    if inner.endswith("$"):
+        inner = inner[:-1]
+    return inner
+
+
+def _relax_regex_digit_runs(inner: str) -> str:
+    """Allow letter suffixes on numeric runs and extra dotted/hyphen segments (invalid strict matches)."""
+    out = re.sub(r"\\d\{[^}]*\}", r"\\d+[A-Za-z0-9]*", inner)
+    out = re.sub(r"\\d\+", r"\\d+[A-Za-z0-9]*", out)
+    out = re.sub(r"\[0-9]\+", r"[0-9]+[A-Za-z0-9]*", out)
+    return out
+
+
+def _partial_pattern_search_regex(pattern_regex: str | None) -> re.Pattern[str] | None:
+    """
+    Search regex derived from the approved pattern: matches tokens that *look like* string codes
+    (partial / relaxed shape) so they can be marked invalid when strict fullmatch fails.
+    """
+    inner = _pattern_inner_for_partial(pattern_regex)
+    relaxed = _relax_regex_digit_runs(inner)
+    body = f"(?:{relaxed})(?:[-.][A-Za-z0-9]+)*"
+    try:
+        return re.compile(
+            rf"(?<![A-Za-z0-9])(?:{body})(?![A-Za-z0-9])",
+            re.IGNORECASE,
+        )
+    except re.error:
+        return None
+
+
+def _normalize_string_match(raw_value: str) -> dict[str, Any] | None:
+    digits = [int(part) for part in re.findall(r"\d+", raw_value)]
+    if len(digits) not in (3, 4):
+        return None
+    normalized = f"S.{digits[0]}.{digits[1]}.{digits[2]}"
+    if len(digits) == 4:
+        normalized += f".{digits[3]}"
+    return {
+        "raw_value": raw_value,
+        "string_code": normalized,
+        "section_no": digits[0],
+        "block_no": digits[1],
+        "string_no": digits[2],
+        "fourth_no": digits[3] if len(digits) == 4 else None,
+    }
+
+
+def detect_string_pattern_candidates(
+    text: str,
+    patterns: list[dict[str, Any]],
+    preferred_pattern_name: str | None = None,
+) -> dict[str, Any]:
+    ranked: list[dict[str, Any]] = []
+    for index, pattern in enumerate(patterns):
+        regex = pattern.get("pattern_regex")
+        search_re = _pattern_search_regex(regex)
+        match_count = sum(1 for _ in search_re.finditer(text))
+        ranked.append(
+            {
+                **pattern,
+                "match_count": match_count,
+                "_rank": index,
+            }
+        )
+
+    ranked.sort(
+        key=lambda item: (
+            -(item.get("match_count") or 0),
+            0 if preferred_pattern_name and item.get("pattern_name") == preferred_pattern_name else 1,
+            item.get("_rank", 0),
+        )
+    )
+
+    detected = next((item for item in ranked if item.get("match_count", 0) > 0), None)
+    selected = (
+        next((item for item in ranked if preferred_pattern_name and item.get("pattern_name") == preferred_pattern_name), None)
+        or detected
+        or (ranked[0] if ranked else None)
+    )
+
+    return {
+        "patterns": [
+            {k: v for k, v in item.items() if k != "_rank"}
+            for item in ranked
+        ],
+        "detected_pattern_name": detected.get("pattern_name") if detected else None,
+        "selected_pattern_name": selected.get("pattern_name") if selected else None,
+    }
+
+
+def _extract_string_rows(
+    text: str,
+    pattern_regex: str | None = None,
+    pattern_name: str | None = None,
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen_codes: set[str] = set()
-    seen_raw: set[str] = set()  # prevent duplicate invalid rows for same raw token
+    seen_valid_raw: set[str] = set()
+    seen_invalid_raw: set[str] = set()
     row_id = 1
 
-    for section, block, string_no, fourth in STRING_EXTRACT_PATTERN.findall(text):
-        normalized = f"S.{int(section)}.{int(block)}.{int(string_no)}"
-        if fourth:
-            normalized += f".{int(fourth)}"
+    search_re = _pattern_search_regex(pattern_regex)
+    invalid_reason = (
+        f"Does not match approved string pattern '{pattern_name}'."
+        if pattern_name
+        else "Does not match the expected string pattern."
+    )
+
+    for match in search_re.finditer(text):
+        raw_value = match.group(0)
+        upper_raw_val = raw_value.upper()
+        if upper_raw_val in seen_valid_raw:
+            continue
+        normalized_parts = _normalize_string_match(raw_value)
+        if normalized_parts is None:
+            continue
+        normalized = normalized_parts["string_code"]
         duplicate = normalized in seen_codes
         if not duplicate:
             seen_codes.add(normalized)
+        seen_valid_raw.add(upper_raw_val)
 
         rows.append({
             "row_id": row_id,
-            "raw_value": normalized,
-            "string_code": normalized,
-            "section_no": int(section),
-            "block_no": int(block),
-            "string_no": int(string_no),
-            "fourth_no": int(fourth) if fourth else None,
+            **normalized_parts,
             "is_valid": not duplicate,
             "invalid_reason": "Duplicate string code in document." if duplicate else None,
         })
         row_id += 1
 
-    # A/B suffix strings (e.g. S.1.2.3A, S.1.2.3.4B) — always invalid
-    for section, block, string_no, fourth, suffix in AB_SUFFIX_RE.findall(text):
-        base = f"S.{int(section)}.{int(block)}.{int(string_no)}"
-        if fourth:
-            base += f".{int(fourth)}"
-        raw_val = f"{base}{suffix.upper()}"
-        if raw_val in seen_raw:
+    for match in STRING_TOKEN_PATTERN.finditer(text):
+        raw_val = match.group(0)
+        upper_raw = raw_val.upper()
+        if upper_raw in seen_valid_raw or upper_raw in seen_invalid_raw:
             continue
-        seen_raw.add(raw_val)
+        if search_re.fullmatch(raw_val):
+            continue
+        normalized_parts = _normalize_string_match(raw_val)
+        seen_invalid_raw.add(upper_raw)
         rows.append({
             "row_id": row_id,
             "raw_value": raw_val,
             "string_code": None,
-            "section_no": int(section),
-            "block_no": int(block),
-            "string_no": int(string_no),
-            "fourth_no": int(fourth) if fourth else None,
+            "section_no": normalized_parts["section_no"] if normalized_parts else None,
+            "block_no": normalized_parts["block_no"] if normalized_parts else None,
+            "string_no": normalized_parts["string_no"] if normalized_parts else None,
+            "fourth_no": normalized_parts["fourth_no"] if normalized_parts else None,
             "is_valid": False,
-            "invalid_reason": f"String has alphabetic suffix '{suffix.upper()}' — not a standard string code.",
+            "invalid_reason": invalid_reason,
         })
         row_id += 1
 
-    # Other malformed tokens (e.g. mixed alpha/numeric in last segment)
     for candidate in ANOMALY_PATTERN.findall(text):
-        if candidate in seen_raw:
+        upper_candidate = candidate.upper()
+        if upper_candidate in seen_valid_raw or upper_candidate in seen_invalid_raw:
             continue
-        seen_raw.add(candidate)
+        seen_invalid_raw.add(upper_candidate)
         rows.append({
             "row_id": row_id,
             "raw_value": candidate,
@@ -243,7 +370,62 @@ def _extract_string_rows(text: str) -> list[dict[str, Any]]:
             "string_no": None,
             "fourth_no": None,
             "is_valid": False,
-            "invalid_reason": "Invalid format. Expected S.<digits>.<digits>.<digits>.",
+            "invalid_reason": invalid_reason,
+        })
+        row_id += 1
+
+    _LOOSE_RAW_MAX_LEN = 64
+    partial_re = _partial_pattern_search_regex(pattern_regex)
+    if partial_re:
+        for match in partial_re.finditer(text):
+            raw_val = match.group(0)
+            if len(raw_val) > _LOOSE_RAW_MAX_LEN:
+                continue
+            if not any(ch.isdigit() for ch in raw_val):
+                continue
+            upper_raw = raw_val.upper()
+            if upper_raw in seen_valid_raw or upper_raw in seen_invalid_raw:
+                continue
+            if search_re.fullmatch(raw_val):
+                continue
+            normalized_parts = _normalize_string_match(raw_val)
+            seen_invalid_raw.add(upper_raw)
+            rows.append({
+                "row_id": row_id,
+                "raw_value": raw_val,
+                "string_code": None,
+                "section_no": normalized_parts["section_no"] if normalized_parts else None,
+                "block_no": normalized_parts["block_no"] if normalized_parts else None,
+                "string_no": normalized_parts["string_no"] if normalized_parts else None,
+                "fourth_no": normalized_parts["fourth_no"] if normalized_parts else None,
+                "is_valid": False,
+                "invalid_reason": invalid_reason,
+            })
+            row_id += 1
+
+    for match in LOOSE_STRING_CANDIDATE_RE.finditer(text):
+        raw_val = match.group(0)
+        if len(raw_val) > _LOOSE_RAW_MAX_LEN:
+            continue
+        if not any(ch.isdigit() for ch in raw_val):
+            continue
+        upper_raw = raw_val.upper()
+        if upper_raw in seen_valid_raw or upper_raw in seen_invalid_raw:
+            continue
+        if search_re.fullmatch(raw_val):
+            continue
+        normalized_parts = _normalize_string_match(raw_val)
+        seen_invalid_raw.add(upper_raw)
+        rows.append({
+            "row_id": row_id,
+            "raw_value": raw_val,
+            "string_code": None,
+            "section_no": normalized_parts["section_no"] if normalized_parts else None,
+            "block_no": normalized_parts["block_no"] if normalized_parts else None,
+            "string_no": normalized_parts["string_no"] if normalized_parts else None,
+            "fourth_no": normalized_parts["fourth_no"] if normalized_parts else None,
+            "is_valid": False,
+            "invalid_reason": invalid_reason,
         })
         row_id += 1
 
@@ -1213,10 +1395,9 @@ def _detect_installation_type(text: str, site_name: str) -> str:
 
 def _extract_invalid_ab_labels(text: str) -> list[str]:
     """
-    Find bare N.N.N.N.N[AB] tokens that are NOT prefixed with S.
-    Examples: 2.2.2.5.1A, 1.1.2.9.3B — these break the S.<station>.<inv>.<str> rule
-    and must be reported as invalid string names.
-    Returns a sorted deduplicated list.
+    Bare five-level numeric tokens + trailing A/B without an S prefix (e.g. 2.2.2.5.1A).
+    S-prefixed and other non-conforming names are picked up by _extract_string_rows via
+    LOOSE_STRING_CANDIDATE_RE and appear in invalid_rows / scan analytics.
     """
     found: set[str] = set()
     for m in INVALID_BARE_AB_RE.finditer(text):
@@ -1326,13 +1507,20 @@ def build_site_design_preview(
     content: bytes,
     filename: str,
     regions: list[dict] | None = None,
+    approved_pattern_regex: str | None = None,
+    approved_pattern_name: str | None = None,
+    extracted_text: str | None = None,
 ) -> dict[str, Any]:
     """
     Parse a PDF design file and return strings, gaps, duplicates, anomalies
     and site metadata.  Does NOT write to DB.
     """
-    text = _extract_text_from_pdf(content, regions=regions)
-    rows = _extract_string_rows(text)
+    text = extracted_text if extracted_text is not None else _extract_text_from_pdf(content, regions=regions)
+    rows = _extract_string_rows(
+        text,
+        pattern_regex=approved_pattern_regex,
+        pattern_name=approved_pattern_name,
+    )
 
     if not rows:
         raise ValueError("No solar string IDs were found in the PDF")
@@ -1539,6 +1727,8 @@ def build_site_design_preview(
         "valid_count": len(valid_rows),
         "invalid_count": len(invalid_rows),
         "has_errors": bool(invalid_rows) or bool(invalid_ab_labels),
+        "approved_pattern_name": approved_pattern_name,
+        "approved_pattern_regex": approved_pattern_regex,
         # Entities (from_chatgpt)
         "inverters": inverters,
         "inverter_count_detected": len(inverters),
@@ -1582,20 +1772,30 @@ def build_site_design_preview(
 def build_site_design_preview_multi(
     files: list[tuple[bytes, str]],
     regions: list[dict] | None = None,
+    approved_pattern_regex: str | None = None,
+    approved_pattern_name: str | None = None,
+    extracted_texts: list[str] | None = None,
 ) -> dict[str, Any]:
     """Merge results from multiple PDF/DXF files into one combined preview."""
     all_rows: list[dict[str, Any]] = []
     all_text_parts: list[str] = []
     metadata: dict[str, Any] = {}
 
-    for content, filename in files:
+    for idx, (content, filename) in enumerate(files):
         ext = Path(filename).suffix.lower()
         if ext == ".pdf":
-            text = _extract_text_from_pdf(content, regions=regions)
+            if extracted_texts is not None and idx < len(extracted_texts):
+                text = extracted_texts[idx]
+            else:
+                text = _extract_text_from_pdf(content, regions=regions)
         else:
             raise ValueError(f"Unsupported file type: {ext}")
         all_text_parts.append(text)
-        rows = _extract_string_rows(text)
+        rows = _extract_string_rows(
+            text,
+            pattern_regex=approved_pattern_regex,
+            pattern_name=approved_pattern_name,
+        )
         all_rows.extend(rows)
         if not metadata:
             layout_name = _derive_layout_name(text, filename)
@@ -1738,6 +1938,8 @@ def build_site_design_preview_multi(
         "valid_count": len(valid_rows),
         "invalid_count": len(invalid_rows),
         "has_errors": bool(invalid_rows) or bool(invalid_ab_labels),
+        "approved_pattern_name": approved_pattern_name,
+        "approved_pattern_regex": approved_pattern_regex,
         # Entities
         "inverters": inverters,
         "inverter_count_detected": len(inverters),

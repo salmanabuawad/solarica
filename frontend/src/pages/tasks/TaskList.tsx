@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Plus, RefreshCcw, Download, ClipboardCheck } from 'lucide-react';
 import * as api from '../../lib/api';
@@ -9,9 +8,10 @@ import type { MaintenanceTask } from '../../lib/types';
 import { useTabs } from '../../contexts/AppContext';
 import TaskCreate from './TaskCreate';
 import DataPageShell from '../../components/layout/DataPageShell';
+import { registerAgGridModules } from '../../lib/agGridModules';
 
-ModuleRegistry.registerModules([AllCommunityModule]);
 
+registerAgGridModules();
 const PRIORITY_C: Record<string, { bg:string; color:string }> = {
   low:      { bg:'#f3f4f6', color:'#6b7280' },
   medium:   { bg:'#dbeafe', color:'#2563eb' },
