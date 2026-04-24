@@ -268,13 +268,26 @@ export default function SiteMapMapLibre({
       });
 
       // --- Tracker lines -------------------------------------------------
+      //
+      // Solid emerald line that actually *reads* against the pier dots.
+      // Width scales with zoom so it doesn't look chunky at far zoom-out
+      // nor disappear at close zoom-in.
       map.addLayer({
         id: "trackers-line",
         type: "line",
         source: "trackers",
+        layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "rgba(22,163,74,0.35)",
-          "line-width": 1,
+          "line-color": "#16a34a",
+          "line-opacity": 0.85,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 1.2,
+            4, 1.8,
+            8, 2.6,
+            12, 3.5,
+            18, 5,
+          ],
         },
       });
       map.addLayer({
@@ -282,9 +295,10 @@ export default function SiteMapMapLibre({
         type: "line",
         source: "trackers",
         filter: ["==", ["get", "tracker_code"], ""],
+        layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#16a34a",
-          "line-width": 2.5,
+          "line-color": "#f97316",
+          "line-width": 4,
         },
       });
 
