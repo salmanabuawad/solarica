@@ -177,6 +177,13 @@
     "piers": "Опоры",
     "trackers": "Трекеры",
     "blocks": "Блоки",
-    "blockLabels": "Метки блоков"
+    "blockLabels": "Номера блоков"
+  },
+  "statusEvent": {
+    "title": "Изменение статуса на {{status}}",
+    "description": "Описание",
+    "descriptionPH": "Почему отклонена опора?",
+    "attachments": "Фото / видео",
+    "descRequired": "Введите описание."
   }
 }

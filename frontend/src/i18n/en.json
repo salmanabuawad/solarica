@@ -177,6 +177,13 @@
     "piers": "Piers",
     "trackers": "Trackers",
     "blocks": "Blocks",
-    "blockLabels": "Block labels"
+    "blockLabels": "Block numbers"
+  },
+  "statusEvent": {
+    "title": "Change status to {{status}}",
+    "description": "Description",
+    "descriptionPH": "Why was this pier rejected?",
+    "attachments": "Photos / video",
+    "descRequired": "Please enter a description."
   }
 }

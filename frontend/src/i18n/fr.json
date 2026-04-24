@@ -177,6 +177,13 @@
     "piers": "Pieux",
     "trackers": "Trackers",
     "blocks": "Blocs",
-    "blockLabels": "Étiquettes blocs"
+    "blockLabels": "Numéros de blocs"
+  },
+  "statusEvent": {
+    "title": "Statut → {{status}}",
+    "description": "Description",
+    "descriptionPH": "Pourquoi le pieu est-il rejeté ?",
+    "attachments": "Photos / vidéo",
+    "descRequired": "Veuillez saisir une description."
   }
 }

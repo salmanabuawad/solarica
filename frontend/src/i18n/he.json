@@ -177,6 +177,13 @@
     "piers": "עמודים",
     "trackers": "טרקרים",
     "blocks": "בלוקים",
-    "blockLabels": "שמות בלוקים"
+    "blockLabels": "מספרי בלוקים"
+  },
+  "statusEvent": {
+    "title": "שינוי סטטוס ל‑{{status}}",
+    "description": "תיאור",
+    "descriptionPH": "מדוע נדחה העמוד?",
+    "attachments": "תמונות / וידאו",
+    "descRequired": "יש להזין תיאור."
   }
 }

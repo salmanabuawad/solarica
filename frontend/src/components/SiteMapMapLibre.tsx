@@ -614,19 +614,26 @@ export default function SiteMapMapLibre({
     show("blocks-selected", blocksOn);
     show("trackers-line", trackersOn);
     show("trackers-selected", trackersOn);
-    // HTML markers can't use MapLibre layout visibility — toggle via CSS.
+    // Block labels are HTML markers and can't use MapLibre layout visibility.
     for (const m of blockMarkersRef.current) {
       m.getElement().style.display = blockLabelsOn ? "" : "none";
     }
-    for (const m of rowLabelMarkersRef.current) {
-      m.getElement().style.display = rowLabelsOn ? "" : "none";
-    }
-    // Re-render row labels so enabling the toggle actually creates them
-    // when they were missing (clearMarkers on refresh) rather than just
-    // CSS-showing non-existent nodes.
-    refreshRowLabels();
     refreshPierLabels();
+    // Row-label rendering lives in its OWN effect below so that toggling
+    // Blocks / Block labels / Trackers doesn't destroy and rebuild the row
+    // markers each time (previously this loop ran on every layer change
+    // and visually wiped the row labels mid-toggle).
   }, [layers, pierLabelThreshold, pierDetailThreshold]);
+
+  // ---- Row labels — dedicated effect ------------------------------------
+  //
+  // Only re-runs when Row-numbers visibility changes or when the underlying
+  // pier data changes. Prevents Blocks / Block-labels toggles from
+  // destroying and rebuilding the row-number markers.
+  const rowLabelsOn = layerVisible(layers, "row_labels");
+  useEffect(() => {
+    refreshRowLabels();
+  }, [rowLabelsOn, rowLabelData]);
 
   // ---- HTML marker helpers ----------------------------------------------
 
@@ -665,33 +672,40 @@ export default function SiteMapMapLibre({
     if (!map) return;
     for (const m of rowLabelMarkersRef.current) m.remove();
     rowLabelMarkersRef.current = [];
-    if (!layerVisible(layers, "trackers")) return;
-    // User can hide the row-number labels independently of the tracker layer.
+    // Row numbers is its own layer toggle — it renders regardless of
+    // whether Trackers are visible.  Bail only if the user turned it off.
     if (!layerVisible(layers, "row_labels")) return;
 
-    // Only show row labels when zoomed in enough to read them.
-    const zoom = map.getZoom();
-    if (zoom < 4) return;
-
-    // Query which trackers are visible in the current viewport to avoid
-    // placing 314 DOM markers at once.
-    const visibleFeatures = map.queryRenderedFeatures(undefined, {
-      layers: ["trackers-line"],
-    });
-    const visibleRows = new Set<string>();
-    for (const f of visibleFeatures) {
-      const row = (f.properties as any)?.row;
-      if (row) visibleRows.add(row);
-    }
-
-    for (const row of visibleRows) {
-      const pos = rowLabelData[row];
-      if (!pos) continue;
+    // Compute which rows have a position that sits inside the current
+    // viewport.  Previously we relied on queryRenderedFeatures against
+    // the trackers-line layer, which meant row labels silently vanished
+    // when Trackers was hidden.  Iterating our own `rowLabelData` (one
+    // entry per unique row number) is cheap — typically <300 rows — and
+    // keeps the labels in sync with what the user asked for.
+    const bounds = map.getBounds();
+    for (const [row, pos] of Object.entries(rowLabelData)) {
+      if (!bounds.contains([pos.lng, pos.lat])) continue;
+      // Strip S prefix so short-tracker rows read the same as regular ones.
+      const display = row.replace(/^S/i, "");
       const el = document.createElement("div");
-      el.textContent = `R-${row}`;
+      el.textContent = `R-${display}`;
+      // Clickable pill so row numbers behave like piers/trackers: hover
+      // feedback, pointer cursor, click filters the grid + highlights on map.
       el.style.cssText =
-        "font: 700 13px Arial, sans-serif; color: #0f172a; pointer-events: none; " +
-        "white-space: nowrap; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;";
+        "font: 700 11px Arial, sans-serif; color: #0f172a; cursor: pointer; " +
+        "background: rgba(255,255,255,0.88); border: 1px solid #cbd5e1; " +
+        "border-radius: 999px; padding: 1px 7px; white-space: nowrap; " +
+        "box-shadow: 0 1px 2px rgba(0,0,0,0.08); user-select: none;";
+      el.addEventListener("mouseenter", () => { el.style.background = "#dbeafe"; el.style.borderColor = "#93c5fd"; });
+      el.addEventListener("mouseleave", () => { el.style.background = "rgba(255,255,255,0.88)"; el.style.borderColor = "#cbd5e1"; });
+      el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        // Re-use the tracker-click flow — the App treats it as a row
+        // filter by setting gridFilterBy to "row" and gridFilterValue
+        // to the row id. Passing a synthetic object with the row info
+        // so the caller can distinguish.
+        onTrackerClick({ __row: true, row: row, tracker_code: "", row_num: row });
+      });
       const marker = new maplibregl.Marker({ element: el, anchor: "bottom" })
         .setLngLat([pos.lng, pos.lat + 0.003])
         .addTo(map);

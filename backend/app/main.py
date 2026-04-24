@@ -664,6 +664,137 @@ def api_update_pier_status(project_id: str, pier_id: str, body: StatusUpdate):
     return {"pier_id": pier_id, "status": body.status}
 
 
+PIER_STATUS_EVENTS_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS pier_status_events (
+  id          SERIAL PRIMARY KEY,
+  project_id  UUID NOT NULL,
+  pier_code   TEXT NOT NULL,
+  status      TEXT NOT NULL,
+  description TEXT,
+  attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_by  TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_pier_status_events_lookup
+  ON pier_status_events(project_id, pier_code, created_at DESC);
+"""
+
+
+def _ensure_pier_status_events_schema() -> None:
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(PIER_STATUS_EVENTS_SCHEMA_SQL)
+        conn.commit()
+
+
+@app.on_event("startup")
+def _startup_pier_status_events() -> None:
+    try:
+        _ensure_pier_status_events_schema()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[pier_status_events] schema ensure failed: {exc}")
+
+
+ATTACHMENT_MAX_SIZE_MB = 25
+ATTACHMENT_MIME_PREFIXES = ("image/", "video/")
+
+
+@app.post("/api/projects/{project_id}/pier/{pier_code}/status-event")
+async def api_create_status_event(
+    project_id: str,
+    pier_code: str,
+    request: Request,
+    status: str = Form(...),
+    description: str = Form(""),
+    files: list[UploadFile] = File(default=[]),
+):
+    """Record a pier status change along with an optional description and
+    photo / video attachments.  Used when the grid rejects a pier so the
+    inspector can capture why.
+    """
+    if status not in VALID_STATUSES:
+        raise HTTPException(400, f"Invalid status. Must be one of: {sorted(VALID_STATUSES)}")
+    uu = _require_project_uuid(project_id)
+
+    # Who's submitting — best-effort, falls back to "admin" for legacy tokens.
+    auth = request.headers.get("authorization", "")
+    tok = _verify_token(auth[7:]) if auth.startswith("Bearer ") else None
+    created_by = (tok or {}).get("username", "unknown")
+
+    saved: list[dict] = []
+    attachments_dir = PROJECTS_ROOT / project_id / "attachments"
+    attachments_dir.mkdir(parents=True, exist_ok=True)
+
+    for upload in files:
+        mime = upload.content_type or "application/octet-stream"
+        if not mime.startswith(ATTACHMENT_MIME_PREFIXES):
+            raise HTTPException(400, f"Unsupported attachment type: {mime}. Only images and videos are accepted.")
+        content = await upload.read()
+        size_mb = len(content) / (1024 * 1024)
+        if size_mb > ATTACHMENT_MAX_SIZE_MB:
+            raise HTTPException(413, f"File '{upload.filename}' exceeds the {ATTACHMENT_MAX_SIZE_MB} MB limit.")
+
+        file_id = str(uuid.uuid4())
+        ext = Path(upload.filename or "").suffix.lower() or ""
+        save_name = f"{file_id}{ext}"
+        (attachments_dir / save_name).write_bytes(content)
+
+        saved.append({
+            "file_id": file_id,
+            "original_name": upload.filename,
+            "mime_type": mime,
+            "size": len(content),
+            "url": f"/projects/{project_id}/attachments/{save_name}",
+        })
+
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO pier_status_events
+                (project_id, pier_code, status, description, attachments, created_by)
+            VALUES (%s, %s, %s, %s, %s::jsonb, %s)
+            RETURNING id, created_at
+            """,
+            (uu, pier_code, status, description or None, json.dumps(saved), created_by),
+        )
+        row = cur.fetchone()
+        conn.commit()
+
+    # Also update the pier's current status so the grid / map reflect it.
+    db_store.set_pier_status(uu, pier_code, status)
+
+    return {
+        "id": row["id"],
+        "pier_code": pier_code,
+        "status": status,
+        "description": description,
+        "attachments": saved,
+        "created_at": row["created_at"].isoformat(),
+        "created_by": created_by,
+    }
+
+
+@app.get("/api/projects/{project_id}/pier/{pier_code}/status-events")
+def api_list_status_events(project_id: str, pier_code: str):
+    uu = _require_project_uuid(project_id)
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, status, description, attachments, created_by, created_at
+            FROM pier_status_events
+            WHERE project_id = %s AND pier_code = %s
+            ORDER BY created_at DESC
+            """,
+            (uu, pier_code),
+        )
+        out = []
+        for r in cur.fetchall():
+            d = dict(r)
+            if d.get("created_at") is not None:
+                d["created_at"] = d["created_at"].isoformat()
+            out.append(d)
+        return out
+
+
 @app.post("/api/projects/{project_id}/pier-statuses/bulk")
 def api_bulk_update_pier_status(project_id: str, body: dict = Body(...)):
     """Update the status of many piers in a single DB round-trip.

@@ -1,10 +1,11 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getCurrentUser, logout, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
 import SettingsModal from "./components/SettingsModal";
+import StatusChangeModal from "./components/StatusChangeModal";
 const UsersManager = lazy(() => import("./components/UsersManager"));
 import { useFieldConfigs, applyFieldConfigs } from "./hooks/useFieldConfigs";
 const FieldConfigManager = lazy(() => import("./components/FieldConfigManager"));
@@ -246,6 +247,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Settings popup (language + theme/brightness/font size).
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Pending status-change modal (triggered when a pier is flipped to
+  // "Rejected" from the grid — inspector must attach a description and
+  // optionally photos / a short video).
+  const [statusEvent, setStatusEvent] = useState<null | { pierCode: string; status: string }>(null);
 
   // Persist user preferences.
   useEffect(() => { userPrefs.setPierLabelThreshold(pierLabelThreshold); }, [pierLabelThreshold]);
@@ -343,19 +348,32 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     return () => { ignore = true; };
   }, [projectId, refreshKey, project]);
 
-  async function handleStatusChange(pierId: string, status: string) {
+  function handleStatusChange(pierId: string, status: string) {
     if (!projectId) return;
+    // Fast path for single-cell edits:
+    //  1. Update ag-grid's internal row via the API — the cell repaints
+    //     immediately without invalidating the 24 k-row memoized gridRows.
+    //  2. Kick off the IndexedDB + server write without awaiting so the
+    //     UI never blocks on the network round-trip.
+    //  3. Use React's startTransition for the pierStatuses state update
+    //     so the re-render (needed by map pier-status coloring) is run
+    //     in a non-urgent slot and doesn't stall the input handler.
+    const api = pierGridApiRef.current;
     try {
-      await updatePierStatus(projectId, pierId, status);
+      const node = api?.getRowNode?.(pierId);
+      if (node) node.setDataValue("status", status);
+    } catch { /* grid may not be mounted (e.g. Map view) — ignore */ }
+
+    updatePierStatus(projectId, pierId, status).catch((e: any) => setError(String(e.message || e)));
+
+    startTransition(() => {
       setPierStatuses((prev) => {
         const next = { ...prev };
         if (status === "New") delete next[pierId];
         else next[pierId] = status;
         return next;
       });
-    } catch (e: any) {
-      setError(String(e.message || e));
-    }
+    });
   }
 
   async function handleBulkApply() {
@@ -809,7 +827,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 <button onClick={() => setGridFilterValue("")} style={{ fontSize: 12, background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>Clear filter</button>
               )}
             </div>
-            <div style={{ height: compact ? "calc(100vh - 300px)" : "calc(100vh - 320px)", minHeight: compact ? 300 : 400, borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+            <div style={{ height: compact ? "calc(100vh - 230px)" : "calc(100vh - 200px)", minHeight: compact ? 300 : 400, borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
               <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 13, color: "#64748b" }}>Loading map…</div>}>
                 <SiteMapMapLibre
                   imageWidth={project?.base_image?.width || 1}
@@ -823,7 +841,17 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   selectedPier={selectedPier}
                   layers={layers}
                   onBlockClick={() => {}}
-                  onTrackerClick={(t: any) => { setGridFilterBy("tracker"); setGridFilterValue(t.tracker_code || ""); }}
+                  onTrackerClick={(t: any) => {
+                    if (t && t.__row) {
+                      // Row-label click (from SiteMapMapLibre) — switch the
+                      // grid filter to the "rows" mode and pre-fill it.
+                      setGridFilterBy("row");
+                      setGridFilterValue(String(t.row || t.row_num || ""));
+                    } else {
+                      setGridFilterBy("tracker");
+                      setGridFilterValue(t.tracker_code || "");
+                    }
+                  }}
                   onPierClick={handlePierClick}
                   onAreaSelect={handleAreaSelect}
                   bulkSelectedPierCodes={selectedPierCodes}
@@ -947,9 +975,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 if (e?.colDef?.field !== "status") return;
                 const code = e.data?.pier_code;
                 const newStatus = e.newValue;
-                if (code && newStatus && e.oldValue !== newStatus) {
-                  handleStatusChange(code, newStatus);
+                if (!code || !newStatus || e.oldValue === newStatus) return;
+                if (newStatus === "Rejected") {
+                  // Open the description+attachments modal. The backend
+                  // endpoint writes the history row AND updates the pier
+                  // status — so we hold off on the optimistic update
+                  // here and apply it on successful submit.
+                  setStatusEvent({ pierCode: code, status: newStatus });
+                  return;
                 }
+                handleStatusChange(code, newStatus);
               }}
             />
             {selectedPierFull && (
@@ -1116,6 +1151,21 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       )}
       {busy && <BusyOverlay message={busy} />}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {statusEvent && projectId && (
+        <StatusChangeModal
+          projectId={projectId}
+          pierCode={statusEvent.pierCode}
+          newStatus={statusEvent.status}
+          onCancel={() => setStatusEvent(null)}
+          onSubmitted={() => {
+            // Backend already wrote both the event + the pier status —
+            // just fold it into our local status map so the grid + map
+            // reflect the change.
+            setPierStatuses((prev) => ({ ...prev, [statusEvent.pierCode]: statusEvent.status }));
+            setStatusEvent(null);
+          }}
+        />
+      )}
     </div>
   );
 }

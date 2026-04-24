@@ -177,6 +177,13 @@
     "piers": "الأعمدة",
     "trackers": "المتتبعات",
     "blocks": "الكتل",
-    "blockLabels": "تسميات الكتل"
+    "blockLabels": "أرقام الكتل"
+  },
+  "statusEvent": {
+    "title": "تغيير الحالة إلى {{status}}",
+    "description": "الوصف",
+    "descriptionPH": "لماذا تم رفض هذا العمود؟",
+    "attachments": "صور / فيديو",
+    "descRequired": "يرجى إدخال وصف."
   }
 }
