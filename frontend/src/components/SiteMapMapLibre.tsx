@@ -830,72 +830,46 @@ export default function SiteMapMapLibre({
     const crect = container.getBoundingClientRect();
     const minSide = 60;
     const maxSide = Math.round(Math.min(crect.width, crect.height) * 0.9);
-    let side = Math.round(Math.min(crect.width, crect.height) * 0.18);
-    // Park in the top-right corner by default.
-    const margin = 12;
-    const initialLeft = Math.max(0, crect.width - side - margin);
-    const initialTop = margin;
+    let side = Math.round(Math.min(crect.width, crect.height) * 0.14);
+    // Park in the top-LEFT corner by default.
+    const margin = 10;
 
     const box = document.createElement("div");
     box.style.cssText =
-      `position: absolute; left: ${initialLeft}px; top: ${initialTop}px; ` +
+      `position: absolute; left: ${margin}px; top: ${margin}px; ` +
       `width: ${side}px; height: ${side}px; ` +
-      `border: 2px solid #2563eb; background: rgba(37,99,235,0.12); ` +
-      `box-shadow: 0 6px 20px rgba(0,0,0,0.22); border-radius: 8px; ` +
-      `cursor: grab; z-index: 20; touch-action: none; ` +
-      `display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;`;
+      `border: 1.5px solid #0f172a; background: transparent; ` +
+      `border-radius: 4px; cursor: grab; z-index: 20; touch-action: none;`;
 
-    // Compact +/- resize controls anchored inside the top-right corner
-    // of the box so the user never has to chase a separate toolbar.
+    // Minimalist toolbar — v / + / − as plain characters at the top.
+    // No shadow, no fill, no hint text — the user asked for a simple
+    // rectangle with just the three letters.
     const ctrl = document.createElement("div");
     ctrl.style.cssText =
-      "position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; z-index: 2;";
-    const mkBtn = (label: string, onClick: () => void) => {
+      "position: absolute; top: 4px; left: 50%; transform: translateX(-50%); " +
+      "display: flex; gap: 8px; z-index: 2;";
+    const mkBtn = (label: string, title: string, onClick: () => void) => {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = label;
+      b.title = title;
       b.style.cssText =
-        "width: 26px; height: 26px; border-radius: 6px; border: 1px solid #bfdbfe; " +
-        "background: rgba(255,255,255,0.95); color: #1e3a8a; font: 700 14px Arial; " +
-        "cursor: pointer; line-height: 1; padding: 0; touch-action: manipulation;";
+        "min-width: 14px; height: 16px; padding: 0 2px; line-height: 1; " +
+        "border: none; background: transparent; color: #0f172a; " +
+        "font: 600 13px Arial, sans-serif; cursor: pointer; touch-action: manipulation;";
       b.addEventListener("click", (ev) => { ev.stopPropagation(); onClick(); });
-      b.addEventListener("pointerdown", (ev) => { ev.stopPropagation(); });  // don't start drag
+      b.addEventListener("pointerdown", (ev) => { ev.stopPropagation(); });
       return b;
     };
-    const plusBtn = mkBtn("+", () => resize(+20));
-    const minusBtn = mkBtn("−", () => resize(-20));
-    // Apply button — confirms the area (zoom + select). Previously this
-    // happened implicitly on pointer-up; users wanted an explicit action
-    // so they can drop the box and then deliberately choose "go".
-    const applyBtn = mkBtn("✓", () => applyZoom());
-    applyBtn.title = t("details.zoomHere", "Zoom & select this area");
-    applyBtn.style.background = "#16a34a";
-    applyBtn.style.color = "#ffffff";
-    applyBtn.style.borderColor = "#15803d";
-    ctrl.appendChild(minusBtn);
-    ctrl.appendChild(plusBtn);
-    ctrl.appendChild(applyBtn);
+    ctrl.appendChild(mkBtn("v", t("details.zoomHere", "Zoom & select this area"), () => applyZoom()));
+    ctrl.appendChild(mkBtn("+", "Grow",   () => resize(+20)));
+    ctrl.appendChild(mkBtn("−", "Shrink", () => resize(-20)));
     box.appendChild(ctrl);
-
-    const hint = document.createElement("div");
-    hint.textContent = t("details.dragThenApply", "Drag, then press ✓");
-    // Hint truncates + hides entirely when the box is narrow, otherwise
-    // it overflowed the box on small sizes and looked "corrupted".
-    hint.style.cssText =
-      "font: 600 10px Arial, sans-serif; color: #1e3a8a; " +
-      "background: rgba(255,255,255,0.9); padding: 2px 8px; border-radius: 999px; " +
-      "pointer-events: none; white-space: nowrap; " +
-      "max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; " +
-      "box-sizing: border-box;";
-    box.appendChild(hint);
     container.appendChild(box);
 
-    function updateHintVisibility() {
-      // Keep the hint out of sight if the box is too narrow for it to
-      // ever fit comfortably; the + / − / ✓ buttons are self-explanatory.
-      hint.style.display = side < 130 ? "none" : "";
-    }
-    updateHintVisibility();
+    // Resize no-op that used to manage the hint; kept as a stub so
+    // resize() can call it without a conditional.
+    function updateHintVisibility() { /* no-op */ }
 
     function resize(delta: number) {
       const c = container.getBoundingClientRect();
