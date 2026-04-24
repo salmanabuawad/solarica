@@ -864,12 +864,21 @@ export default function SiteMapMapLibre({
     };
     const plusBtn = mkBtn("+", () => resize(+20));
     const minusBtn = mkBtn("−", () => resize(-20));
+    // Apply button — confirms the area (zoom + select). Previously this
+    // happened implicitly on pointer-up; users wanted an explicit action
+    // so they can drop the box and then deliberately choose "go".
+    const applyBtn = mkBtn("✓", () => applyZoom());
+    applyBtn.title = t("details.zoomHere", "Zoom & select this area");
+    applyBtn.style.background = "#16a34a";
+    applyBtn.style.color = "#ffffff";
+    applyBtn.style.borderColor = "#15803d";
     ctrl.appendChild(minusBtn);
     ctrl.appendChild(plusBtn);
+    ctrl.appendChild(applyBtn);
     box.appendChild(ctrl);
 
     const hint = document.createElement("div");
-    hint.textContent = t("details.zoomHere", "Drag — release to zoom");
+    hint.textContent = t("details.dragThenApply", "Drag, then press ✓");
     hint.style.cssText =
       "font: 600 11px Arial, sans-serif; color: #1e3a8a; background: rgba(255,255,255,0.85); " +
       "padding: 2px 8px; border-radius: 999px; pointer-events: none; white-space: nowrap;";
@@ -920,7 +929,10 @@ export default function SiteMapMapLibre({
       setTimeout(() => { isBoxDraggingRef.current = false; }, 0);
       box.style.cursor = "grab";
       try { box.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+      // Note: no zoom on drag-end any more — the user must press ✓.
+    }
 
+    function applyZoom() {
       // Compute world bounds under the box and zoom-fit them.
       const c = container.getBoundingClientRect();
       const x0 = parseFloat(box.style.left);
@@ -928,8 +940,6 @@ export default function SiteMapMapLibre({
       const x1 = x0 + side;
       const y1 = y0 + side;
 
-      // Use the MAP canvas position — container + canvas are coincident but
-      // unproject expects coordinates relative to the canvas.
       const canvas = map.getCanvas();
       const cr = canvas.getBoundingClientRect();
       const dx = c.left - cr.left;

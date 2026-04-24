@@ -56,7 +56,8 @@
     "bulkConfirmTitle": "Изменить статус выбранных опор",
     "bulkConfirmMessage": "Изменить статус {{count}} опор на «{{status}}»?",
     "boxSelect": "Рамка выбора",
-    "boxSelectOn": "Выбор: вкл"
+    "boxSelectOn": "Выбор: вкл",
+    "dragThenApply": "Перетащите и нажмите ✓"
   },
   "status": {
     "New": "Новый",

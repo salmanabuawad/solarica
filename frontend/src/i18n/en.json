@@ -56,7 +56,8 @@
     "bulkConfirmTitle": "Change status for selected piers",
     "bulkConfirmMessage": "Change the status of {{count}} piers to \"{{status}}\"?",
     "boxSelect": "Box Select",
-    "boxSelectOn": "Select: ON"
+    "boxSelectOn": "Select: ON",
+    "dragThenApply": "Drag, then press ✓"
   },
   "status": {
     "New": "New",

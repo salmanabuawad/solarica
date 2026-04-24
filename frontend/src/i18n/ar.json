@@ -56,7 +56,8 @@
     "bulkConfirmTitle": "تغيير الحالة للأعمدة المحددة",
     "bulkConfirmMessage": "تغيير حالة {{count}} عمود إلى \"{{status}}\"؟",
     "boxSelect": "تحديد مربع",
-    "boxSelectOn": "التحديد مفعّل"
+    "boxSelectOn": "التحديد مفعّل",
+    "dragThenApply": "اسحب ثم اضغط ✓"
   },
   "status": {
     "New": "جديد",

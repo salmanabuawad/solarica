@@ -56,7 +56,8 @@
     "bulkConfirmTitle": "Status für ausgewählte Pfähle ändern",
     "bulkConfirmMessage": "Status von {{count}} Pfählen auf „{{status}}“ ändern?",
     "boxSelect": "Rahmenauswahl",
-    "boxSelectOn": "Auswahl: AN"
+    "boxSelectOn": "Auswahl: AN",
+    "dragThenApply": "Ziehen, dann ✓"
   },
   "status": {
     "New": "Neu",

@@ -56,7 +56,8 @@
     "bulkConfirmTitle": "Modifier le statut des pieux sélectionnés",
     "bulkConfirmMessage": "Modifier le statut de {{count}} pieux en « {{status}} » ?",
     "boxSelect": "Sélection",
-    "boxSelectOn": "Sélection : ON"
+    "boxSelectOn": "Sélection : ON",
+    "dragThenApply": "Déplacez, puis ✓"
   },
   "status": {
     "New": "Nouveau",

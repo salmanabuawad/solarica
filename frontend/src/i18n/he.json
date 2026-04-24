@@ -56,7 +56,8 @@
     "bulkConfirmTitle": "שינוי סטטוס לעמודים שנבחרו",
     "bulkConfirmMessage": "לשנות את הסטטוס של {{count}} עמודים ל\"{{status}}\"?",
     "boxSelect": "בחירה בריבוע",
-    "boxSelectOn": "בחירה פעילה"
+    "boxSelectOn": "בחירה פעילה",
+    "dragThenApply": "גררו ולחצו ✓"
   },
   "status": {
     "New": "חדש",
