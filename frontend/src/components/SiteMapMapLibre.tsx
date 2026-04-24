@@ -879,16 +879,27 @@ export default function SiteMapMapLibre({
 
     const hint = document.createElement("div");
     hint.textContent = t("details.dragThenApply", "Drag, then press ✓");
+    // Hint truncates + hides entirely when the box is narrow, otherwise
+    // it overflowed the box on small sizes and looked "corrupted".
     hint.style.cssText =
-      "font: 600 11px Arial, sans-serif; color: #1e3a8a; background: rgba(255,255,255,0.85); " +
-      "padding: 2px 8px; border-radius: 999px; pointer-events: none; white-space: nowrap;";
+      "font: 600 10px Arial, sans-serif; color: #1e3a8a; " +
+      "background: rgba(255,255,255,0.9); padding: 2px 8px; border-radius: 999px; " +
+      "pointer-events: none; white-space: nowrap; " +
+      "max-width: calc(100% - 16px); overflow: hidden; text-overflow: ellipsis; " +
+      "box-sizing: border-box;";
     box.appendChild(hint);
     container.appendChild(box);
+
+    function updateHintVisibility() {
+      // Keep the hint out of sight if the box is too narrow for it to
+      // ever fit comfortably; the + / − / ✓ buttons are self-explanatory.
+      hint.style.display = side < 130 ? "none" : "";
+    }
+    updateHintVisibility();
 
     function resize(delta: number) {
       const c = container.getBoundingClientRect();
       const newSide = Math.max(minSide, Math.min(maxSide, side + delta));
-      // Keep the box centred on its current centre.
       const prevCX = parseFloat(box.style.left) + side / 2;
       const prevCY = parseFloat(box.style.top) + side / 2;
       side = newSide;
@@ -896,6 +907,7 @@ export default function SiteMapMapLibre({
       box.style.height = `${side}px`;
       box.style.left = `${Math.max(0, Math.min(c.width - side, Math.round(prevCX - side / 2)))}px`;
       box.style.top  = `${Math.max(0, Math.min(c.height - side, Math.round(prevCY - side / 2)))}px`;
+      updateHintVisibility();
     }
 
     let dragging = false;
@@ -966,8 +978,18 @@ export default function SiteMapMapLibre({
       map.fitBounds(b, { padding: 32, duration: 450 });
       // Re-park in the (new) top-right corner so the box stays reachable
       // after a zoom-in that shrinks the viewport in canvas pixels.
+      // Also clamp `side` to the new container — otherwise the box
+      // overflows a narrow viewport after an aggressive zoom-in and
+      // looks chopped off.
       requestAnimationFrame(() => {
         const cc = container.getBoundingClientRect();
+        const fit = Math.max(minSide, Math.min(side, Math.round(Math.min(cc.width, cc.height) * 0.5)));
+        if (fit !== side) {
+          side = fit;
+          box.style.width = `${side}px`;
+          box.style.height = `${side}px`;
+          updateHintVisibility();
+        }
         box.style.left = `${Math.max(0, cc.width - side - margin)}px`;
         box.style.top = `${margin}px`;
       });
