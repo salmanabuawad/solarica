@@ -178,7 +178,9 @@
     "piers": "الأعمدة",
     "trackers": "المتتبعات",
     "blocks": "الكتل",
-    "blockLabels": "أرقام الكتل"
+    "blockLabels": "أرقام الكتل",
+    "inverters": "العاكسات",
+    "dccb": "لوحة DC"
   },
   "statusEvent": {
     "title": "تغيير الحالة إلى {{status}}",

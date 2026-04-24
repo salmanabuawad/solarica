@@ -178,7 +178,9 @@
     "piers": "עמודים",
     "trackers": "טרקרים",
     "blocks": "בלוקים",
-    "blockLabels": "מספרי בלוקים"
+    "blockLabels": "מספרי בלוקים",
+    "inverters": "ממירים",
+    "dccb": "לוח DC"
   },
   "statusEvent": {
     "title": "שינוי סטטוס ל‑{{status}}",

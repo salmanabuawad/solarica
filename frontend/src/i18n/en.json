@@ -178,7 +178,9 @@
     "piers": "Piers",
     "trackers": "Trackers",
     "blocks": "Blocks",
-    "blockLabels": "Block numbers"
+    "blockLabels": "Block numbers",
+    "inverters": "Inverters",
+    "dccb": "DCCB"
   },
   "statusEvent": {
     "title": "Change status to {{status}}",

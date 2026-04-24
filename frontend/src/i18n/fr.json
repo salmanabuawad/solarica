@@ -178,7 +178,9 @@
     "piers": "Pieux",
     "trackers": "Trackers",
     "blocks": "Blocs",
-    "blockLabels": "Numéros de blocs"
+    "blockLabels": "Numéros de blocs",
+    "inverters": "Onduleurs",
+    "dccb": "Coffret DC"
   },
   "statusEvent": {
     "title": "Statut → {{status}}",

@@ -178,7 +178,9 @@
     "piers": "Pfähle",
     "trackers": "Tracker",
     "blocks": "Blöcke",
-    "blockLabels": "Block-Nummern"
+    "blockLabels": "Block-Nummern",
+    "inverters": "Wechselrichter",
+    "dccb": "DC-Schaltschrank"
   },
   "statusEvent": {
     "title": "Status auf {{status}} ändern",

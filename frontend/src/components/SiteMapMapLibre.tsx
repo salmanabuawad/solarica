@@ -133,37 +133,90 @@ export default function SiteMapMapLibre({
   }, [blocks, imageWidth]);
 
   const trackersGeoJSON = useMemo(() => {
-    // Group piers by tracker_code, then draw a line from first to last pier.
+    // Build a line per tracker.  We try three sources in order of
+    // reliability:
+    //   1. All piers on the tracker — draw the line that actually hits
+    //      every pier (most accurate and, on Ashalim, always available).
+    //   2. The tracker's bbox — span along whichever axis is longer.
+    //   3. Skip (no usable geometry).
+    //
+    // The pier-based path is preferred because the Ashalim bbox values
+    // coming out of the vector parser were observed to sometimes be
+    // degenerate (zero width on single-pier trackers), which produced
+    // point-length "lines" that MapLibre renders as invisible.
     const byTracker: Record<string, any[]> = {};
     for (const p of piers) {
       if (!p.tracker_code) continue;
       (byTracker[p.tracker_code] ??= []).push(p);
     }
-    const features = trackers
-      .map((t: any) => {
-        const tPiers = byTracker[t.tracker_code];
-        if (!tPiers || tPiers.length < 2) return null;
-        const sorted = [...tPiers].sort((a, b) =>
-          String(a.pier_code || "").localeCompare(String(b.pier_code || "")),
+    const features: any[] = [];
+    let bboxUsed = 0;
+    let pierUsed = 0;
+    let skipped = 0;
+    // Without a real imageWidth the coord transform is meaningless — skip
+    // and recompute once the parent's imageWidth prop settles.
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features };
+    }
+    for (const t of trackers) {
+      let a: [number, number] | null = null;
+      let b: [number, number] | null = null;
+
+      // Preferred: first-pier → last-pier along the tracker axis.
+      const tPiers = byTracker[t.tracker_code];
+      if (tPiers && tPiers.length >= 2) {
+        const sorted = [...tPiers].sort((p, q) =>
+          String(p.pier_code || "").localeCompare(String(q.pier_code || ""), undefined, { numeric: true }),
         );
-        const first = sorted[0];
-        const last = sorted[sorted.length - 1];
-        return {
-          type: "Feature" as const,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: [
-              rotatedToLngLat(first.x, first.y, imageWidth),
-              rotatedToLngLat(last.x, last.y, imageWidth),
-            ],
-          },
-          properties: {
-            tracker_code: t.tracker_code,
-            row: String(t.row || ""),
-          },
-        };
-      })
-      .filter(Boolean) as any[];
+        a = rotatedToLngLat(sorted[0].x, sorted[0].y, imageWidth);
+        b = rotatedToLngLat(sorted[sorted.length - 1].x, sorted[sorted.length - 1].y, imageWidth);
+        pierUsed++;
+      } else {
+        // Fallback: span the bbox along whichever side is longer.
+        const box = t.bbox as { x: number; y: number; w: number; h: number } | undefined;
+        if (
+          box &&
+          typeof box.x === "number" && typeof box.y === "number" &&
+          typeof box.w === "number" && typeof box.h === "number" &&
+          (box.w > 0 || box.h > 0)
+        ) {
+          if (box.w >= box.h) {
+            const midY = box.y + box.h / 2;
+            a = rotatedToLngLat(box.x,         midY, imageWidth);
+            b = rotatedToLngLat(box.x + box.w, midY, imageWidth);
+          } else {
+            const midX = box.x + box.w / 2;
+            a = rotatedToLngLat(midX, box.y,          imageWidth);
+            b = rotatedToLngLat(midX, box.y + box.h,  imageWidth);
+          }
+          bboxUsed++;
+        } else {
+          skipped++;
+        }
+      }
+      if (!a || !b) continue;
+      features.push({
+        type: "Feature" as const,
+        geometry: { type: "LineString" as const, coordinates: [a, b] },
+        properties: {
+          tracker_code: t.tracker_code,
+          row: String(t.row || ""),
+        },
+      });
+    }
+    // One-off diagnostic so it's obvious from the devtools console if
+    // the tracker dataset never produced drawable features (the root
+    // cause of the "Trackers checkbox does nothing" complaint).  Also
+    // logs a sample so bad coordinates are easy to spot.
+    try {
+      const sample = features[0];
+      console.debug(
+        `[SiteMap] trackersGeoJSON: ${features.length} lines ` +
+        `(pier=${pierUsed}, bbox=${bboxUsed}, skipped=${skipped}) ` +
+        `from ${trackers.length} trackers, ${piers.length} piers, imageWidth=${imageWidth}`,
+        sample ? sample.geometry.coordinates : "(no features)",
+      );
+    } catch { /* noop */ }
     return { type: "FeatureCollection" as const, features };
   }, [trackers, piers, imageWidth]);
 
@@ -272,24 +325,45 @@ export default function SiteMapMapLibre({
 
       // --- Tracker lines -------------------------------------------------
       //
-      // Solid emerald line that actually *reads* against the pier dots.
-      // Width scales with zoom so it doesn't look chunky at far zoom-out
-      // nor disappear at close zoom-in.
+      // Drawn as a two-layer stack so the line reads on *any* base-map
+      // colour and even when it crosses the 24 k pier dots:
+      //   • `trackers-casing`  — wide white halo underneath
+      //   • `trackers-line`    — emerald core on top
+      // Both widths scale with zoom so the lines are legible from fully
+      // zoomed-out (site overview) to fully zoomed-in (single row).
+      map.addLayer({
+        id: "trackers-casing",
+        type: "line",
+        source: "trackers",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-opacity": 0.85,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 3.5,
+            6, 5,
+            10, 6.5,
+            14, 8,
+            18, 11,
+          ],
+        },
+      });
       map.addLayer({
         id: "trackers-line",
         type: "line",
         source: "trackers",
-        layout: { "line-cap": "butt", "line-join": "round" },
+        layout: { "line-cap": "round", "line-join": "round" },
         paint: {
           "line-color": "#16a34a",
-          "line-opacity": 0.95,
+          "line-opacity": 1,
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
-            0, 2,
-            4, 2.5,
-            8, 3.5,
-            12, 4.5,
-            18, 6,
+            0, 1.5,
+            6, 2.5,
+            10, 3.5,
+            14, 5,
+            18, 7,
           ],
         },
       });
@@ -464,8 +538,9 @@ export default function SiteMapMapLibre({
 
       // Promote tracker lines above the 24 k-pier layer so they're
       // actually readable.  With piers rendered on top the tracker line
-      // was getting obscured; tracker lines between piers read well.
+      // was getting obscured.  Casing first (below) → core (on top).
       try {
+        map.moveLayer("trackers-casing");
         map.moveLayer("trackers-line");
         map.moveLayer("trackers-selected");
       } catch { /* layers might not exist mid-swap; ignore */ }
@@ -561,9 +636,23 @@ export default function SiteMapMapLibre({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    (map.getSource("trackers") as GeoJSONSource | undefined)?.setData(trackersGeoJSON as any);
-    refreshRowLabels();
+    if (!map) return;
+    const apply = () => {
+      const src = map.getSource("trackers") as GeoJSONSource | undefined;
+      if (!src) return;
+      src.setData(trackersGeoJSON as any);
+      // Re-promote tracker lines above the 24 k pier layer every time
+      // the data changes — otherwise a late-arriving pier source pushes
+      // piers back on top and the lines silently disappear underneath.
+      try {
+        if (map.getLayer("trackers-casing"))   map.moveLayer("trackers-casing");
+        if (map.getLayer("trackers-line"))     map.moveLayer("trackers-line");
+        if (map.getLayer("trackers-selected")) map.moveLayer("trackers-selected");
+      } catch { /* noop */ }
+      refreshRowLabels();
+    };
+    if (map.isStyleLoaded()) apply();
+    else map.once("load", apply);
   }, [trackersGeoJSON]);
 
   useEffect(() => {
@@ -640,6 +729,7 @@ export default function SiteMapMapLibre({
     show("blocks-fill", blocksOn);
     show("blocks-outline", blocksOn);
     show("blocks-selected", blocksOn);
+    show("trackers-casing", trackersOn);
     show("trackers-line", trackersOn);
     show("trackers-selected", trackersOn);
     // Block labels are HTML markers and can't use MapLibre layout visibility.
@@ -826,10 +916,11 @@ export default function SiteMapMapLibre({
 
   // ---- Always-visible zoom selector --------------------------------------
   //
-  // A fixed square sits parked in the map's top-right corner at all
-  // times; the user drags it over an area of interest and releases to
-  // zoom+select. No toolbar button needed. +/- buttons on the square
-  // resize it in 20 px steps (60 px min → 90 % of shorter side max).
+  // A fixed square sits parked in the map's bottom-left corner (right
+  // next to the side panel) at all times; the user drags it over an
+  // area of interest and presses ✓ to zoom+select. No toolbar button
+  // needed. +/- buttons on the square resize it in 20 px steps
+  // (60 px min → 90 % of shorter side max).
   useEffect(() => {
     const map = mapRef.current;
     const container = containerRef.current;
@@ -839,12 +930,13 @@ export default function SiteMapMapLibre({
     const minSide = 60;
     const maxSide = Math.round(Math.min(crect.width, crect.height) * 0.9);
     let side = Math.round(Math.min(crect.width, crect.height) * 0.14);
-    // Park in the top-LEFT corner by default.
+    // Park in the bottom-LEFT corner by default (next to the side panel).
     const margin = 10;
+    const initialTop = Math.max(margin, crect.height - side - margin);
 
     const box = document.createElement("div");
     box.style.cssText =
-      `position: absolute; left: ${margin}px; top: ${margin}px; ` +
+      `position: absolute; left: ${margin}px; top: ${initialTop}px; ` +
       `width: ${side}px; height: ${side}px; ` +
       `border: 1.5px solid #0f172a; background: transparent; ` +
       `border-radius: 4px; cursor: grab; z-index: 20; touch-action: none;`;
@@ -958,11 +1050,11 @@ export default function SiteMapMapLibre({
       onAreaSelect?.(picked);
 
       map.fitBounds(b, { padding: 32, duration: 450 });
-      // Re-park in the (new) top-right corner so the box stays reachable
-      // after a zoom-in that shrinks the viewport in canvas pixels.
-      // Also clamp `side` to the new container — otherwise the box
-      // overflows a narrow viewport after an aggressive zoom-in and
-      // looks chopped off.
+      // Re-park in the (new) bottom-LEFT corner so the box stays reachable
+      // after a zoom-in that shrinks the viewport in canvas pixels. Also
+      // clamp `side` to the new container — otherwise the box overflows
+      // a narrow viewport after an aggressive zoom-in and looks chopped
+      // off.
       requestAnimationFrame(() => {
         const cc = container.getBoundingClientRect();
         const fit = Math.max(minSide, Math.min(side, Math.round(Math.min(cc.width, cc.height) * 0.5)));
@@ -972,8 +1064,8 @@ export default function SiteMapMapLibre({
           box.style.height = `${side}px`;
           updateHintVisibility();
         }
-        box.style.left = `${Math.max(0, cc.width - side - margin)}px`;
-        box.style.top = `${margin}px`;
+        box.style.left = `${margin}px`;
+        box.style.top  = `${Math.max(margin, cc.height - side - margin)}px`;
       });
     }
 

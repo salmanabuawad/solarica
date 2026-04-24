@@ -178,7 +178,9 @@
     "piers": "Опоры",
     "trackers": "Трекеры",
     "blocks": "Блоки",
-    "blockLabels": "Номера блоков"
+    "blockLabels": "Номера блоков",
+    "inverters": "Инверторы",
+    "dccb": "DC-шкаф"
   },
   "statusEvent": {
     "title": "Изменение статуса на {{status}}",

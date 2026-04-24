@@ -177,6 +177,10 @@ const INITIAL_LAYERS = [
   { key: "trackers",    label: "Trackers",    visible: true },
   { key: "blocks",      label: "Blocks",      visible: false },
   { key: "blockLabels", label: "Block labels", visible: false },
+  // Electrical devices — visible only after the device-position extractor
+  // runs; the checkbox is always shown so the user can toggle on upstream.
+  { key: "inverters",   label: "Inverters",   visible: false },
+  { key: "dccb",        label: "DCCB",        visible: false },
 ];
 const LAYER_LABEL_KEYS: Record<string, string> = {
   row_labels:  "layers.rowNumbers",
@@ -184,6 +188,8 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   trackers:    "layers.trackers",
   blocks:      "layers.blocks",
   blockLabels: "layers.blockLabels",
+  inverters:   "layers.inverters",
+  dccb:        "layers.dccb",
 };
 
 function getInitialProjectId() {
