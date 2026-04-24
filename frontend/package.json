@@ -1,40 +1,35 @@
 {
-  "name": "solarica-app",
+  "name": "solarica-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy:server": "powershell -ExecutionPolicy Bypass -File ../deploy-to-server.ps1",
+    "deploy:backend": "powershell -ExecutionPolicy Bypass -File ../deploy-backend-to-server.ps1",
+    "deploy:server:all": "powershell -ExecutionPolicy Bypass -File ../deploy-all-to-server.ps1"
   },
   "dependencies": {
-    "ag-grid-community": "^35.2.0",
-    "ag-grid-react": "^35.2.0",
-    "axios": "^1.14.0",
-    "i18next": "^26.0.3",
-    "lucide-react": "^1.7.0",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "react-i18next": "^17.0.2",
-    "react-router-dom": "^7.13.2"
+    "ag-grid-community": "^33.2.4",
+    "ag-grid-react": "^33.2.4",
+    "i18next": "^23.16.4",
+    "idb": "^8.0.3",
+    "maplibre-gl": "^5.22.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-i18next": "^15.1.1",
+    "vite-plugin-pwa": "^1.2.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@types/node": "^24.12.0",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "autoprefixer": "^10.4.27",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.4.0",
-    "postcss": "^8.5.6",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.0",
     "tailwindcss": "^3.4.17",
-    "typescript": "~5.9.3",
-    "typescript-eslint": "^8.57.0",
-    "vite": "^8.0.1"
+    "typescript": "^5.5.4",
+    "vite": "^5.4.8"
   }
 }

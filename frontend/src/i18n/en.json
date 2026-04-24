@@ -1,426 +1,182 @@
 {
   "app": {
-    "title": "Solarica",
-    "tagline": "From Design to Operation",
-    "positioning": "The Solar Operating System"
-  },
-  "nav": {
-    "projects": "Projects",
-    "tasks": "Tasks",
-    "inventory": "Inventory",
-    "warehouse": "Warehouse",
-    "measurements": "Measurements",
-    "reports": "Reports",
-    "mobile": "Mobile",
-    "admin": "Admin",
-    "settings": "Settings",
-    "logout": "Logout",
-    "login": "Login",
-    "security": "Security"
-  },
-  "projects": {
-    "list_title": "Projects",
-    "create": "New Project",
-    "delete_confirm": "Delete project \"{{name}}\"? This cannot be undone.",
-    "delete_failed": "Could not delete project.",
-    "active_label": "Active",
-    "inactive_label": "Inactive",
-    "inactive_banner": "This project is inactive. You can still view data; activate it to treat it as live again.",
-    "set_active": "Activate project",
-    "set_inactive": "Deactivate",
-    "wizard": {
-      "step_details": "Project Details",
-      "step_site": "Site Information",
-      "step_design": "Design Upload",
-      "step_validation": "Validation",
-      "step_review": "Review & Submit"
-    },
-    "fields": {
-      "name": "Project Name",
-      "customer": "Customer",
-      "site": "Site",
-      "type": "Project Type",
-      "description": "Description",
-      "phase": "Phase",
-      "progress": "Progress",
-      "active": "Active",
-      "status": "Status",
-      "validation": "Validation"
-    }
-  },
-  "tasks": {
-    "list_title": "Tasks",
-    "create": "New Task",
-    "fields": {
-      "title": "Title",
-      "description": "Description",
-      "priority": "Priority",
-      "status": "Status",
-      "type": "Type",
-      "assigned_to": "Assigned To",
-      "messages": "Messages",
-      "approvals": "Approvals",
-      "test_results": "Test Results"
-    }
-  },
-  "inventory": {
-    "materials": "Materials",
-    "warehouse": "Warehouse",
-    "stock": "Stock",
-    "issue": "Issue Material",
-    "return": "Return Material",
-    "red_flags": "Red Flags",
-    "bom": "Bill of Materials",
-    "add_material": "Add Material",
-    "category": "Category",
-    "unit": "Unit",
-    "sku": "SKU",
-    "min_threshold": "Min Threshold",
-    "unit_cost": "Unit Cost",
-    "no_materials": "No materials found.",
-    "no_issues": "No material issues recorded.",
-    "project_id": "Project ID",
-    "issued_to": "Issued To",
-    "issued_by": "Issued By",
-    "site": "Site",
-    "expected_usage_days": "Expected Usage Days",
-    "issue_materials": "Issue Materials",
-    "add_item": "+ Add Item",
-    "qty": "Qty"
-  },
-  "measurements": {
-    "upload": "Upload Measurements",
-    "parse": "Parse File",
-    "device": "Device",
-    "sensor": "Sensor",
-    "curves": "IV Curves",
-    "import": "Import Data",
-    "title": "Measurements",
-    "upload_sui": "Upload SUI",
-    "upload_pvpm_title": "Upload PVPM Measurement File",
-    "accepted_format": "Accepted: .SUI format",
-    "uploading": "Uploading…",
-    "no_measurements": "No measurements uploaded yet.",
-    "filename": "Filename",
-    "device_model_col": "Device Model",
-    "string_col": "String",
-    "uploaded_col": "Uploaded",
-    "records_col": "Records"
-  },
-  "common": {
+    "name": "Solarica",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "signingIn": "Signing in…",
+    "online": "Online",
+    "offline": "Offline",
+    "syncing": "Syncing…",
+    "loading": "Loading…",
     "save": "Save",
+    "saving": "Saving…",
     "cancel": "Cancel",
+    "apply": "Apply",
+    "clear": "Clear",
+    "clearAll": "Clear all filters",
     "delete": "Delete",
-    "edit": "Edit",
     "create": "Create",
-    "search": "Search",
-    "filter": "Filter",
-    "loading": "Loading...",
-    "error": "Error",
-    "success": "Success",
-    "confirm": "Confirm",
-    "back": "Back",
-    "next": "Next",
-    "submit": "Submit",
-    "close": "Close",
-    "yes": "Yes",
-    "no": "No",
-    "actions": "Actions",
-    "details": "Details",
-    "status": "Status",
-    "date": "Date",
-    "name": "Name",
-    "description": "Description",
-    "type": "Type",
-    "none": "None",
-    "all": "All",
-    "refresh": "Refresh",
-    "export": "Export",
-    "add": "Add",
-    "register": "Register",
-    "upload": "Upload",
-    "notes": "Notes",
-    "sign_in": "Sign In",
-    "signing_in": "Signing in…",
-    "show": "Show",
-    "hide": "Hide",
-    "active": "Active",
-    "inactive": "Inactive",
-    "all_statuses": "All Statuses",
-    "all_priorities": "All Priorities",
-    "all_severities": "All Severities",
-    "all_categories": "All Categories",
-    "no_data": "No data found.",
-    "items": "items",
-    "download": "Download"
+    "search": "Search…"
   },
-  "roles": {
-    "admin": "Admin",
-    "manager": "Manager",
-    "technician": "Technician",
-    "warehouse": "Warehouse",
-    "owner": "Owner"
-  },
-  "phases": {
-    "design": "Design",
-    "validation": "Validation",
-    "implementation": "Implementation",
-    "testing": "Testing",
-    "commissioning": "Commissioning",
-    "maintenance": "Maintenance",
-    "closed": "Closed"
-  },
-  "priorities": {
-    "low": "Low",
-    "medium": "Medium",
-    "high": "High",
-    "critical": "Critical"
-  },
-  "statuses": {
-    "draft": "Draft",
-    "open": "Open",
-    "in_progress": "In Progress",
-    "pending_approval": "Pending Approval",
-    "approved": "Approved",
-    "rejected": "Rejected",
-    "completed": "Completed",
-    "closed": "Closed",
-    "flagged": "Flagged"
-  },
-  "dashboard": {
-    "overview": "Overview",
-    "recent_projects": "Recent Projects",
-    "pending_tasks": "Pending Tasks",
-    "alerts": "Alerts",
-    "statistics": "Statistics",
-    "total_projects": "Total Projects",
-    "active_tasks": "Active Tasks",
-    "pending_approvals": "Pending Approvals",
-    "red_flags": "Red Flags",
-    "new_project": "New Project",
-    "upload_measurement": "Upload Measurement",
-    "no_projects": "No projects yet.",
-    "no_tasks": "No pending tasks."
-  },
-  "auth": {
-    "login": "Login",
-    "logout": "Logout",
+  "login": {
+    "subtitle": "Sign in to continue",
     "username": "Username",
     "password": "Password",
-    "role": "Role",
-    "welcome": "Welcome",
-    "sign_in": "Sign In",
-    "signing_in": "Signing in…",
-    "enter_username": "Enter username",
-    "enter_password": "Enter password",
-    "show_password": "Show",
-    "hide_password": "Hide"
+    "invalid": "Invalid username or password",
+    "failed": "Login failed",
+    "copyright": "Kortex Digital. All rights reserved."
   },
-  "mobile": {
-    "my_tasks": "My Tasks",
-    "daily_report": "Daily Report",
-    "upload_evidence": "Upload Evidence",
-    "material_usage": "Material Usage",
-    "checklist": "Checklist"
-  },
-  "validation": {
-    "run": "Run Validation",
-    "results": "Validation Results",
-    "issues": "Issues",
-    "severity": "Severity",
-    "pass": "Pass",
-    "fail": "Fail",
-    "warning": "Warning"
-  },
-  "help": {
-    "modal": {
-      "label": "Help"
-    },
-    "topic": {
-      "dashboard": "Dashboard Help",
-      "projects": "Projects Help",
-      "tasks": "Tasks Help",
-      "inventory": "Inventory Help",
-      "measurements": "Measurements Help",
-      "security": "Security Help"
-    },
-    "general": {
-      "title": "General Help",
-      "tip1": {
-        "title": "Navigation",
-        "body": "Use the sidebar to switch between sections. Tabs at the top keep multiple views open at once."
-      },
-      "tip2": {
-        "title": "Role-based access",
-        "body": "Menu items and actions are shown based on your role. Contact your administrator if you need additional permissions."
-      }
-    },
-    "dashboard": {
-      "tip1": {
-        "title": "Project summary",
-        "body": "The dashboard shows live counts of active projects, pending tasks, approvals, and red flags sourced directly from the backend."
-      },
-      "tip2": {
-        "title": "Quick actions",
-        "body": "Use 'New Project' to launch the project wizard, or 'Upload Measurement' to import a PVPM file directly from this screen."
-      }
-    },
-    "projects": {
-      "tip1": {
-        "title": "Project lifecycle",
-        "body": "Every project moves through phases: Design → Validation → Implementation → Testing → Commissioning → Maintenance. Approval is required before advancing."
-      }
-    },
-    "tasks": {
-      "tip1": {
-        "title": "Task workflow",
-        "body": "Tasks can include messages, photo evidence, approvals, and test results. Technicians see only their assigned tasks."
-      }
-    },
-    "inventory": {
-      "tip1": {
-        "title": "Material tracking",
-        "body": "Materials are issued per project and tracked by quantity issued, returned, consumed, and missing. Red flags are raised automatically on discrepancies."
-      }
-    },
-    "measurements": {
-      "tip1": {
-        "title": "Uploading measurements",
-        "body": "Upload .SUI or validated .XLS files exported from your PVPM device. Records are automatically linked to the relevant project and tasks."
-      }
-    },
-    "security": {
-      "tip1": {
-        "title": "IT/OT security monitoring",
-        "body": "The security module tracks registered devices, open vulnerabilities (CVE/CVSS), and compliance scores across your operational network."
-      }
-    },
-    "footer": {
-      "hint": "Press Esc to close",
-      "docs": "Full documentation"
-    }
-  },
-  "settings": {
-    "theme": "Theme",
-    "brightness": "Brightness",
-    "fontSize": "Font Size"
-  },
-  "admin": {
-    "settings": "Settings",
-    "language": "Language"
-  },
-  "security": {
-    "title": "IT/OT Security",
-    "dashboard": "Security Dashboard",
-    "devices": "Device Registry",
-    "vulnerabilities": "Vulnerabilities",
-    "scan": "Run Security Scan",
-    "register_device": "Register Device",
-    "compliance_score": "Compliance Score",
-    "risk_score": "Risk Score",
-    "total_devices": "Total Devices",
-    "open_vulns": "Open Vulnerabilities",
-    "critical": "Critical Issues",
-    "by_severity": "By Severity",
-    "by_category": "By Category",
-    "top_risks": "Top Risks",
-    "device_type": "Device Type",
-    "manufacturer": "Manufacturer",
-    "firmware": "Firmware",
-    "protocol": "Protocol",
-    "network_zone": "Network Zone",
-    "remediation": "Remediation",
-    "cvss": "CVSS Score",
-    "cve": "CVE ID",
-    "last_scan": "Last scan",
-    "no_scans": "No scans performed yet",
-    "scanning": "Scanning…",
-    "firmware_intelligence": "Firmware Intelligence",
-    "check_firmware_cves": "Check Firmware CVEs",
-    "checking": "Checking…",
-    "devices_with_cves": "Devices w/ Known CVEs",
-    "unknown_firmware": "Unknown Firmware",
-    "critical_alerts": "Critical Alerts",
-    "auto_tasks": "Auto Tasks Created",
-    "no_firmware_data": "Register devices and run firmware check to see intelligence data.",
-    "recent_fw_alerts": "Recent Firmware Alerts",
-    "no_risks": "No risks detected. Register devices and run a scan to begin.",
-    "no_vulns": "No vulnerabilities found. Register devices and run a security scan to detect vulnerabilities.",
-    "no_devices": "No devices registered yet.",
-    "register_new_device": "Register New Device",
-    "registering": "Registering…",
-    "ip_address": "IP Address",
-    "risk": "Risk",
-    "vulns_col": "Vulns",
-    "due_date": "Due Date",
-    "device_col": "Device",
-    "title_col": "Title",
-    "comma_separated": "Comma-separated",
-    "all_severities": "All Severities",
-    "all_statuses_filter": "All Statuses",
-    "all_categories_filter": "All Categories"
-  },
-  "users": {
-    "title": "User Management",
-    "add_user": "Add User",
-    "username_col": "Username",
-    "display_name": "Display Name",
-    "role_col": "Role",
-    "status_col": "Status"
+  "nav": {
+    "projectInfo": "Project Info",
+    "details": "Details",
+    "devices": "Devices",
+    "config": "Config",
+    "fieldConfig": "Field Config",
+    "configurations": "Configurations",
+    "users": "Users"
   },
   "project": {
-    "created": "Created",
-    "files": "Files",
-    "no_files": "No files uploaded yet",
-    "files_drop": "Drag & drop files here, or click to browse",
-    "files_accepted": "PDF and DXF files — multiple files supported — max 50 MB each",
-    "files_uploading": "Uploading…",
-    "files_name": "File Name",
-    "files_type": "Type",
-    "files_size": "Size",
-    "files_uploaded": "Uploaded",
-    "files_count": "file(s)",
-    "files_total": "total",
-    "files_invalid_type": "Only PDF and DXF files are accepted.",
-    "files_upload_error": "Upload failed",
-    "files_load_error": "Failed to load files",
-    "files_delete_error": "Failed to delete file",
-    "files_delete_confirm": "Delete this file?",
-    "parse_pattern": {
-      "title": "How should strings be parsed?",
-      "description": "Use auto-detect to analyze your files and pick the best match, or choose a saved string naming pattern for this project.",
-      "mode_label": "String naming pattern",
-      "option_auto": "Auto-detect from files",
-      "regex_label": "Regex",
-      "cancel": "Cancel",
-      "continue": "Parse data",
-      "loading": "Loading patterns…",
-      "load_error": "Could not load naming patterns. You can still use auto-detect.",
-      "no_manual_patterns": "No active string naming patterns are configured for this project. Add patterns under project settings, or use auto-detect."
-    }
+    "existing": "Existing Projects",
+    "new": "New",
+    "newProject": "+ New Project…",
+    "none": "No projects",
+    "enterId": "Enter a project id (e.g. ashalim4):",
+    "createOffline": "Creating a project requires an internet connection."
   },
-  "parse_report": {
-    "title": "Parse summary",
-    "final_status": "Final status",
-    "site": "Site",
-    "name": "Name",
-    "installation": "Installation type",
-    "country": "Country",
-    "region": "Region",
-    "coordinates": "Coordinates",
-    "patterns": "Patterns",
-    "string_pattern": "String pattern",
-    "inverter_pattern": "Inverter pattern",
-    "mode": "Mode",
-    "inverters": "Inverters",
+  "details": {
+    "grid": "Grid",
+    "map": "Map",
+    "rows": "Rows",
+    "trackers": "Trackers",
+    "filterBy": "Filter by",
+    "piersCount": "{{count}} piers",
+    "selectedCount_one": "{{count}} pier selected",
+    "selectedCount_other": "{{count}} piers selected",
+    "setStatus": "Set status…",
+    "bulkConfirmTitle": "Change status for selected piers",
+    "bulkConfirmMessage": "Change the status of {{count}} piers to \"{{status}}\"?",
+    "boxSelect": "Box Select",
+    "boxSelectOn": "Select: ON"
+  },
+  "status": {
+    "New": "New",
+    "InProgress": "In Progress",
+    "Implemented": "Implemented",
+    "Approved": "Approved",
+    "Rejected": "Rejected",
+    "Fixed": "Fixed"
+  },
+  "column": {
+    "block": "Block",
+    "pier": "Pier",
+    "tracker": "Tracker",
+    "row": "Row",
+    "pierType": "Pier Type",
+    "structure": "Structure",
+    "slope": "Slope",
+    "trackerType": "Tracker Type",
     "status": "Status",
-    "present": "Present",
-    "strings": "Strings",
-    "valid": "Valid",
-    "invalid": "Invalid",
-    "invalid_examples": "Invalid examples",
-    "spatial": "Spatial validation",
-    "duplicates_exact": "Exact duplicates",
-    "missing": "Missing string numbers"
+    "identification": "Identification",
+    "attributes": "Attributes",
+    "state": "State"
+  },
+  "fieldConfig": {
+    "title": "Field Configuration",
+    "grid": "Grid",
+    "field": "Field",
+    "displayName": "Display name",
+    "visible": "Visible",
+    "pin": "Pin",
+    "pinLeft": "Left",
+    "pinRight": "Right",
+    "order": "Order",
+    "width": "Width (px)",
+    "allGrids": "All grids",
+    "unsaved_one": "{{count}} unsaved",
+    "unsaved_other": "{{count}} unsaved",
+    "saved_one": "Saved {{count}} field.",
+    "saved_other": "Saved {{count}} fields.",
+    "none": "No field configurations found."
+  },
+  "prefs": {
+    "theme": "Theme",
+    "themeOcean": "Ocean",
+    "themeMist": "Mist",
+    "brightness": "Brightness",
+    "brLight": "Light",
+    "brNormal": "Normal",
+    "brDark": "Dark",
+    "brContrast": "Contrast",
+    "fontSize": "Font size"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language"
+  },
+  "sp": {
+    "projectFiles": "Project Files",
+    "projectInfo": "Project Info",
+    "newProject": "+ New Project",
+    "clearFiles": "Clear Files",
+    "editPlantInfo": "Edit Plant Info",
+    "site": "Site",
+    "structure": "Structure",
+    "electrical": "Electrical",
+    "module": "Module",
+    "validation": "Validation",
+    "parse": "Parse",
+    "parsing": "Parsing…",
+    "selectOrCreate": "Select or create a project to upload files."
+  },
+  "field": {
+    "project": "Project",
+    "projectNum": "Project #",
+    "siteId": "Site ID",
+    "latLong": "Lat / Long",
+    "windLoad": "Wind Load",
+    "snowLoad": "Snow Load",
+    "issueDate": "Issue Date",
+    "nextracker": "Nextracker",
+    "piers": "Piers",
+    "trackers": "Trackers",
+    "blocks": "Blocks",
+    "rows": "Rows",
+    "totalOutput": "Total Output (MW)",
+    "inverters": "Inverters",
+    "dccb": "DCCB",
+    "stringGroups": "String Groups",
+    "totalStrings": "Total Strings",
+    "totalModules": "Total Modules",
+    "modulesPerString": "Modules / String",
+    "devices": "Devices",
+    "modulePower": "Module Power (W)",
+    "length": "Length (m)",
+    "width": "Width (m)",
+    "pitch": "Pitch (m)",
+    "tolerance": "Tolerance"
+  },
+  "users": {
+    "title": "Users",
+    "new": "New user",
+    "role": "Role",
+    "active": "Active",
+    "displayName": "Display name",
+    "setPassword": "Set password",
+    "you": "you",
+    "oneUser": "user",
+    "manyUsers": "users",
+    "none": "No users.",
+    "created": "User created",
+    "pwUpdated": "Password updated",
+    "noDeleteSelf": "You can't delete your own account",
+    "requiredFields": "Username and password are required",
+    "confirmDelete": "Delete user '{{name}}'?"
+  },
+  "layers": {
+    "rowNumbers": "Row numbers",
+    "piers": "Piers",
+    "trackers": "Trackers",
+    "blocks": "Blocks",
+    "blockLabels": "Block labels"
   }
 }

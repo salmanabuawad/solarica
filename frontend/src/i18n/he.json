@@ -1,425 +1,182 @@
 {
   "app": {
-    "title": "סולאריקה",
-    "tagline": "מתכנון להפעלה",
-    "positioning": "מערכת ההפעלה הסולארית"
-  },
-  "nav": {
-    "projects": "פרויקטים",
-    "tasks": "משימות",
-    "inventory": "מלאי",
-    "warehouse": "מחסן",
-    "measurements": "מדידות",
-    "reports": "דוחות",
-    "mobile": "נייד",
-    "admin": "ניהול",
-    "settings": "הגדרות",
-    "logout": "התנתקות",
-    "login": "התחברות",
-    "security": "אבטחה"
-  },
-  "projects": {
-    "list_title": "פרויקטים",
-    "create": "פרויקט חדש",
-    "delete_confirm": "למחוק את הפרויקט \"{{name}}\"? לא ניתן לבטל.",
-    "delete_failed": "מחיקת הפרויקט נכשלה.",
-    "active_label": "פעיל",
-    "inactive_label": "לא פעיל",
-    "inactive_banner": "פרויקט זה לא פעיל. ניתן לצפות בנתונים; הפעילו כדי לסמן אותו כחי.",
-    "set_active": "הפעלת פרויקט",
-    "set_inactive": "השבתה",
-    "wizard": {
-      "step_details": "פרטי הפרויקט",
-      "step_site": "מידע על האתר",
-      "step_design": "העלאת תכנון",
-      "step_validation": "אימות",
-      "step_review": "סקירה ושליחה"
-    },
-    "fields": {
-      "name": "שם הפרויקט",
-      "customer": "לקוח",
-      "site": "אתר",
-      "type": "סוג פרויקט",
-      "description": "תיאור",
-      "phase": "שלב",
-      "progress": "התקדמות",
-      "active": "פעיל",
-      "status": "סטטוס",
-      "validation": "אימות"
-    }
-  },
-  "tasks": {
-    "list_title": "משימות",
-    "create": "משימה חדשה",
-    "fields": {
-      "title": "כותרת",
-      "description": "תיאור",
-      "priority": "עדיפות",
-      "status": "סטטוס",
-      "type": "סוג",
-      "assigned_to": "מוקצה ל",
-      "messages": "הודעות",
-      "approvals": "אישורים",
-      "test_results": "תוצאות בדיקה"
-    }
-  },
-  "inventory": {
-    "materials": "חומרים",
-    "warehouse": "מחסן",
-    "stock": "מלאי",
-    "issue": "ניפוק חומר",
-    "return": "החזרת חומר",
-    "red_flags": "דגלים אדומים",
-    "bom": "רשימת חומרים",
-    "add_material": "הוסף חומר",
-    "category": "קטגוריה",
-    "unit": "יחידה",
-    "sku": "מק\"ט",
-    "min_threshold": "מינימום מלאי",
-    "unit_cost": "עלות יחידה",
-    "no_materials": "לא נמצאו חומרים.",
-    "no_issues": "אין הנפקות חומר.",
-    "project_id": "מזהה פרויקט",
-    "issued_to": "הונפק ל",
-    "issued_by": "הונפק ע\"י",
-    "site": "אתר",
-    "expected_usage_days": "ימי שימוש צפויים",
-    "issue_materials": "הנפק חומרים",
-    "add_item": "+ הוסף פריט",
-    "qty": "כמות"
-  },
-  "measurements": {
-    "upload": "העלאת מדידות",
-    "parse": "ניתוח קובץ",
-    "device": "מכשיר",
-    "sensor": "חיישן",
-    "curves": "עקומות IV",
-    "import": "ייבוא נתונים",
-    "title": "מדידות",
-    "upload_sui": "העלה SUI",
-    "upload_pvpm_title": "העלאת קובץ מדידת PVPM",
-    "accepted_format": "פורמטים מקובלים: .SUI",
-    "uploading": "מעלה...",
-    "no_measurements": "לא הועלו מדידות עדיין.",
-    "filename": "שם קובץ",
-    "device_model_col": "דגם מכשיר",
-    "string_col": "מחרוזת",
-    "uploaded_col": "הועלה",
-    "records_col": "רשומות"
-  },
-  "common": {
+    "name": "סולאריקה",
+    "signIn": "התחברות",
+    "signOut": "יציאה",
+    "signingIn": "מתחבר…",
+    "online": "מחובר",
+    "offline": "לא מחובר",
+    "syncing": "מסנכרן…",
+    "loading": "טוען…",
     "save": "שמירה",
+    "saving": "שומר…",
     "cancel": "ביטול",
-    "delete": "מחק",
-    "edit": "עריכה",
+    "apply": "החל",
+    "clear": "נקה",
+    "clearAll": "נקה את כל המסננים",
+    "delete": "מחיקה",
     "create": "יצירה",
-    "search": "חיפוש",
-    "filter": "סינון",
-    "loading": "טוען...",
-    "error": "שגיאה",
-    "success": "הצלחה",
-    "confirm": "אישור",
-    "back": "חזרה",
-    "next": "הבא",
-    "submit": "שליחה",
-    "close": "סגירה",
-    "yes": "כן",
-    "no": "לא",
-    "actions": "פעולות",
-    "details": "פרטים",
-    "status": "סטטוס",
-    "date": "תאריך",
-    "name": "שם",
-    "description": "תיאור",
-    "type": "סוג",
-    "none": "ללא",
-    "all": "הכל",
-    "refresh": "רענן",
-    "export": "ייצא",
-    "add": "הוסף",
-    "register": "הרשם",
-    "upload": "העלה",
-    "notes": "הערות",
-    "sign_in": "כניסה",
-    "signing_in": "מתחבר...",
-    "show": "הצג",
-    "hide": "הסתר",
-    "active": "פעיל",
-    "inactive": "לא פעיל",
-    "all_statuses": "כל הסטטוסים",
-    "all_priorities": "כל העדיפויות",
-    "all_severities": "כל החומרות",
-    "all_categories": "כל הקטגוריות",
-    "no_data": "לא נמצאו נתונים.",
-    "items": "פריטים",
-    "download": "הורדה"
+    "search": "חיפוש…"
   },
-  "roles": {
-    "admin": "מנהל מערכת",
-    "manager": "מנהל",
-    "technician": "טכנאי",
-    "warehouse": "מחסנאי",
-    "owner": "בעלים"
-  },
-  "phases": {
-    "design": "תכנון",
-    "validation": "אימות",
-    "implementation": "ביצוע",
-    "testing": "בדיקות",
-    "commissioning": "הפעלה ראשונית",
-    "maintenance": "תחזוקה",
-    "closed": "סגור"
-  },
-  "priorities": {
-    "low": "נמוכה",
-    "medium": "בינונית",
-    "high": "גבוהה",
-    "critical": "קריטית"
-  },
-  "statuses": {
-    "draft": "טיוטה",
-    "open": "פתוח",
-    "in_progress": "בביצוע",
-    "pending_approval": "ממתין לאישור",
-    "approved": "מאושר",
-    "rejected": "נדחה",
-    "completed": "הושלם",
-    "closed": "סגור",
-    "flagged": "מסומן"
-  },
-  "dashboard": {
-    "overview": "סקירה כללית",
-    "recent_projects": "פרויקטים אחרונים",
-    "pending_tasks": "משימות ממתינות",
-    "alerts": "התראות",
-    "statistics": "סטטיסטיקות",
-    "total_projects": "סה\"כ פרויקטים",
-    "active_tasks": "משימות פעילות",
-    "pending_approvals": "ממתין לאישור",
-    "red_flags": "דגלים אדומים",
-    "new_project": "פרויקט חדש",
-    "upload_measurement": "העלה מדידה",
-    "no_projects": "אין פרויקטים עדיין.",
-    "no_tasks": "אין משימות ממתינות."
-  },
-  "auth": {
-    "login": "התחברות",
-    "logout": "התנתקות",
+  "login": {
+    "subtitle": "התחברו כדי להמשיך",
     "username": "שם משתמש",
     "password": "סיסמה",
-    "role": "תפקיד",
-    "welcome": "ברוך הבא",
-    "sign_in": "כניסה",
-    "signing_in": "מתחבר...",
-    "enter_username": "הזן שם משתמש",
-    "enter_password": "הזן סיסמה",
-    "show_password": "הצג",
-    "hide_password": "הסתר"
+    "invalid": "שם משתמש או סיסמה שגויים",
+    "failed": "ההתחברות נכשלה",
+    "copyright": "Kortex Digital. כל הזכויות שמורות."
   },
-  "mobile": {
-    "my_tasks": "המשימות שלי",
-    "daily_report": "דוח יומי",
-    "upload_evidence": "העלאת עדות",
-    "material_usage": "שימוש בחומרים",
-    "checklist": "רשימת ביקורת"
-  },
-  "validation": {
-    "run": "הפעלת אימות",
-    "results": "תוצאות אימות",
-    "issues": "בעיות",
-    "severity": "חומרה",
-    "pass": "עבר",
-    "fail": "נכשל",
-    "warning": "אזהרה"
-  },
-  "help": {
-    "modal": {
-      "label": "עזרה"
-    },
-    "topic": {
-      "dashboard": "עזרה - לוח בקרה",
-      "projects": "עזרה - פרויקטים",
-      "tasks": "עזרה - משימות",
-      "inventory": "עזרה - מלאי",
-      "measurements": "עזרה - מדידות",
-      "security": "עזרה - אבטחה"
-    },
-    "general": {
-      "title": "עזרה כללית",
-      "tip1": {
-        "title": "ניווט",
-        "body": "השתמש בסרגל הצד כדי לעבור בין מודולים. הכרטיסיות בחלק העליון מאפשרות עבודה עם מספר מסכים במקביל."
-      },
-      "tip2": {
-        "title": "גישה לפי תפקיד",
-        "body": "פריטי תפריט ופעולות מוצגים בהתאם לתפקידך. פנה למנהל המערכת אם תזדקק להרשאות נוספות."
-      }
-    },
-    "dashboard": {
-      "tip1": {
-        "title": "סיכום פרויקטים",
-        "body": "לוח הבקרה מציג ספירות בזמן אמת של פרויקטים פעילים, משימות ממתינות, אישורים ודגלים אדומים."
-      },
-      "tip2": {
-        "title": "פעולות מהירות",
-        "body": "השתמש ב'פרויקט חדש' להפעלת האשף, או 'העלאת מדידה' לייבוא קובץ PVPM ישירות ממסך זה."
-      }
-    },
-    "projects": {
-      "tip1": {
-        "title": "מחזור חיי פרויקט",
-        "body": "כל פרויקט עובר שלבים: תכנון ← אימות ← ביצוע ← בדיקות ← הפעלה ← תחזוקה. נדרש אישור לפני מעבר לשלב הבא."
-      }
-    },
-    "tasks": {
-      "tip1": {
-        "title": "תהליך עבודה במשימות",
-        "body": "משימות יכולות לכלול הודעות, ראיות צילום, אישורים ותוצאות בדיקה. טכנאים רואים רק את המשימות המוקצות להם."
-      }
-    },
-    "inventory": {
-      "tip1": {
-        "title": "מעקב חומרים",
-        "body": "חומרים מנופקים לפי פרויקט ומעוקבים לפי כמות שנופקה, הוחזרה, נוצלה וחסרה. דגלים אדומים מתרחשים אוטומטית בסטיות."
-      }
-    },
-    "measurements": {
-      "tip1": {
-        "title": "העלאת מדידות",
-        "body": "העלה קבצי .SUI או .XLS מאושרים שיוצאו ממכשיר ה-PVPM שלך. הרשומות מקושרות אוטומטית לפרויקט ולמשימות הרלוונטיות."
-      }
-    },
-    "security": {
-      "tip1": {
-        "title": "ניטור אבטחת IT/OT",
-        "body": "מודול האבטחה עוקב אחר מכשירים רשומים, פגיעויות פתוחות (CVE/CVSS) וציוני תאימות ברשת התפעולית."
-      }
-    },
-    "footer": {
-      "hint": "לחץ Esc לסגירה",
-      "docs": "תיעוד מלא"
-    }
-  },
-  "settings": {
-    "theme": "ערכת נושא",
-    "brightness": "בהירות",
-    "fontSize": "גודל גופן"
-  },
-  "admin": {
-    "settings": "הגדרות",
-    "language": "שפה"
-  },
-  "security": {
-    "title": "אבטחת IT/OT",
-    "dashboard": "לוח בקרת אבטחה",
-    "devices": "רישום מכשירים",
-    "vulnerabilities": "פגיעויות",
-    "scan": "הפעלת סריקת אבטחה",
-    "register_device": "רישום מכשיר",
-    "compliance_score": "ציון תאימות",
-    "risk_score": "ציון סיכון",
-    "total_devices": "סה״כ מכשירים",
-    "open_vulns": "פגיעויות פתוחות",
-    "critical": "בעיות קריטיות",
-    "by_severity": "לפי חומרה",
-    "by_category": "לפי קטגוריה",
-    "top_risks": "סיכונים עיקריים",
-    "device_type": "סוג מכשיר",
-    "manufacturer": "יצרן",
-    "firmware": "קושחה",
-    "protocol": "פרוטוקול",
-    "network_zone": "אזור רשת",
-    "remediation": "תיקון",
-    "cvss": "ציון CVSS",
-    "cve": "מזהה CVE",
-    "last_scan": "סריקה אחרונה",
-    "no_scans": "לא בוצעו סריקות",
-    "scanning": "סורק...",
-    "firmware_intelligence": "מודיעין קושחה",
-    "check_firmware_cves": "בדוק CVE קושחה",
-    "checking": "בודק...",
-    "devices_with_cves": "מכשירים עם CVE ידועים",
-    "unknown_firmware": "קושחה לא ידועה",
-    "critical_alerts": "התראות קריטיות",
-    "auto_tasks": "משימות שנוצרו אוטומטית",
-    "no_firmware_data": "הרשם מכשירים והפעל בדיקת קושחה לצפייה בנתונים.",
-    "recent_fw_alerts": "התראות קושחה אחרונות",
-    "no_risks": "לא זוהו סיכונים. הרשם מכשירים והפעל סריקה.",
-    "no_vulns": "לא נמצאו פגיעויות. הרשם מכשירים ובצע סריקת אבטחה.",
-    "no_devices": "אין מכשירים רשומים.",
-    "register_new_device": "הרשם מכשיר חדש",
-    "registering": "רושם...",
-    "ip_address": "כתובת IP",
-    "risk": "סיכון",
-    "vulns_col": "פגיעויות",
-    "due_date": "תאריך יעד",
-    "device_col": "מכשיר",
-    "title_col": "כותרת",
-    "comma_separated": "מופרדים בפסיקים",
-    "all_severities": "כל החומרות",
-    "all_statuses_filter": "כל הסטטוסים",
-    "all_categories_filter": "כל הקטגוריות"
-  },
-  "users": {
-    "title": "ניהול משתמשים",
-    "add_user": "הוסף משתמש",
-    "username_col": "שם משתמש",
-    "display_name": "שם תצוגה",
-    "role_col": "תפקיד",
-    "status_col": "סטטוס"
+  "nav": {
+    "projectInfo": "פרטי פרויקט",
+    "details": "פירוט",
+    "devices": "ציוד",
+    "config": "הגדרות",
+    "fieldConfig": "שדות טבלה",
+    "configurations": "הגדרות",
+    "users": "משתמשים"
   },
   "project": {
-    "files": "קבצים",
-    "no_files": "לא הועלו קבצים עדיין",
-    "files_drop": "גרור ושחרר קבצים כאן, או לחץ לעיון",
-    "files_accepted": "קבצי PDF ו-DXF — מספר קבצים נתמך — עד 50 MB לקובץ",
-    "files_uploading": "מעלה…",
-    "files_name": "שם קובץ",
-    "files_type": "סוג",
-    "files_size": "גודל",
-    "files_uploaded": "הועלה",
-    "files_count": "קובץ/ים",
-    "files_total": "סה\"",
-    "files_invalid_type": "רק קבצי PDF ו-DXF מותרים.",
-    "files_upload_error": "ההעלאה נכשלה",
-    "files_load_error": "טעינת הקבצים נכשלה",
-    "files_delete_error": "מחיקת הקובץ נכשלה",
-    "files_delete_confirm": "למחוק את הקובץ?",
-    "parse_pattern": {
-      "title": "כיצד לנתח מחרוזות?",
-      "description": "השתמשו בזיהוי אוטומטי כדי לנתח את הקבצים ולבחור את ההתאמה הטובה ביותר, או בחרו תבנית שמות שמורה לפרויקט.",
-      "mode_label": "תבנית שמות מחרוזות",
-      "option_auto": "זיהוי אוטומטי מהקבצים",
-      "regex_label": "Regex",
-      "cancel": "ביטול",
-      "continue": "נתח נתונים",
-      "loading": "טוען תבניות…",
-      "load_error": "לא ניתן לטעון תבניות שמות. עדיין ניתן להשתמש בזיהוי אוטומטי.",
-      "no_manual_patterns": "לא הוגדרו תבניות שמות מחרוזות פעילות. הוסיפו בהגדרות הפרויקט או השתמשו בזיהוי אוטומטי."
-    }
+    "existing": "פרויקטים קיימים",
+    "new": "חדש",
+    "newProject": "+ פרויקט חדש…",
+    "none": "אין פרויקטים",
+    "enterId": "הזינו מזהה פרויקט (למשל ashalim4):",
+    "createOffline": "יצירת פרויקט דורשת חיבור לאינטרנט."
   },
-  "parse_report": {
-    "title": "סיכום ניתוח",
-    "final_status": "סטטוס סופי",
-    "site": "אתר",
-    "name": "שם",
-    "installation": "סוג התקנה",
-    "country": "מדינה",
-    "region": "אזור",
-    "coordinates": "קואורדינטות",
-    "patterns": "תבניות",
-    "string_pattern": "תבנית מחרוזות",
-    "inverter_pattern": "תבנית ממירים",
-    "mode": "מצב",
-    "inverters": "ממירים",
+  "details": {
+    "grid": "טבלה",
+    "map": "מפה",
+    "rows": "שורות",
+    "trackers": "טרקרים",
+    "filterBy": "סינון לפי",
+    "piersCount": "{{count}} עמודים",
+    "selectedCount_one": "עמוד אחד נבחר",
+    "selectedCount_other": "{{count}} עמודים נבחרו",
+    "setStatus": "שינוי סטטוס…",
+    "bulkConfirmTitle": "שינוי סטטוס לעמודים שנבחרו",
+    "bulkConfirmMessage": "לשנות את הסטטוס של {{count}} עמודים ל\"{{status}}\"?",
+    "boxSelect": "בחירה בריבוע",
+    "boxSelectOn": "בחירה פעילה"
+  },
+  "status": {
+    "New": "חדש",
+    "InProgress": "בביצוע",
+    "Implemented": "מיושם",
+    "Approved": "מאושר",
+    "Rejected": "נדחה",
+    "Fixed": "תוקן"
+  },
+  "column": {
+    "block": "בלוק",
+    "pier": "עמוד",
+    "tracker": "טרקר",
+    "row": "שורה",
+    "pierType": "סוג עמוד",
+    "structure": "מבנה",
+    "slope": "שיפוע",
+    "trackerType": "סוג טרקר",
     "status": "סטטוס",
-    "present": "קיימים",
-    "strings": "מחרוזות",
-    "valid": "תקינים",
-    "invalid": "לא תקינים",
-    "invalid_examples": "דוגמאות לא תקינות",
-    "spatial": "אימות מרחבי",
-    "duplicates_exact": "כפילות מדויקות",
-    "missing": "מספרי מחרוזות חסרים"
+    "identification": "זיהוי",
+    "attributes": "תכונות",
+    "state": "מצב"
+  },
+  "fieldConfig": {
+    "title": "הגדרת שדות",
+    "grid": "טבלה",
+    "field": "שדה",
+    "displayName": "שם לתצוגה",
+    "visible": "מוצג",
+    "pin": "הצמד",
+    "pinLeft": "שמאל",
+    "pinRight": "ימין",
+    "order": "סדר",
+    "width": "רוחב (פיקסלים)",
+    "allGrids": "כל הטבלאות",
+    "unsaved_one": "שינוי אחד לא נשמר",
+    "unsaved_other": "{{count}} שינויים לא נשמרו",
+    "saved_one": "שדה אחד נשמר.",
+    "saved_other": "{{count}} שדות נשמרו.",
+    "none": "לא נמצאו הגדרות שדה."
+  },
+  "prefs": {
+    "theme": "ערכת נושא",
+    "themeOcean": "אוקיינוס",
+    "themeMist": "ערפל",
+    "brightness": "בהירות",
+    "brLight": "בהיר",
+    "brNormal": "רגיל",
+    "brDark": "כהה",
+    "brContrast": "ניגודיות",
+    "fontSize": "גודל גופן"
+  },
+  "settings": {
+    "title": "הגדרות",
+    "language": "שפה"
+  },
+  "sp": {
+    "projectFiles": "קבצי פרויקט",
+    "projectInfo": "פרטי פרויקט",
+    "newProject": "+ פרויקט חדש",
+    "clearFiles": "נקה קבצים",
+    "editPlantInfo": "עריכת פרטי מערכת",
+    "site": "אתר",
+    "structure": "מבנה",
+    "electrical": "חשמל",
+    "module": "מודול",
+    "validation": "אימות",
+    "parse": "פרס",
+    "parsing": "מנתח…",
+    "selectOrCreate": "בחרו או צרו פרויקט כדי להעלות קבצים."
+  },
+  "field": {
+    "project": "פרויקט",
+    "projectNum": "מספר פרויקט",
+    "siteId": "מזהה אתר",
+    "latLong": "קו רוחב / אורך",
+    "windLoad": "עומס רוח",
+    "snowLoad": "עומס שלג",
+    "issueDate": "תאריך הנפקה",
+    "nextracker": "Nextracker",
+    "piers": "עמודים",
+    "trackers": "טרקרים",
+    "blocks": "בלוקים",
+    "rows": "שורות",
+    "totalOutput": "הספק כולל (MW)",
+    "inverters": "ממירים",
+    "dccb": "DCCB",
+    "stringGroups": "קבוצות סטרינג",
+    "totalStrings": "סה״כ סטרינגים",
+    "totalModules": "סה״כ מודולים",
+    "modulesPerString": "מודולים לסטרינג",
+    "devices": "התקנים",
+    "modulePower": "הספק מודול (W)",
+    "length": "אורך (מ׳)",
+    "width": "רוחב (מ׳)",
+    "pitch": "מרווח (מ׳)",
+    "tolerance": "סף סטייה"
+  },
+  "users": {
+    "title": "משתמשים",
+    "new": "משתמש חדש",
+    "role": "תפקיד",
+    "active": "פעיל",
+    "displayName": "שם תצוגה",
+    "setPassword": "הגדרת סיסמה",
+    "you": "את/ה",
+    "oneUser": "משתמש",
+    "manyUsers": "משתמשים",
+    "none": "אין משתמשים.",
+    "created": "המשתמש נוצר",
+    "pwUpdated": "הסיסמה עודכנה",
+    "noDeleteSelf": "לא ניתן למחוק את עצמך",
+    "requiredFields": "שם משתמש וסיסמה נדרשים",
+    "confirmDelete": "למחוק את המשתמש '{{name}}'?"
+  },
+  "layers": {
+    "rowNumbers": "מספרי שורות",
+    "piers": "עמודים",
+    "trackers": "טרקרים",
+    "blocks": "בלוקים",
+    "blockLabels": "שמות בלוקים"
   }
 }
