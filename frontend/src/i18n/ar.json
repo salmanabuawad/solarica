@@ -57,7 +57,10 @@
     "bulkConfirmMessage": "تغيير حالة {{count}} عمود إلى \"{{status}}\"؟",
     "boxSelect": "تحديد مربع",
     "boxSelectOn": "التحديد مفعّل",
-    "dragThenApply": "اسحب ثم اضغط ✓"
+    "dragThenApply": "اسحب ثم اضغط ✓",
+    "zoomHere": "تكبير واختيار هذه المنطقة",
+    "grow": "تكبير",
+    "shrink": "تصغير"
   },
   "status": {
     "New": "جديد",

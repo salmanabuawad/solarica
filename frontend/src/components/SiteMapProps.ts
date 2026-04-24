@@ -4,6 +4,10 @@ export interface SiteMapProps {
   blocks: any[];
   trackers: any[];
   piers: any[];
+  /** DCCB devices extracted by the security module (`{type, name, x, y}`). */
+  dccbs?: any[];
+  /** Inverter devices extracted by the security module (`{type, name, x, y}`). */
+  inverters?: any[];
   pierStatuses?: Record<string, string>;
   selectedBlock: any;
   selectedTracker: any;

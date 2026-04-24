@@ -460,6 +460,16 @@ PROJECTS_ROOT.mkdir(parents=True, exist_ok=True)
 app.mount("/projects", StaticFiles(directory=str(PROJECTS_ROOT)), name="projects")
 
 
+# --- Lifecycle phase modules -----------------------------------------
+# Each module owns its slice of the product lifecycle and exposes its
+# own REST surface under /api/<module>. Today only `security` carries
+# real logic (DCCB + inverter extraction); the others are scaffolded
+# and return a `/status` stub until their phase lands.
+from app.modules.security.routes  import router as security_router   # noqa: E402
+
+app.include_router(security_router,  prefix="/api/security",  tags=["security"])
+
+
 # --- Constants ------------------------------------------------------------
 
 VALID_STATUSES = {"New", "In Progress", "Implemented", "Approved", "Rejected", "Fixed"}

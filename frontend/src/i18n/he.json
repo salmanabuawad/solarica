@@ -57,7 +57,10 @@
     "bulkConfirmMessage": "לשנות את הסטטוס של {{count}} עמודים ל\"{{status}}\"?",
     "boxSelect": "בחירה בריבוע",
     "boxSelectOn": "בחירה פעילה",
-    "dragThenApply": "גררו ולחצו ✓"
+    "dragThenApply": "גררו ולחצו ✓",
+    "zoomHere": "זום לאזור זה ובחירה",
+    "grow": "הגדלה",
+    "shrink": "הקטנה"
   },
   "status": {
     "New": "חדש",

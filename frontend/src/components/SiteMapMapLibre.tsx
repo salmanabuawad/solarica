@@ -51,6 +51,8 @@ export default function SiteMapMapLibre({
   blocks,
   trackers,
   piers,
+  dccbs = [],
+  inverters = [],
   pierStatuses,
   selectedBlock,
   selectedTracker,
@@ -240,6 +242,43 @@ export default function SiteMapMapLibre({
     return rowEdges;
   }, [piers, imageWidth]);
 
+  // DCCB + Inverter sources — both come from the electrical parser as
+  // `{type, name, x, y}` in PDF-point coordinates, so the same 90° CCW
+  // rotation the piers use puts them on the right spot on the map.
+  const dccbGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (dccbs || [])
+      .filter((d: any) => typeof d?.x === "number" && typeof d?.y === "number")
+      .map((d: any) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: rotatedToLngLat(d.x, d.y, imageWidth),
+        },
+        properties: { name: d.name || "", type: "dccb" },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [dccbs, imageWidth]);
+
+  const inverterGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (inverters || [])
+      .filter((d: any) => typeof d?.x === "number" && typeof d?.y === "number")
+      .map((d: any) => ({
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: rotatedToLngLat(d.x, d.y, imageWidth),
+        },
+        properties: { name: d.name || "", type: "inverter" },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [inverters, imageWidth]);
+
   const bounds = useMemo(() => {
     if (!piers.length) return null;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -292,12 +331,21 @@ export default function SiteMapMapLibre({
       map.addSource("blocks", { type: "geojson", data: blocksGeoJSON });
       map.addSource("trackers", { type: "geojson", data: trackersGeoJSON });
       map.addSource("piers", { type: "geojson", data: piersGeoJSON });
+      map.addSource("dccb", { type: "geojson", data: dccbGeoJSON });
+      map.addSource("inverters", { type: "geojson", data: inverterGeoJSON });
 
       // --- Block fill + outline -----------------------------------------
+      //
+      // Default-hidden (visibility: "none") so the Blocks checkbox drives
+      // everything. Previously these added with implicit `visible` and
+      // the first-run visibility effect could silently bail on the
+      // `isStyleLoaded()` race, leaving the blocks briefly shown even
+      // when the checkbox was off.
       map.addLayer({
         id: "blocks-fill",
         type: "fill",
         source: "blocks",
+        layout: { visibility: "none" },
         paint: {
           "fill-color": "#3b82f6",
           "fill-opacity": 0.04,
@@ -307,6 +355,7 @@ export default function SiteMapMapLibre({
         id: "blocks-outline",
         type: "line",
         source: "blocks",
+        layout: { visibility: "none" },
         paint: {
           "line-color": "#3b82f6",
           "line-width": 1.2,
@@ -316,6 +365,7 @@ export default function SiteMapMapLibre({
         id: "blocks-selected",
         type: "line",
         source: "blocks",
+        layout: { visibility: "none" },
         filter: ["==", ["get", "block_code"], ""],
         paint: {
           "line-color": "#f97316",
@@ -338,14 +388,14 @@ export default function SiteMapMapLibre({
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
           "line-color": "#ffffff",
-          "line-opacity": 0.85,
+          "line-opacity": 0.8,
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
-            0, 3.5,
-            6, 5,
-            10, 6.5,
-            14, 8,
-            18, 11,
+            0, 1.5,
+            6, 2,
+            10, 2.5,
+            14, 3.5,
+            18, 5,
           ],
         },
       });
@@ -359,11 +409,11 @@ export default function SiteMapMapLibre({
           "line-opacity": 1,
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
-            0, 1.5,
-            6, 2.5,
-            10, 3.5,
-            14, 5,
-            18, 7,
+            0, 0.6,
+            6, 1,
+            10, 1.4,
+            14, 2,
+            18, 3,
           ],
         },
       });
@@ -532,6 +582,43 @@ export default function SiteMapMapLibre({
         },
       });
 
+      // --- Electrical devices -------------------------------------------
+      //
+      // DCCB  = small red dots with a white stroke (~ one per combiner).
+      // Inverter = slightly larger blue dots with a white stroke (one
+      //            per inverter station). Both start hidden; the user
+      //            toggles them via the side-panel checkboxes.
+      map.addLayer({
+        id: "dccb-layer",
+        type: "circle",
+        source: "dccb",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 2.5, 8, 4, 14, 6, 18, 9,
+          ],
+          "circle-color": "#dc2626",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.5,
+        },
+      });
+      map.addLayer({
+        id: "inverters-layer",
+        type: "circle",
+        source: "inverters",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 3.5, 8, 6, 14, 9, 18, 13,
+          ],
+          "circle-color": "#2563eb",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      });
+
       // Generous internal padding so the site layout doesn't kiss the map's
       // edges — especially on narrow mobile viewports where 40 px was too tight.
       if (bounds) map.fitBounds(bounds, { padding: 56, duration: 0 });
@@ -622,16 +709,26 @@ export default function SiteMapMapLibre({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    (map.getSource("piers") as GeoJSONSource | undefined)?.setData(piersGeoJSON as any);
-    refreshPierLabels();
+    if (!map) return;
+    const apply = () => {
+      const src = map.getSource("piers") as GeoJSONSource | undefined;
+      if (!src) { setTimeout(apply, 50); return; }
+      src.setData(piersGeoJSON as any);
+      refreshPierLabels();
+    };
+    apply();
   }, [piersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    (map.getSource("blocks") as GeoJSONSource | undefined)?.setData(blocksGeoJSON as any);
-    refreshBlockLabels();
+    if (!map) return;
+    const apply = () => {
+      const src = map.getSource("blocks") as GeoJSONSource | undefined;
+      if (!src) { setTimeout(apply, 50); return; }
+      src.setData(blocksGeoJSON as any);
+      refreshBlockLabels();
+    };
+    apply();
   }, [blocksGeoJSON]);
 
   useEffect(() => {
@@ -639,21 +736,51 @@ export default function SiteMapMapLibre({
     if (!map) return;
     const apply = () => {
       const src = map.getSource("trackers") as GeoJSONSource | undefined;
-      if (!src) return;
+      if (!src) {
+        // Source hasn't been created yet (map hasn't fired load).  Retry
+        // on the next paint — cheap and avoids losing data on the race.
+        setTimeout(apply, 50);
+        return;
+      }
       src.setData(trackersGeoJSON as any);
       // Re-promote tracker lines above the 24 k pier layer every time
       // the data changes — otherwise a late-arriving pier source pushes
       // piers back on top and the lines silently disappear underneath.
+      // Also *force* visibility to match the user's checkbox state: the
+      // visibility effect can silently bail on first run if the style
+      // isn't loaded yet, leaving the layer in whatever state the
+      // addLayer call set it to. Doing it here guarantees the layer
+      // follows the Trackers checkbox even across race-conditions.
+      const trackersOn = layerVisible(layersRef.current, "trackers", true);
       try {
-        if (map.getLayer("trackers-casing"))   map.moveLayer("trackers-casing");
-        if (map.getLayer("trackers-line"))     map.moveLayer("trackers-line");
-        if (map.getLayer("trackers-selected")) map.moveLayer("trackers-selected");
+        if (map.getLayer("trackers-casing")) {
+          map.moveLayer("trackers-casing");
+          map.setLayoutProperty("trackers-casing", "visibility", trackersOn ? "visible" : "none");
+        }
+        if (map.getLayer("trackers-line")) {
+          map.moveLayer("trackers-line");
+          map.setLayoutProperty("trackers-line", "visibility", trackersOn ? "visible" : "none");
+        }
+        if (map.getLayer("trackers-selected")) {
+          map.moveLayer("trackers-selected");
+          map.setLayoutProperty("trackers-selected", "visibility", trackersOn ? "visible" : "none");
+        }
       } catch { /* noop */ }
       refreshRowLabels();
     };
+    apply();
+  }, [trackersGeoJSON]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => {
+      (map.getSource("dccb") as GeoJSONSource | undefined)?.setData(dccbGeoJSON as any);
+      (map.getSource("inverters") as GeoJSONSource | undefined)?.setData(inverterGeoJSON as any);
+    };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [trackersGeoJSON]);
+  }, [dccbGeoJSON, inverterGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -711,32 +838,42 @@ export default function SiteMapMapLibre({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-    const show = (id: string, visible: boolean) => {
-      if (map.getLayer(id)) {
-        map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
-      }
+    if (!map) return;
+    const apply = () => {
+      const show = (id: string, visible: boolean) => {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+        } else {
+          // Layer not created yet (style still loading) — retry briefly.
+          setTimeout(() => apply(), 50);
+        }
+      };
+      const piersOn = layerVisible(layers, "piers");
+      const blocksOn = layerVisible(layers, "blocks");
+      const blockLabelsOn = layerVisible(layers, "blockLabels");
+      const trackersOn = layerVisible(layers, "trackers");
+      const rowLabelsOn = layerVisible(layers, "row_labels");
+      show("piers-layer", piersOn);
+      show("piers-selected", piersOn);
+      show("pier-status-rings", piersOn);
+      show("pier-status-icons", piersOn);
+      show("blocks-fill", blocksOn);
+      show("blocks-outline", blocksOn);
+      show("blocks-selected", blocksOn);
+      show("trackers-casing", trackersOn);
+      show("trackers-line", trackersOn);
+      show("trackers-selected", trackersOn);
+      show("dccb-layer", layerVisible(layers, "dccb", false));
+      show("inverters-layer", layerVisible(layers, "inverters", false));
+      // Block labels are HTML markers and can't use MapLibre layout
+      // visibility. Rebuild the marker set: create when the checkbox is
+      // on (and tear down when off) so the label set always matches the
+      // checkbox state — even if the checkbox was toggled AFTER block
+      // data arrived.
+      refreshBlockLabels();
+      refreshPierLabels();
     };
-    const piersOn = layerVisible(layers, "piers");
-    const blocksOn = layerVisible(layers, "blocks");
-    const blockLabelsOn = layerVisible(layers, "blockLabels");
-    const trackersOn = layerVisible(layers, "trackers");
-    const rowLabelsOn = layerVisible(layers, "row_labels");
-    show("piers-layer", piersOn);
-    show("piers-selected", piersOn);
-    show("pier-status-rings", piersOn);
-    show("pier-status-icons", piersOn);
-    show("blocks-fill", blocksOn);
-    show("blocks-outline", blocksOn);
-    show("blocks-selected", blocksOn);
-    show("trackers-casing", trackersOn);
-    show("trackers-line", trackersOn);
-    show("trackers-selected", trackersOn);
-    // Block labels are HTML markers and can't use MapLibre layout visibility.
-    for (const m of blockMarkersRef.current) {
-      m.getElement().style.display = blockLabelsOn ? "" : "none";
-    }
-    refreshPierLabels();
+    apply();
     // Row-label rendering lives in its OWN effect below so that toggling
     // Blocks / Block labels / Trackers doesn't destroy and rebuild the row
     // markers each time (previously this loop ran on every layer change
@@ -838,6 +975,12 @@ export default function SiteMapMapLibre({
     // even when triggered by map-level zoom / move events.
     if (!layerVisible(layersRef.current, "piers")) return;
 
+    // `piers-layer` may not be in the style yet if the map fired a
+    // zoom/move event before its on("load") handler ran (seen on slow
+    // first-paint — MapLibre throws a synchronous error if any layer in
+    // the filter list is missing).  Skip until it exists.
+    if (!map.getLayer("piers-layer")) return;
+
     // Query only the features currently rendered in the viewport.
     const visible = map.queryRenderedFeatures(undefined, {
       layers: ["piers-layer"],
@@ -938,32 +1081,60 @@ export default function SiteMapMapLibre({
     box.style.cssText =
       `position: absolute; left: ${margin}px; top: ${initialTop}px; ` +
       `width: ${side}px; height: ${side}px; ` +
-      `border: 1.5px solid #0f172a; background: transparent; ` +
-      `border-radius: 4px; cursor: grab; z-index: 20; touch-action: none;`;
+      // Soft-dashed outline + a subtle tinted fill so the drag area is
+      // discoverable without screaming for attention, and a crisp drop
+      // shadow so it visibly sits above the map.
+      `border: 1.5px dashed #334155; background: rgba(248,250,252,0.35); ` +
+      `border-radius: 8px; cursor: grab; z-index: 20; touch-action: none; ` +
+      `box-shadow: 0 2px 8px rgba(15,23,42,0.08);`;
 
-    // Minimalist toolbar — v / + / − as plain characters at the top.
-    // No shadow, no fill, no hint text — the user asked for a simple
-    // rectangle with just the three letters.
+    // Small pill-style toolbar parked at the top of the square with
+    // icon-only buttons: ✓ apply, + grow, − shrink. Each button is a
+    // rounded ghost that fills on hover, so the trio reads as a real
+    // control set instead of three loose characters.
     const ctrl = document.createElement("div");
     ctrl.style.cssText =
-      "position: absolute; top: 4px; left: 50%; transform: translateX(-50%); " +
-      "display: flex; gap: 8px; z-index: 2;";
-    const mkBtn = (label: string, title: string, onClick: () => void) => {
+      "position: absolute; top: -14px; left: 50%; transform: translateX(-50%); " +
+      "display: flex; gap: 4px; padding: 3px; z-index: 3; " +
+      "background: #ffffff; border: 1px solid #e2e8f0; border-radius: 999px; " +
+      "box-shadow: 0 2px 10px rgba(15,23,42,0.12);";
+    const ICON_CHECK =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>';
+    const ICON_PLUS =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    const ICON_MINUS =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+
+    const mkBtn = (
+      icon: string,
+      title: string,
+      variant: "primary" | "ghost",
+      onClick: () => void,
+    ) => {
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = label;
+      b.innerHTML = icon;
       b.title = title;
+      b.setAttribute("aria-label", title);
+      const isPrimary = variant === "primary";
+      const baseBg   = isPrimary ? "#16a34a" : "transparent";
+      const baseFg   = isPrimary ? "#ffffff" : "#0f172a";
+      const hoverBg  = isPrimary ? "#15803d" : "#f1f5f9";
       b.style.cssText =
-        "min-width: 14px; height: 16px; padding: 0 2px; line-height: 1; " +
-        "border: none; background: transparent; color: #0f172a; " +
-        "font: 600 13px Arial, sans-serif; cursor: pointer; touch-action: manipulation;";
+        `display: inline-flex; align-items: center; justify-content: center; ` +
+        `width: 22px; height: 22px; padding: 0; border: none; ` +
+        `background: ${baseBg}; color: ${baseFg}; border-radius: 999px; ` +
+        `cursor: pointer; touch-action: manipulation; ` +
+        `transition: background-color 120ms ease;`;
+      b.addEventListener("mouseenter", () => { b.style.background = hoverBg; });
+      b.addEventListener("mouseleave", () => { b.style.background = baseBg; });
       b.addEventListener("click", (ev) => { ev.stopPropagation(); onClick(); });
       b.addEventListener("pointerdown", (ev) => { ev.stopPropagation(); });
       return b;
     };
-    ctrl.appendChild(mkBtn("v", t("details.zoomHere", "Zoom & select this area"), () => applyZoom()));
-    ctrl.appendChild(mkBtn("+", "Grow",   () => resize(+20)));
-    ctrl.appendChild(mkBtn("−", "Shrink", () => resize(-20)));
+    ctrl.appendChild(mkBtn(ICON_CHECK, t("details.zoomHere", "Zoom & select this area"), "primary", () => applyZoom()));
+    ctrl.appendChild(mkBtn(ICON_PLUS,  t("details.grow",     "Grow"),   "ghost", () => resize(+20)));
+    ctrl.appendChild(mkBtn(ICON_MINUS, t("details.shrink",   "Shrink"), "ghost", () => resize(-20)));
     box.appendChild(ctrl);
     container.appendChild(box);
 
@@ -1036,11 +1207,15 @@ export default function SiteMapMapLibre({
       const D = map.unproject([x1 + dx, y1 + dy]);
       const b = new maplibregl.LngLatBounds(A, B); b.extend(C); b.extend(D);
 
-      // Report pier codes inside the square so the grid selection stays in sync.
-      const features = map.queryRenderedFeatures(
-        [[x0 + dx, y0 + dy], [x1 + dx, y1 + dy]],
-        { layers: ["piers-layer"] },
-      );
+      // Report pier codes inside the square so the grid selection stays
+      // in sync. Guard against the layer-not-ready race: MapLibre throws
+      // synchronously when any layer in the filter list is missing.
+      const features = map.getLayer("piers-layer")
+        ? map.queryRenderedFeatures(
+            [[x0 + dx, y0 + dy], [x1 + dx, y1 + dy]],
+            { layers: ["piers-layer"] },
+          )
+        : [];
       const codes = new Set<string>();
       for (const f of features) {
         const c0 = (f.properties as any)?.pier_code;

@@ -1,6 +1,6 @@
 import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getCurrentUser, logout, type AuthUser } from "./api";
+import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getCurrentUser, logout, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
@@ -177,10 +177,11 @@ const INITIAL_LAYERS = [
   { key: "trackers",    label: "Trackers",    visible: true },
   { key: "blocks",      label: "Blocks",      visible: false },
   { key: "blockLabels", label: "Block labels", visible: false },
-  // Electrical devices — visible only after the device-position extractor
-  // runs; the checkbox is always shown so the user can toggle on upstream.
-  { key: "inverters",   label: "Inverters",   visible: false },
-  { key: "dccb",        label: "DCCB",        visible: false },
+  // Electrical devices (Inverters / DCCB) are loaded and rendered on
+  // the map, but their checkboxes are hidden for now until the symbol
+  // set and labelling are finalised. To re-expose them, re-add:
+  //   { key: "inverters", label: "Inverters", visible: false },
+  //   { key: "dccb",      label: "DCCB",      visible: false },
 ];
 const LAYER_LABEL_KEYS: Record<string, string> = {
   row_labels:  "layers.rowNumbers",
@@ -188,7 +189,7 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   trackers:    "layers.trackers",
   blocks:      "layers.blocks",
   blockLabels: "layers.blockLabels",
-  inverters:   "layers.inverters",
+  inverters:   "layers.inverters",  // kept for when the checkboxes come back
   dccb:        "layers.dccb",
 };
 
@@ -223,6 +224,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [trackers, setTrackers] = useState<any[]>([]);
   const [piers, setPiers] = useState<any[]>([]);
+  // Electrical devices extracted from the construction PDF (security
+  // module). Tied to the Inverters + DCCB layer checkboxes.
+  const [inverters, setInverters] = useState<any[]>([]);
+  const [dccbs, setDccbs] = useState<any[]>([]);
   const [selectedPier, setSelectedPier] = useState<any>(null);
   const [selectedPierFull, setSelectedPierFull] = useState<any>(null);
   const [gridFilterBy, setGridFilterBy] = useState<"row" | "tracker">("row");
@@ -339,6 +344,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setTrackers([]);
     setPiers([]);
     setPierStatuses({});
+    setInverters([]);
+    setDccbs([]);
 
     setBusy(t("app.loading"));
     Promise.all([getBlocks(projectId), getTrackers(projectId), getPiers(projectId), getPierStatuses(projectId)])
@@ -351,6 +358,17 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       })
       .catch((e: any) => { if (!ignore) setError(String(e.message || e)); })
       .finally(() => { if (!ignore) setBusy(null); });
+
+    // Fetch the electrical devices in parallel but don't block the
+    // overall "loading" spinner — the core map still renders without
+    // them. Failures are soft (empty arrays keep the layers blank).
+    getElectricalDevices(projectId)
+      .then((dev) => {
+        if (ignore) return;
+        setInverters(dev?.inverters ?? []);
+        setDccbs(dev?.dccb ?? []);
+      })
+      .catch(() => { /* soft failure — layers stay empty */ });
     return () => { ignore = true; };
   }, [projectId, refreshKey, project]);
 
@@ -841,6 +859,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   blocks={blocks}
                   trackers={filteredTrackers}
                   piers={filteredPiers}
+                  inverters={inverters}
+                  dccbs={dccbs}
                   pierStatuses={pierStatuses}
                   selectedBlock={null}
                   selectedTracker={gridFilterBy === "tracker" && gridFilterSet ? trackers.find((t: any) => gridFilterSet.has(String(t.tracker_code || "").toUpperCase())) : null}

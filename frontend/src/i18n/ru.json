@@ -57,7 +57,10 @@
     "bulkConfirmMessage": "Изменить статус {{count}} опор на «{{status}}»?",
     "boxSelect": "Рамка выбора",
     "boxSelectOn": "Выбор: вкл",
-    "dragThenApply": "Перетащите и нажмите ✓"
+    "dragThenApply": "Перетащите и нажмите ✓",
+    "zoomHere": "Приблизить и выбрать область",
+    "grow": "Увеличить",
+    "shrink": "Уменьшить"
   },
   "status": {
     "New": "Новый",

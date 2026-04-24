@@ -197,6 +197,25 @@ export const getPiers = async (id: string) =>
   );
 
 /**
+ * Electrical-device (DCCB + inverter) positions extracted from the
+ * project's construction PDF. Mounted under the `security` phase module
+ * — see backend/app/modules/security/routes.py.
+ *
+ * Falls back to the offline bundle's `electricalDevices` slice when the
+ * network is unavailable. Returns `{dccb, inverters}` — each a list of
+ * `{type, name, x, y}`.
+ */
+export const getElectricalDevices = async (id: string) =>
+  networkFirst<{ dccb: any[]; inverters: any[] }>(
+    () => jDeduped<{ dccb: any[]; inverters: any[] }>(
+      `${API}/api/security/projects/${id}/electrical-devices`,
+    ),
+    async () =>
+      (await loadProjectBundle(id))?.electricalDevices ?? { dccb: [], inverters: [] },
+    async (v) => { await patchProjectBundle(id, { electricalDevices: v }); },
+  );
+
+/**
  * getPierStatuses merges server statuses with any locally-queued mutations
  * so the UI never loses in-flight edits.
  */

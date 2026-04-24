@@ -57,7 +57,10 @@
     "bulkConfirmMessage": "Status von {{count}} Pfählen auf „{{status}}“ ändern?",
     "boxSelect": "Rahmenauswahl",
     "boxSelectOn": "Auswahl: AN",
-    "dragThenApply": "Ziehen, dann ✓"
+    "dragThenApply": "Ziehen, dann ✓",
+    "zoomHere": "Hierher zoomen & auswählen",
+    "grow": "Vergrößern",
+    "shrink": "Verkleinern"
   },
   "status": {
     "New": "Neu",

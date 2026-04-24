@@ -57,7 +57,10 @@
     "bulkConfirmMessage": "Modifier le statut de {{count}} pieux en « {{status}} » ?",
     "boxSelect": "Sélection",
     "boxSelectOn": "Sélection : ON",
-    "dragThenApply": "Déplacez, puis ✓"
+    "dragThenApply": "Déplacez, puis ✓",
+    "zoomHere": "Zoomer et sélectionner cette zone",
+    "grow": "Agrandir",
+    "shrink": "Réduire"
   },
   "status": {
     "New": "Nouveau",
