@@ -72,6 +72,18 @@ export default function SiteMapMapLibre({
   const pierLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   const [selectMode, setSelectMode] = useState(false);
 
+  // Refs mirroring reactive state, so map-level event handlers (registered
+  // once at load) always see the *current* props without needing the
+  // enclosing effect to re-subscribe.  Without these the handlers captured
+  // the first-render closure: zooming fired refreshRowLabels against the
+  // stale `layers` / `rowLabelData` snapshot → labels appeared to vanish
+  // despite the checkbox being selected.
+  const layersRef = useRef(layers);
+  useEffect(() => { layersRef.current = layers; }, [layers]);
+  const piersRef = useRef(piers);
+  useEffect(() => { piersRef.current = piers; }, [piers]);
+  const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
+
   // ---- GeoJSON sources (memoized by dataset) ------------------------------
 
   const piersGeoJSON = useMemo(() => {
@@ -154,6 +166,7 @@ export default function SiteMapMapLibre({
 
   // Row labels: compute the topmost pier position per row number so we can
   // place a label above each row on the map.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const rowLabelData = useMemo(() => {
     const rowEdges: Record<string, { lng: number; lat: number }> = {};
     for (const p of piers) {
@@ -667,23 +680,20 @@ export default function SiteMapMapLibre({
     }
   }
 
+  // Keep the data ref in sync so the zoom/move handlers always see fresh data.
+  useEffect(() => { rowLabelDataRef.current = rowLabelData; }, [rowLabelData]);
+
   function refreshRowLabels() {
     const map = mapRef.current;
     if (!map) return;
     for (const m of rowLabelMarkersRef.current) m.remove();
     rowLabelMarkersRef.current = [];
-    // Row numbers is its own layer toggle — it renders regardless of
-    // whether Trackers are visible.  Bail only if the user turned it off.
-    if (!layerVisible(layers, "row_labels")) return;
+    // Read layers + row positions through refs so zoom/move events
+    // (registered once at map-load time) always see the latest state.
+    if (!layerVisible(layersRef.current, "row_labels")) return;
 
-    // Compute which rows have a position that sits inside the current
-    // viewport.  Previously we relied on queryRenderedFeatures against
-    // the trackers-line layer, which meant row labels silently vanished
-    // when Trackers was hidden.  Iterating our own `rowLabelData` (one
-    // entry per unique row number) is cheap — typically <300 rows — and
-    // keeps the labels in sync with what the user asked for.
     const bounds = map.getBounds();
-    for (const [row, pos] of Object.entries(rowLabelData)) {
+    for (const [row, pos] of Object.entries(rowLabelDataRef.current)) {
       if (!bounds.contains([pos.lng, pos.lat])) continue;
       // Strip S prefix so short-tracker rows read the same as regular ones.
       const display = row.replace(/^S/i, "");
@@ -719,7 +729,9 @@ export default function SiteMapMapLibre({
     // Remove existing labels.
     for (const m of pierLabelMarkersRef.current) m.remove();
     pierLabelMarkersRef.current = [];
-    if (!layerVisible(layers, "piers")) return;
+    // Read through layersRef so the handler reflects the latest toggle state
+    // even when triggered by map-level zoom / move events.
+    if (!layerVisible(layersRef.current, "piers")) return;
 
     // Query only the features currently rendered in the viewport.
     const visible = map.queryRenderedFeatures(undefined, {
@@ -797,102 +809,152 @@ export default function SiteMapMapLibre({
     }
   }
 
-  // ---- Box area selection -----------------------------------------------
-
+  // ---- Fixed-size draggable zoom selector --------------------------------
+  //
+  // When Box Select is active, a fixed square (≈ 20 × 20 % of the map's
+  // shorter side) appears in the centre of the map.  The user grabs it
+  // and drags it over an area of interest; on release, the map zooms
+  // and fits that exact square into the viewport.  Piers under the box
+  // are also reported via onAreaSelect so the grid selection stays in
+  // sync.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const canvas = map.getCanvas();
-    let start: { x: number; y: number } | null = null;
-    let box: HTMLDivElement | null = null;
+    const container = containerRef.current;
+    if (!map || !container) return;
+    if (!selectMode) return;
 
-    function pointerDown(ev: PointerEvent) {
-      if (!selectModeRef.current) return;
+    const crect = container.getBoundingClientRect();
+    const minSide = 60;
+    const maxSide = Math.round(Math.min(crect.width, crect.height) * 0.9);
+    let side = Math.round(Math.min(crect.width, crect.height) * 0.22);
+
+    const box = document.createElement("div");
+    box.style.cssText =
+      `position: absolute; left: ${Math.round((crect.width - side) / 2)}px; ` +
+      `top: ${Math.round((crect.height - side) / 2)}px; width: ${side}px; height: ${side}px; ` +
+      `border: 2px solid #2563eb; background: rgba(37,99,235,0.15); ` +
+      `box-shadow: 0 8px 32px rgba(0,0,0,0.25); border-radius: 6px; ` +
+      `cursor: grab; z-index: 20; touch-action: none; ` +
+      `display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;`;
+
+    // Compact +/- resize controls anchored inside the top-right corner
+    // of the box so the user never has to chase a separate toolbar.
+    const ctrl = document.createElement("div");
+    ctrl.style.cssText =
+      "position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; z-index: 2;";
+    const mkBtn = (label: string, onClick: () => void) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.style.cssText =
+        "width: 26px; height: 26px; border-radius: 6px; border: 1px solid #bfdbfe; " +
+        "background: rgba(255,255,255,0.95); color: #1e3a8a; font: 700 14px Arial; " +
+        "cursor: pointer; line-height: 1; padding: 0; touch-action: manipulation;";
+      b.addEventListener("click", (ev) => { ev.stopPropagation(); onClick(); });
+      b.addEventListener("pointerdown", (ev) => { ev.stopPropagation(); });  // don't start drag
+      return b;
+    };
+    const plusBtn = mkBtn("+", () => resize(+20));
+    const minusBtn = mkBtn("−", () => resize(-20));
+    ctrl.appendChild(minusBtn);
+    ctrl.appendChild(plusBtn);
+    box.appendChild(ctrl);
+
+    const hint = document.createElement("div");
+    hint.textContent = t("details.zoomHere", "Drag — release to zoom");
+    hint.style.cssText =
+      "font: 600 11px Arial, sans-serif; color: #1e3a8a; background: rgba(255,255,255,0.85); " +
+      "padding: 2px 8px; border-radius: 999px; pointer-events: none; white-space: nowrap;";
+    box.appendChild(hint);
+    container.appendChild(box);
+
+    function resize(delta: number) {
+      const c = container.getBoundingClientRect();
+      const newSide = Math.max(minSide, Math.min(maxSide, side + delta));
+      // Keep the box centred on its current centre.
+      const prevCX = parseFloat(box.style.left) + side / 2;
+      const prevCY = parseFloat(box.style.top) + side / 2;
+      side = newSide;
+      box.style.width = `${side}px`;
+      box.style.height = `${side}px`;
+      box.style.left = `${Math.max(0, Math.min(c.width - side, Math.round(prevCX - side / 2)))}px`;
+      box.style.top  = `${Math.max(0, Math.min(c.height - side, Math.round(prevCY - side / 2)))}px`;
+    }
+
+    let dragging = false;
+    let offset = { x: 0, y: 0 };
+
+    function onDown(ev: PointerEvent) {
       ev.preventDefault();
       ev.stopPropagation();
-      const rect = canvas.getBoundingClientRect();
-      start = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
-      box = document.createElement("div");
-      box.style.cssText =
-        "position: absolute; border: 2px dashed #0f172a; background: rgba(15,23,42,0.08); " +
-        "pointer-events: none; z-index: 10;";
-      containerRef.current?.appendChild(box);
+      dragging = true;
+      box.style.cursor = "grabbing";
+      const rect = box.getBoundingClientRect();
+      offset = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+      box.setPointerCapture(ev.pointerId);
     }
-    function pointerMove(ev: PointerEvent) {
-      if (!start || !box) return;
-      const rect = canvas.getBoundingClientRect();
-      const cur = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
-      const x = Math.min(start.x, cur.x);
-      const y = Math.min(start.y, cur.y);
-      const w = Math.abs(cur.x - start.x);
-      const h = Math.abs(cur.y - start.y);
+    function onMove(ev: PointerEvent) {
+      if (!dragging) return;
+      ev.preventDefault();
+      const c = container.getBoundingClientRect();
+      const x = Math.max(0, Math.min(c.width - side, ev.clientX - c.left - offset.x));
+      const y = Math.max(0, Math.min(c.height - side, ev.clientY - c.top - offset.y));
       box.style.left = `${x}px`;
       box.style.top = `${y}px`;
-      box.style.width = `${w}px`;
-      box.style.height = `${h}px`;
     }
-    function pointerUp(ev: PointerEvent) {
-      if (!start || !box) {
-        cleanup();
-        return;
-      }
-      const rect = canvas.getBoundingClientRect();
-      const end = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
-      const x0 = Math.min(start.x, end.x);
-      const y0 = Math.min(start.y, end.y);
-      const x1 = Math.max(start.x, end.x);
-      const y1 = Math.max(start.y, end.y);
-      cleanup();
-      if (x1 - x0 < 4 && y1 - y0 < 4) return; // click, not drag
+    function onUp(ev: PointerEvent) {
+      if (!dragging) return;
+      dragging = false;
+      box.style.cursor = "grab";
+      try { box.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
+
+      // Compute world bounds under the box and zoom-fit them.
+      const c = container.getBoundingClientRect();
+      const x0 = parseFloat(box.style.left);
+      const y0 = parseFloat(box.style.top);
+      const x1 = x0 + side;
+      const y1 = y0 + side;
+
+      // Use the MAP canvas position — container + canvas are coincident but
+      // unproject expects coordinates relative to the canvas.
+      const canvas = map.getCanvas();
+      const cr = canvas.getBoundingClientRect();
+      const dx = c.left - cr.left;
+      const dy = c.top - cr.top;
+      const A = map.unproject([x0 + dx, y0 + dy]);
+      const B = map.unproject([x1 + dx, y0 + dy]);
+      const C = map.unproject([x0 + dx, y1 + dy]);
+      const D = map.unproject([x1 + dx, y1 + dy]);
+      const b = new maplibregl.LngLatBounds(A, B); b.extend(C); b.extend(D);
+
+      // Report pier codes inside the square so the grid selection stays in sync.
       const features = map.queryRenderedFeatures(
-        [
-          [x0, y0],
-          [x1, y1],
-        ],
+        [[x0 + dx, y0 + dy], [x1 + dx, y1 + dy]],
         { layers: ["piers-layer"] },
       );
       const codes = new Set<string>();
       for (const f of features) {
-        const c = (f.properties as any)?.pier_code;
-        if (c) codes.add(c);
+        const c0 = (f.properties as any)?.pier_code;
+        if (c0) codes.add(c0);
       }
-      const picked = piers.filter((p: any) => codes.has(p.pier_code));
+      const picked = piersRef.current.filter((p: any) => codes.has(p.pier_code));
       onAreaSelect?.(picked);
 
-      // Fit the drawn rectangle into the viewport so the selection becomes
-      // the new working area. Unproject the four canvas corners into LngLat
-      // and extend a bounds object (picking two opposite corners is enough
-      // because the rectangle is axis-aligned in canvas space, not in
-      // world space).
-      const topLeft = map.unproject([x0, y0]);
-      const topRight = map.unproject([x1, y0]);
-      const bottomLeft = map.unproject([x0, y1]);
-      const bottomRight = map.unproject([x1, y1]);
-      const b = new maplibregl.LngLatBounds(topLeft, topRight);
-      b.extend(bottomLeft);
-      b.extend(bottomRight);
-      map.fitBounds(b, { padding: 40, duration: 500 });
-
-      // Leave select mode so the user can pan around the zoomed region.
+      map.fitBounds(b, { padding: 32, duration: 450 });
       setSelectMode(false);
     }
-    function cleanup() {
-      start = null;
-      if (box) {
-        box.remove();
-        box = null;
-      }
-    }
-    canvas.addEventListener("pointerdown", pointerDown);
-    window.addEventListener("pointermove", pointerMove);
-    window.addEventListener("pointerup", pointerUp);
+
+    box.addEventListener("pointerdown", onDown);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
     return () => {
-      canvas.removeEventListener("pointerdown", pointerDown);
-      window.removeEventListener("pointermove", pointerMove);
-      window.removeEventListener("pointerup", pointerUp);
+      box.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      if (box.parentNode) box.parentNode.removeChild(box);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [piers, onAreaSelect]);
+  }, [selectMode, piers, onAreaSelect]);
 
   return (
     <div

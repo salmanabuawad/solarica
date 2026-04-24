@@ -49,7 +49,8 @@ def list_projects() -> list:
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            SELECT p.project_id, p.name, p.status, p.parsed_at, p.created_at,
+            SELECT p.project_id, p.name, p.status, p.site_profile, p.parsed_at,
+                   p.created_at,
                    COALESCE(m.summary, '{}'::jsonb) AS summary
             FROM projects p
             LEFT JOIN project_metadata m ON m.project_id = p.id
@@ -62,6 +63,7 @@ def list_projects() -> list:
                 "project_id": r["project_id"],
                 "name": r["name"],
                 "status": r["status"],
+                "site_profile": r.get("site_profile"),
                 "parsed_at": r["parsed_at"].isoformat() if r.get("parsed_at") else None,
                 "summary": r["summary"] or {},
             }

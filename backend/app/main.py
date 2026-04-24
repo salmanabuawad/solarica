@@ -564,9 +564,18 @@ class ProjectCreate(BaseModel):
 @app.get("/api/projects")
 def api_list_projects():
     projects = db_store.list_projects()
-    # Compatibility: the old API returned [{project_id, summary}] rows
+    # Include the full project row so the frontend can branch on
+    # site_profile (ground_pier / floating_string / rooftop) and show
+    # lifecycle status.  `summary` stays last for backwards compat.
     return [
-        {"project_id": p["project_id"], "summary": p.get("summary") or {}}
+        {
+            "project_id": p["project_id"],
+            "name": p.get("name"),
+            "status": p.get("status"),
+            "site_profile": p.get("site_profile"),
+            "parsed_at": p.get("parsed_at"),
+            "summary": p.get("summary") or {},
+        }
         for p in projects
     ]
 
@@ -908,12 +917,27 @@ def api_parse_project(project_id: str):
     block_mapping = kinds.get("block_mapping")
     if not construction:
         raise HTTPException(status_code=400, detail="Missing construction PDF. Upload a file with kind=construction_pdf first.")
-    if not ramming:
-        raise HTTPException(status_code=400, detail="Missing ramming PDF. Upload a file with kind=ramming_pdf first.")
 
-    # Clear old artifacts
+    # Detect the site profile from the uploaded construction PDF so the
+    # parse flow can route to the right branch *and* relax requirements
+    # that don't apply to the detected profile (e.g. floating sites have
+    # no ramming plan).
+    from app.parsers.profile_detector import detect_site_profile_from_files
+    detected_profile = detect_site_profile_from_files(
+        [construction["storage_path"]] + ([ramming["storage_path"]] if ramming else []),
+    )
+
+    if detected_profile == "ground_pier" and not ramming:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing ramming PDF. Upload a file with kind=ramming_pdf first "
+                   "(required for pile-driven/tracker ground sites).",
+        )
+
+    # Clear old artifacts and record the detected site profile on the
+    # project row so downstream APIs + the frontend can branch on it.
     db_store.delete_project_artifacts(uu)
-    db_store.upsert_project(project_id, status="parsing")
+    db_store.upsert_project(project_id, site_profile=detected_profile, status="parsing")
 
     try:
         # Run the parser
