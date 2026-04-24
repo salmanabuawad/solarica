@@ -279,17 +279,17 @@ export default function SiteMapMapLibre({
         id: "trackers-line",
         type: "line",
         source: "trackers",
-        layout: { "line-cap": "round", "line-join": "round" },
+        layout: { "line-cap": "butt", "line-join": "round" },
         paint: {
           "line-color": "#16a34a",
-          "line-opacity": 0.85,
+          "line-opacity": 0.95,
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
-            0, 1.2,
-            4, 1.8,
-            8, 2.6,
-            12, 3.5,
-            18, 5,
+            0, 2,
+            4, 2.5,
+            8, 3.5,
+            12, 4.5,
+            18, 6,
           ],
         },
       });
@@ -461,6 +461,14 @@ export default function SiteMapMapLibre({
       // Generous internal padding so the site layout doesn't kiss the map's
       // edges — especially on narrow mobile viewports where 40 px was too tight.
       if (bounds) map.fitBounds(bounds, { padding: 56, duration: 0 });
+
+      // Promote tracker lines above the 24 k-pier layer so they're
+      // actually readable.  With piers rendered on top the tracker line
+      // was getting obscured; tracker lines between piers read well.
+      try {
+        map.moveLayer("trackers-line");
+        map.moveLayer("trackers-selected");
+      } catch { /* layers might not exist mid-swap; ignore */ }
 
       // --- Interaction handlers -----------------------------------------
       map.on("click", "piers-layer", (e: MapMouseEvent & { features?: any[] }) => {
