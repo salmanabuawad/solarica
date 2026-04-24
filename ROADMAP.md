@@ -1,120 +1,217 @@
 # Solarica Roadmap
 
-Based on field assessments of >2 GW across 130+ operating solar assets (Enurgen guide) and current platform capabilities.
+**Product statement.** Solarica converts solar project design documents into an
+executable project model, then manages construction, material accountability,
+electrical validation, operation missions, site access, collaboration, and
+OT / device security — **from design to operation**.
 
-## Current State (v1)
+Each phase below adds one layer of the lifecycle. Progress ticks reflect the
+state of `main` at time of writing; the running deployment at
+`solarica.wavelync.com` is the single source of truth.
 
-- [x] PDF parsing: construction + ramming plans → blocks, trackers, piers (24130 exact via Hungarian matching)
-- [x] MapLibre GL map with 25k+ piers, row labels, block polygons, tracker lines
-- [x] Grid view with filtering by rows/trackers (comma-separated)
-- [x] Pier status tracking (New → In Progress → Implemented → Approved → Rejected → Fixed)
-- [x] Offline mode with IndexedDB cache + mutation queue + auto-sync
-- [x] PWA service worker for field use without network
-- [x] Electrical metadata extraction (inverters, DCCB, BOM, pier type specs)
-- [x] Project Info / Details / Devices / Config tab layout
+Legend: `[x]` shipped • `[~]` partial / stub • `[ ]` not started.
 
-## Phase 1.5: Block Mapping (Design → Execution)
+---
 
-- [ ] Support optional 3rd file upload: block mapping (Excel/CSV or PDF table)
-- [ ] New upload kind: `block_mapping` in SystemPanel + backend
-- [ ] Auto-detect format by extension (.xlsx/.csv → pandas, .pdf → pdfplumber table extraction, .png/.jpg → OCR/CV to extract block boundaries and labels from image)
-- [ ] Mapping structure: design blocks can split or merge into execution blocks
-- [ ] Mapping includes which trackers/rows belong to which execution block
-- [ ] When mapping file is present, parser overrides PDF-derived block assignments
-- [ ] Reassign all piers and trackers to execution blocks per the mapping
-- [ ] UI: show execution block names everywhere (grid, map, filters, Project Info)
-- [ ] Backward compatible: if no mapping file uploaded, use design blocks as before
+## Phase 0 — Platform foundation (shipped)
 
-## Phase 2: Loss Detection & Recovery
+The shell every other module plugs into.
 
-### 2.1 Inverter Monitoring
-- [ ] Add inverter inventory to Devices tab (model, serial, firmware version, location/block)
-- [ ] Track inverter status: online / derated / tripped / offline
-- [ ] Fan fault tracking per inverter
-- [ ] MPPT channel health status (per-channel DC/AC ratio monitoring)
-- [ ] Ground fault event log with timestamps and affected circuits
-- [ ] Link inverters to their DC collection segments (combiners → strings → trackers)
+- [x] React + Vite + TypeScript frontend (PWA)
+- [x] FastAPI backend, PostgreSQL persistence
+- [x] Admin auth: `admin / admin123` seeded, HMAC Bearer tokens, DB-backed `users` table + CRUD (admin / editor / viewer)
+- [x] Sidebar navigation with collapsible groups + responsive drawer on iPad / mobile
+- [x] 6-language i18n (`en he ar ru de fr`), RTL flip for Hebrew + Arabic
+- [x] Theme + brightness + font-size preferences (persisted in `localStorage`, reflected via `data-*` attributes on `<html>`)
+- [x] KortexdUI visual baseline — Tailwind + PostCSS theme tokens
+- [x] Field-configurations table + admin editor — per-grid column prefs (visibility / order / pin / width)
+- [x] Offline mode — Workbox precache of the app shell, IndexedDB project bundle cache, mutation queue with auto-sync on reconnect
+- [x] PWA `autoUpdate` + `controllerchange` reload — new builds propagate to open tabs automatically
+- [x] Nginx + `systemd` deploy (`solarica-backend.service`) with static SPA served from `/opt/solarica/frontend/dist`
 
-### 2.2 Tracker Health
-- [ ] Tracker status field: tracking / stalled / backtracking / manual override
-- [ ] Stall detection: flag trackers stuck at same angle across timestamps
-- [ ] Slope-aware optimization: per-block target angles vs actual (AM/PM comparison)
-- [ ] Capacity test backtracking audit: identify trackers still running test-mode limits
-- [ ] Mechanical issue log per tracker (motor, bearing, drive shaft, controller)
-- [ ] Map visualization: color trackers by health status (green/yellow/red)
+---
 
-### 2.3 DC Health
-- [ ] Combiner box inventory (location, fuse count, connected strings)
-- [ ] Fuse status tracking: intact / blown / pulled / replaced
-- [ ] MC4 connector inspection log (resistance readings, thermal images)
-- [ ] Module-level degradation tracking (IV curve data, visual inspection notes)
-- [ ] String-level current comparison (flag underperforming strings vs neighbors)
+## Phase 1 — Core lifecycle primitives
 
-## Phase 3: Performance Baseline
+Projects, roles, documents, events, audit log.
 
-### 3.1 Expected vs Actual
-- [ ] Import energy model baseline (per-timestep expected output per inverter/block)
-- [ ] Compare actual yield vs expected at each hierarchy level
-- [ ] Automatic loss quantification in MWh per device/block/row
-- [ ] Loss categorization: recoverable vs unrecoverable
-- [ ] Trend analysis: persistent vs intermittent losses
+- [x] Projects table + `GET/POST /api/projects`
+- [x] Document upload (`construction_pdf`, `ramming_pdf`, `block_mapping`)
+- [~] Role matrix — 3 basic roles today (`admin / editor / viewer`); blueprint calls for 12 project roles (project_manager, field_supervisor, qc_engineer, inventory_keeper, technician, electrician, construction_worker, security_guard_company, client_representative, higher_manager, site_manager, admin)
+- [ ] Customer + site setup (separate from project name)
+- [ ] Audit log — `audit_events (id, project_id, actor, verb, target, payload, created_at)`
+- [ ] Module registry — each module self-registers routes, permissions, events, jobs, DB models, UI routes
+- [~] Event bus — scaffolding in `backend/app/core/events.py` (this commit); subscribers not yet wired
 
-### 3.2 Hierarchy Drill-Down
-- [ ] Portfolio → Site → Block → Inverter → Tracker → Combiner navigation
-- [ ] Each level shows: expected MWh, actual MWh, delta, loss type, priority
-- [ ] Click-through from loss to specific field work order
+---
 
-### 3.3 Prioritization
-- [ ] Rank losses by estimated MWh impact
-- [ ] Rank by persistence (days since first detected)
-- [ ] Rank by fix complexity (config change vs field visit vs hardware replacement)
-- [ ] Dashboard showing top-N recoverable losses across portfolio
+## Phase 2 — EPL (Execution Planning Layer)
 
-## Phase 4: Field Workflow
+Convert a design package into an executable site model. **This is the core of
+the currently running app.**
 
-### 4.1 Work Orders
-- [ ] Create work orders from detected losses (auto-populated with device, location, loss type)
-- [ ] Assign to field crew with GPS coordinates
-- [ ] Photo capture for before/after documentation
-- [ ] Offline-capable work order completion with sync
+### Inputs
+- [x] Construction PDF (vector extraction via PyMuPDF)
+- [x] Ramming plan PDF
+- [ ] Block-mapping image / spreadsheet (upload wiring in place; mapping logic pending)
+- [ ] DXF / DWG imports
+- [ ] Inverter / string schedules as first-class uploads
+- [ ] Floating-structure plans
 
-### 4.2 Closed-Loop Verification
-- [ ] After fix is applied, compare post-fix performance vs baseline
-- [ ] Confirm MWh recovery within expected range
-- [ ] Auto-close work order if performance returns to baseline
-- [ ] Flag regressions if loss reappears after fix
+### Parsed outputs
+- [x] Blocks / zones — polygon + label
+- [x] Trackers with per-row metadata (full vs short / `S`-prefixed)
+- [x] Piers (~24 130 on Ashalim with Hungarian bipartite matching)
+- [x] Electrical summary (inverters, DCCB, string groups, total modules, module power, BOM, pier-type specs)
+- [x] Lat / long, wind load, snow load, issue date, Nextracker model
+- [ ] Panels / modules as individual records (currently only BOM totals)
+- [ ] String-level geometry
+- [ ] AC assets inventory
+- [ ] BESS assets
+- [ ] Per-device list with physical + network attributes
 
-### 4.3 Reporting
-- [ ] Monthly loss recovery report per site
-- [ ] Cumulative MWh recovered by loss type
-- [ ] Field crew productivity metrics (work orders completed, MWh recovered)
-- [ ] Export to PDF/Excel for stakeholder reporting
+### Validations
+- [x] Duplicate pier detection (Hungarian matching removes collisions by construction)
+- [x] Missing pier numbers (gap report in grid)
+- [x] Expected vs actual counts (trackers / piers / modules) with tolerance band
+- [ ] Duplicate strings
+- [ ] Missing strings
+- [ ] Inverter count mismatch across documents
+- [ ] MPPT / string mismatch
+- [ ] BOM vs drawing mismatch
+- [ ] Block-naming mismatch between documents
+- [ ] Document conflict detection (two sources disagree)
 
-## Phase 5: Device Inventory & Security
+### UI
+- [x] Project Info tab — site / structure / electrical / module / validation metadata cards
+- [x] Details tab — Grid (ag-grid, virtual-scrolled, field-config-driven) + Map (MapLibre, 24 k piers in one GL draw call)
+- [x] Pier status pill with icon + colour (New / In Progress / Implemented / Approved / Rejected / Fixed)
+- [x] Map pier colouring by status + coloured halo + symbol icons
+- [x] Status change event table (`pier_status_events`) with description + photo / video attachments on Rejected
+- [x] Bulk status update via `POST /api/projects/{id}/pier-statuses/bulk` (one HTTP, one SQL)
+- [x] Row-number pills on the map are clickable → filter grid to that row
+- [x] Fixed-size draggable zoom selector (Box Select) — drop on an area to zoom-fit
 
-### 5.1 Physical Security
-- [ ] Device location on map (inverters, combiner boxes, disconnect switches, junction boxes)
-- [ ] Lock status and last inspection date
-- [ ] Tamper detection alerts
+---
 
-### 5.2 Cyber/OT Security
-- [ ] Device firmware version tracking
-- [ ] Network connectivity inventory (IP, port, protocol)
-- [ ] Known CVE matching against device models
-- [ ] Access control audit log
+## Phase 3 — Construction mode
 
-### 5.3 Electrical Safety
-- [ ] Overcurrent / ground fault / arc flash risk per device
-- [ ] Inspection schedule and compliance tracking
-- [ ] Rating vs actual load monitoring
+Site construction + field progress against the EPL model.
 
-## Technical Debt / Infrastructure
+- [ ] Work packages per block / zone
+- [ ] Task assignment (supervisor → technician)
+- [ ] Field-supervisor dashboard
+- [ ] Technician mobile view (offline-friendly — reuse existing PWA + IndexedDB)
+- [ ] Photo + video upload per task (reuse `pier_status_events` attachments infrastructure)
+- [ ] Daily progress reports
+- [ ] QC inspections
+- [ ] Punch-list items
+- [ ] Task discussion thread (back-and-forth with timestamps + attachments)
 
-- [ ] Backend: add device inventory DB tables (devices, device_events, work_orders)
-- [ ] Backend: add energy baseline import API (CSV/API integration)
-- [ ] Backend: add time-series data store for production metrics
-- [ ] Frontend: multi-site portfolio view
-- [ ] Frontend: dashboard with charts (loss trends, recovery progress)
-- [ ] Frontend: device detail modal with event history timeline
-- [ ] Server: scale beyond 1 uvicorn worker (async parser or job queue)
-- [ ] Server: add Redis for caching hot queries
+---
+
+## Phase 4 — BOM & Inventory accountability
+
+Track material from warehouse to installed asset.
+
+- [ ] BOM templates per module / panel / asset type
+- [ ] Warehouse — stock ledger
+- [ ] Material-issue records (warehouse → block / task / worker)
+- [ ] Material usage reporting (what got installed)
+- [ ] Return of leftover materials
+- [ ] Business-day threshold rules (configurable per project)
+- [ ] Missing-material alerts
+- [ ] Email notifications to project managers
+- [ ] Escalation rules when material is not applied nor returned in time
+- [ ] Background reconciliation job (stub at `backend/app/jobs/material_reconciliation.py`)
+
+**Key rule:** if material is issued but not reflected in construction progress
+within the configured number of business days, Solarica raises an alert.
+
+---
+
+## Phase 5 — Electrical testing & commissioning
+
+Gate the transition into operation.
+
+- [ ] Test registry: Megger / insulation resistance, continuity, polarity, string Voc, string Isc, AC checks, grounding checks
+- [ ] Per-test thresholds + pass / fail evaluation
+- [ ] Attachment support (photos of meter reading, exported test files)
+- [ ] Commissioning checklist per project
+- [ ] Commissioning gate — a project cannot move to operation until:
+  - [ ] all required tests uploaded
+  - [ ] failures resolved
+  - [ ] QC approves
+  - [ ] project manager approves
+  - [ ] (optional) client approval
+
+---
+
+## Phase 6 — Operation mode
+
+Day-to-day missions + site access coordination.
+
+- [ ] Operational missions (IV-curve, maintenance, inspection)
+- [ ] Site-access request flow (technician → guard company approval → notification)
+- [ ] Technician mobile workflow
+- [ ] Evidence upload per mission
+- [ ] Manager / QC approval of mission closure
+- [ ] Mission discussion thread
+- [ ] Integration with `pier_status_events` so operational findings update the pier model
+
+---
+
+## Phase 7 — Device security & firmware intelligence
+
+Asset-centric OT security for solar sites.
+
+- [ ] Device registry covering inverters, BESS / BMS, PCS, SCADA / PLC, gateways, routers, meters, cameras, weather stations, sensors, Wi-Fi / Bluetooth / IoT endpoints
+- [ ] Firmware version tracking per device
+- [ ] Vendor advisory ingestion
+- [ ] CVE / vulnerability mapping
+- [ ] Open-port / exposure scan results
+- [ ] Risk scoring
+- [ ] Firmware-update missions linked to the operation module
+- [ ] Site-access workflow for update missions
+- [ ] Proof-of-update upload
+- [ ] Closure approval
+
+**Inspiration.** OTORIO-style asset-centric OT security, but solar-specific —
+connected to missions, access, assets, and operation, not generic IT.
+
+---
+
+## Phase 8 — Intelligence layer
+
+Turn the captured data into insight.
+
+- [ ] Construction-efficiency analytics (rate per team, per block type)
+- [ ] Material-loss analytics
+- [ ] Performance baselines
+- [ ] IV-curve comparison (string-level over time)
+- [ ] Security-risk dashboard
+- [ ] Predictive maintenance
+- [ ] Digital-twin view (combine design model + live telemetry)
+
+---
+
+## MVP slice (thin cut across all phases)
+
+When the rest of the roadmap is on hold, the minimum product is:
+
+1. Project setup + roles (phase 1)
+2. EPL doc upload + parser integration (phase 2) — **done**
+3. Piers / blocks validation (phase 2) — **done for Ashalim**
+4. Construction task management (phase 3)
+5. BOM + warehouse issue + missing-material alerts (phase 4)
+6. Electrical-test gate (phase 5)
+7. Operation mission + discussion + site access (phase 6)
+8. Device registry + basic firmware risk (phase 7)
+
+---
+
+## Related docs
+
+- `docs/ARCHITECTURE.md` — lifecycle diagram, module contract, event bus, shared services
+- `CLAUDE.md` — codebase walk-through
+- `README.md` — product pitch + quick start
