@@ -70,7 +70,10 @@ export default function SiteMapMapLibre({
   const blockMarkersRef = useRef<maplibregl.Marker[]>([]);
   const rowLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   const pierLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
-  const [selectMode, setSelectMode] = useState(false);
+  // Ref raised while the corner zoom-square is actively being dragged,
+  // so the map click handlers can skip pier / tracker / block clicks
+  // under the pointer during a drag.
+  const isBoxDraggingRef = useRef(false);
 
   // Refs mirroring reactive state, so map-level event handlers (registered
   // once at load) always see the *current* props without needing the
@@ -461,7 +464,7 @@ export default function SiteMapMapLibre({
 
       // --- Interaction handlers -----------------------------------------
       map.on("click", "piers-layer", (e: MapMouseEvent & { features?: any[] }) => {
-        if (selectModeRef.current) return; // box-select owns clicks
+        if (isBoxDraggingRef.current) return; // box-select owns clicks
         const f = e.features?.[0];
         if (!f) return;
         const code = f.properties?.pier_code;
@@ -469,7 +472,7 @@ export default function SiteMapMapLibre({
         if (match) onPierClick(match);
       });
       map.on("click", "trackers-line", (e: MapMouseEvent & { features?: any[] }) => {
-        if (selectModeRef.current) return;
+        if (isBoxDraggingRef.current) return;
         const f = e.features?.[0];
         if (!f) return;
         const code = f.properties?.tracker_code;
@@ -477,7 +480,7 @@ export default function SiteMapMapLibre({
         if (match) onTrackerClick(match);
       });
       map.on("click", "blocks-fill", (e: MapMouseEvent & { features?: any[] }) => {
-        if (selectModeRef.current) return;
+        if (isBoxDraggingRef.current) return;
         const f = e.features?.[0];
         if (!f) return;
         const code = f.properties?.block_code;
@@ -485,10 +488,10 @@ export default function SiteMapMapLibre({
         if (match) onBlockClick(match);
       });
       map.on("mouseenter", "piers-layer", () => {
-        if (!selectModeRef.current) map.getCanvas().style.cursor = "pointer";
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
       });
       map.on("mouseleave", "piers-layer", () => {
-        if (!selectModeRef.current) map.getCanvas().style.cursor = "";
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
       });
 
       // Pier number labels + viewport change: recompute on any movement end.
@@ -527,20 +530,10 @@ export default function SiteMapMapLibre({
     return () => ro.disconnect();
   }, []);
 
-  // Keep the latest selectMode in a ref so map-level handlers see it.
-  const selectModeRef = useRef(false);
-  useEffect(() => {
-    selectModeRef.current = selectMode;
-    const map = mapRef.current;
-    if (!map) return;
-    if (selectMode) {
-      map.dragPan.disable();
-      map.getCanvas().style.cursor = "crosshair";
-    } else {
-      map.dragPan.enable();
-      map.getCanvas().style.cursor = "";
-    }
-  }, [selectMode]);
+  // The zoom square is always visible in the top-right; there is no
+  // "box select mode" any more. dragPan stays enabled — the square's
+  // own pointer events stop propagation, so panning the map past the
+  // square still works exactly as before.
 
   // ---- Source updates when data changes ----------------------------------
 
@@ -823,31 +816,32 @@ export default function SiteMapMapLibre({
     }
   }
 
-  // ---- Fixed-size draggable zoom selector --------------------------------
+  // ---- Always-visible zoom selector --------------------------------------
   //
-  // When Box Select is active, a fixed square (≈ 20 × 20 % of the map's
-  // shorter side) appears in the centre of the map.  The user grabs it
-  // and drags it over an area of interest; on release, the map zooms
-  // and fits that exact square into the viewport.  Piers under the box
-  // are also reported via onAreaSelect so the grid selection stays in
-  // sync.
+  // A fixed square sits parked in the map's top-right corner at all
+  // times; the user drags it over an area of interest and releases to
+  // zoom+select. No toolbar button needed. +/- buttons on the square
+  // resize it in 20 px steps (60 px min → 90 % of shorter side max).
   useEffect(() => {
     const map = mapRef.current;
     const container = containerRef.current;
     if (!map || !container) return;
-    if (!selectMode) return;
 
     const crect = container.getBoundingClientRect();
     const minSide = 60;
     const maxSide = Math.round(Math.min(crect.width, crect.height) * 0.9);
-    let side = Math.round(Math.min(crect.width, crect.height) * 0.22);
+    let side = Math.round(Math.min(crect.width, crect.height) * 0.18);
+    // Park in the top-right corner by default.
+    const margin = 12;
+    const initialLeft = Math.max(0, crect.width - side - margin);
+    const initialTop = margin;
 
     const box = document.createElement("div");
     box.style.cssText =
-      `position: absolute; left: ${Math.round((crect.width - side) / 2)}px; ` +
-      `top: ${Math.round((crect.height - side) / 2)}px; width: ${side}px; height: ${side}px; ` +
-      `border: 2px solid #2563eb; background: rgba(37,99,235,0.15); ` +
-      `box-shadow: 0 8px 32px rgba(0,0,0,0.25); border-radius: 6px; ` +
+      `position: absolute; left: ${initialLeft}px; top: ${initialTop}px; ` +
+      `width: ${side}px; height: ${side}px; ` +
+      `border: 2px solid #2563eb; background: rgba(37,99,235,0.12); ` +
+      `box-shadow: 0 6px 20px rgba(0,0,0,0.22); border-radius: 8px; ` +
       `cursor: grab; z-index: 20; touch-action: none; ` +
       `display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;`;
 
@@ -902,6 +896,7 @@ export default function SiteMapMapLibre({
       ev.preventDefault();
       ev.stopPropagation();
       dragging = true;
+      isBoxDraggingRef.current = true;
       box.style.cursor = "grabbing";
       const rect = box.getBoundingClientRect();
       offset = { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
@@ -919,6 +914,10 @@ export default function SiteMapMapLibre({
     function onUp(ev: PointerEvent) {
       if (!dragging) return;
       dragging = false;
+      // Defer clearing the drag flag to the next tick — the same pointer-up
+      // may still bubble into a MapLibre click handler, and we don't want
+      // that click to be treated as a pier click.
+      setTimeout(() => { isBoxDraggingRef.current = false; }, 0);
       box.style.cursor = "grab";
       try { box.releasePointerCapture(ev.pointerId); } catch { /* noop */ }
 
@@ -955,7 +954,13 @@ export default function SiteMapMapLibre({
       onAreaSelect?.(picked);
 
       map.fitBounds(b, { padding: 32, duration: 450 });
-      setSelectMode(false);
+      // Re-park in the (new) top-right corner so the box stays reachable
+      // after a zoom-in that shrinks the viewport in canvas pixels.
+      requestAnimationFrame(() => {
+        const cc = container.getBoundingClientRect();
+        box.style.left = `${Math.max(0, cc.width - side - margin)}px`;
+        box.style.top = `${margin}px`;
+      });
     }
 
     box.addEventListener("pointerdown", onDown);
@@ -968,7 +973,7 @@ export default function SiteMapMapLibre({
       if (box.parentNode) box.parentNode.removeChild(box);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectMode, piers, onAreaSelect]);
+  }, []);
 
   return (
     <div
@@ -980,34 +985,6 @@ export default function SiteMapMapLibre({
         minHeight: 300,
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          top: 10,
-          left: 10,
-          display: "flex",
-          gap: 6,
-          zIndex: 2,
-        }}
-      >
-        <button
-          onClick={() => setSelectMode((v) => !v)}
-          title="Draw a rectangle to select piers"
-          style={{
-            padding: "6px 12px",
-            fontSize: 12,
-            borderRadius: 8,
-            border: `1px solid ${selectMode ? "#0f172a" : "#d1d5db"}`,
-            background: selectMode ? "#0f172a" : "#fff",
-            color: selectMode ? "#fff" : "#0f172a",
-            fontWeight: 600,
-            cursor: "pointer",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
-          }}
-        >
-          {selectMode ? t("details.boxSelectOn") : t("details.boxSelect")}
-        </button>
-      </div>
     </div>
   );
 }
