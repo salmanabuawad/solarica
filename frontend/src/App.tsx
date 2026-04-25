@@ -750,7 +750,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: "8px 12px",
+              // No horizontal padding — the logo image stretches edge
+              // to edge across the phone viewport.
+              padding: "6px 0",
               background: "#ffffff",
               borderBottom: "1px solid #e2e8f0",
               position: "sticky",
@@ -765,8 +767,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               style={{
                 display: "block",
                 height: "auto",
+                // Full viewport width, no upper cap — the logo
+                // stretches to whatever the phone gives us.
                 width: "100%",
-                maxWidth: 320,
+                maxWidth: "none",
                 cursor: "pointer",
               }}
             />
@@ -776,11 +780,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         <div style={{
           display: "flex", alignItems: "center", gap: 10, padding: compact ? "10px 16px" : "14px 20px",
           background: "#ffffff", borderBottom: "1px solid #e2e8f0",
-          position: "sticky",
-          // On mobile this row stacks below the logo strip (logo strip
-          // sits at top:0). Compute the offset so this row sticks just
-          // beneath it. Desktop has no logo strip, top:0 is correct.
-          top: compact ? 56 : 0,
+          // On mobile this row scrolls away under the sticky logo
+          // strip (the logo is the only sticky brand element). On
+          // desktop it stays sticky to the top because the logo
+          // already lives in the sidebar.
+          position: compact ? "static" : "sticky",
+          top: 0,
           zIndex: 10,
         }}>
           {compact && (
