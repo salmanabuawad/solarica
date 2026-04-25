@@ -598,7 +598,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     >
       <div style={{ padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", height: 56 }}>
         <img
-          src="/logo.png"
+          src="/logo.svg"
           alt="Solarica"
           style={{ display: "block", width: "auto", maxWidth: "100%", height: "100%", maxHeight: 56, objectFit: "contain", objectPosition: "center" }}
         />
