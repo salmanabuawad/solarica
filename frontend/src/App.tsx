@@ -174,14 +174,18 @@ function FilterChipBar({
 // comes from the `layers.*` i18n keys each render (see the useMemo in
 // AppMain) so the checkboxes switch language with the rest of the app.
 const INITIAL_LAYERS = [
-  { key: "row_labels",  label: "Row numbers", visible: true },
+  // Defaults: only Piers is on at first paint. Row numbers, Trackers,
+  // and Blocks are off so a fresh map is uncluttered. The user's
+  // toggle state is then persisted to localStorage by the App.tsx
+  // useEffect below, so once they enable a layer it survives refreshes.
+  { key: "row_labels",  label: "Row numbers", visible: false },
   { key: "piers",       label: "Piers",       visible: true },
-  { key: "trackers",    label: "Trackers",    visible: true },
-  // Single "Blocks" checkbox now drives BOTH the block fill/outline
-  // AND the block-number HTML markers — keeps the checkbox row to
-  // four entries so it stays on a single line on phones. The map
-  // component still reads `blockLabels` for the marker visibility but
-  // the App layer to map shim below mirrors `blocks` → `blockLabels`.
+  { key: "trackers",    label: "Trackers",    visible: false },
+  // Single "Blocks" checkbox drives BOTH the block fill/outline AND
+  // the block-number HTML markers — keeps the checkbox row to four
+  // entries so it stays on a single line on phones. The map component
+  // still reads `blockLabels` for the marker visibility but the App
+  // layer-to-map shim below mirrors `blocks` → `blockLabels`.
   { key: "blocks",      label: "Blocks",      visible: false },
   // Electrical devices (Inverters / DCCB) are loaded and rendered on
   // the map, but their checkboxes are hidden for now until the symbol
