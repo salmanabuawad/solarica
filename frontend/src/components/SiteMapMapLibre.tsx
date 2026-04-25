@@ -103,17 +103,19 @@ export default function SiteMapMapLibre({
 
   // ---- GeoJSON sources (memoized by dataset) ------------------------------
 
-  // The pier source no longer carries `status` / `status_color` in
-  // its feature properties — those move to MapLibre `feature-state`
-  // (set per-pier via setFeatureState below) so a single status edit
-  // doesn't trigger a full 24 k-feature rebuild + re-tile.
+  // Two-source strategy:
+  // - `piers` (this) carries all 24 k positions but NO status. It only
+  //   rebuilds when the pier set itself changes, so position + colour
+  //   tiles stay stable across status edits.
+  // - `pier-statuses` (below) carries ONE feature per non-"New" pier
+  //   with the status property. The symbol icon layer reads from that
+  //   smaller source. A status edit only rebuilds this overlay (often
+  //   just a few hundred features), not the 24 k-pier base.
   const piersGeoJSON = useMemo(() => {
     const features = piers.map((p: any) => {
       const [lng, lat] = rotatedToLngLat(p.x, p.y, imageWidth);
       return {
         type: "Feature" as const,
-        // `id` is what MapLibre uses to address feature-state; must
-        // be a string or number on the feature itself.
         id: p.pier_code,
         geometry: { type: "Point" as const, coordinates: [lng, lat] },
         properties: {
@@ -130,6 +132,35 @@ export default function SiteMapMapLibre({
     });
     return { type: "FeatureCollection" as const, features };
   }, [piers, imageWidth]);
+
+  // Status overlay — only piers that have a non-"New" status. This
+  // is the source the icon symbol layer consumes, and it's the only
+  // thing that needs to rebuild on a status edit. With most projects
+  // starting all-"New" the overlay is initially empty and grows as
+  // work progresses, so a single edit rebuilds at most a few hundred
+  // features instead of all 24 k.
+  const pierStatusGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features };
+    }
+    for (const p of piers) {
+      const status = pierStatuses?.[p.pier_code];
+      if (!status || status === "New") continue;
+      const [lng, lat] = rotatedToLngLat(p.x, p.y, imageWidth);
+      features.push({
+        type: "Feature" as const,
+        id: p.pier_code,
+        geometry: { type: "Point" as const, coordinates: [lng, lat] },
+        properties: {
+          pier_code: p.pier_code,
+          status,
+          status_color: STATUS_COLORS[status] || "",
+        },
+      });
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [piers, pierStatuses, imageWidth]);
 
   const blocksGeoJSON = useMemo(() => {
     const features = blocks.flatMap((b: any) => {
@@ -373,6 +404,7 @@ export default function SiteMapMapLibre({
       map.addSource("blocks", { type: "geojson", data: blocksGeoJSON });
       map.addSource("trackers", { type: "geojson", data: trackersGeoJSON });
       map.addSource("piers", { type: "geojson", data: piersGeoJSON });
+      map.addSource("pier-statuses", { type: "geojson", data: pierStatusGeoJSON });
       map.addSource("dccb", { type: "geojson", data: dccbGeoJSON });
       map.addSource("inverters", { type: "geojson", data: inverterGeoJSON });
 
@@ -495,16 +527,15 @@ export default function SiteMapMapLibre({
             14, 6,
             18, 10,
           ],
-          // Status now lives on feature-state, not feature-properties,
-          // so single status edits don't rebuild the source.  The
-          // "feature-state" expression pulls per-feature values that
-          // were set via map.setFeatureState({source: "piers", id: code}).
+          // Pier circle uses feature-state for the status colour so a
+          // single status edit doesn't rebuild this 24 k-feature
+          // source.  The state is pushed in the effect below via
+          // setFeatureState.  feature-state is allowed in PAINT
+          // expressions (which this is); layout properties cannot
+          // read feature-state.
           "circle-color": wantStatusColor
             ? ["case",
-                ["all",
-                  ["!=", ["feature-state", "status"], null],
-                  ["!=", ["feature-state", "status"], "New"],
-                ],
+                ["!=", ["coalesce", ["feature-state", "status"], "New"], "New"],
                 ["coalesce", ["feature-state", "status_color"], ["get", "color"]],
                 ["get", "color"],
               ]
@@ -512,10 +543,7 @@ export default function SiteMapMapLibre({
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": wantStatusColor
             ? ["case",
-                ["all",
-                  ["!=", ["feature-state", "status"], null],
-                  ["!=", ["feature-state", "status"], "New"],
-                ],
+                ["!=", ["coalesce", ["feature-state", "status"], "New"], "New"],
                 1.5,
                 0,
               ]
@@ -562,20 +590,21 @@ export default function SiteMapMapLibre({
       map.addLayer({
         id: "pier-status-icons",
         type: "symbol",
-        source: "piers",
-        // No filter here — MapLibre filters can only read feature
-        // *properties*, never feature-state. Instead the icon-image
-        // expression returns "" (no icon) for piers whose status is
-        // either unset or "New", so they don't render.
+        // Use the lightweight overlay source so the layer only
+        // tessellates the piers that actually have a status. The icon
+        // image is selected from a feature *property* (allowed in
+        // layout expressions); status changes rebuild only this
+        // smaller source via setData on the dedicated useEffect.
+        source: "pier-statuses",
         layout: {
           "icon-image": [
             "case",
-            ["==", ["feature-state", "status"], "In Progress"], "status-in-progress",
-            ["==", ["feature-state", "status"], "Implemented"], "status-implemented",
-            ["==", ["feature-state", "status"], "Approved"],    "status-approved",
-            ["==", ["feature-state", "status"], "Rejected"],    "status-rejected",
-            ["==", ["feature-state", "status"], "Fixed"],       "status-fixed",
-            "",
+            ["==", ["get", "status"], "In Progress"], "status-in-progress",
+            ["==", ["get", "status"], "Implemented"], "status-implemented",
+            ["==", ["get", "status"], "Approved"],    "status-approved",
+            ["==", ["get", "status"], "Rejected"],    "status-rejected",
+            ["==", ["get", "status"], "Fixed"],       "status-fixed",
+            "status-approved",
           ],
           "icon-size": [
             "interpolate", ["linear"], ["zoom"],
@@ -587,7 +616,7 @@ export default function SiteMapMapLibre({
           ],
           "icon-allow-overlap": false,
           "icon-ignore-placement": false,
-          "symbol-sort-key": 1,  // stable draw order
+          "symbol-sort-key": 1,
         },
       });
       // Bulk-selection highlight — any pier whose code is in the shared
@@ -786,28 +815,28 @@ export default function SiteMapMapLibre({
     apply();
   }, [piersGeoJSON]);
 
-  // Push pier-status changes via feature-state — *not* by rebuilding
-  // the GeoJSON source.  setFeatureState is O(N) per call but doesn't
-  // re-tile or re-tessellate, so a single status edit costs
-  // microseconds instead of the ~hundreds of ms a full setData() would.
-  // The first run after data load primes every pier's state; subsequent
-  // runs only touch piers whose status actually changed.
+  // Status updates touch two map structures:
+  //   1. feature-state on the `piers` source — drives the circle
+  //      layer's colour expression (paint property; allowed to read
+  //      feature-state). Updated via setFeatureState/removeFeatureState
+  //      so a single edit costs microseconds, no re-tile.
+  //   2. the `pier-statuses` source — drives the icon symbol layer
+  //      (icon-image is layout, can't read feature-state). Rebuilt via
+  //      setData but only contains non-"New" piers, so the dataset is
+  //      a fraction of the 24 k base.
   const lastStatusesRef = useRef<Record<string, string>>({});
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
-      // Wait until the pier source exists (style still loading).
       if (!map.getSource("piers")) { setTimeout(apply, 50); return; }
       const prev = lastStatusesRef.current;
       const next = pierStatuses || {};
-      // Walk every known pier — this loop is bounded by the visible
-      // pier set and runs in microseconds for 24 k entries.
       for (const p of piers) {
         const code = p.pier_code;
         if (!code) continue;
         const v = next[code];
-        if (prev[code] === v) continue;     // unchanged → skip
+        if (prev[code] === v) continue;
         if (!v || v === "New") {
           map.removeFeatureState({ source: "piers", id: code });
         } else {
@@ -822,6 +851,19 @@ export default function SiteMapMapLibre({
     apply();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pierStatuses, piers]);
+
+  // Push the pier-statuses overlay to its source whenever the
+  // (smaller) overlay GeoJSON changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => {
+      const src = map.getSource("pier-statuses") as GeoJSONSource | undefined;
+      if (!src) { setTimeout(apply, 50); return; }
+      src.setData(pierStatusGeoJSON as any);
+    };
+    apply();
+  }, [pierStatusGeoJSON]);
 
   // Pier labels only depend on the pier set + threshold prefs, not on
   // statuses. Splitting this out kills the blink that used to fire on
