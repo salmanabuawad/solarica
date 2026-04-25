@@ -1054,10 +1054,13 @@ export default function SiteMapMapLibre({
       : Math.max(1, mapLabelStrideRef.current);
     for (let i = 0; i < visible.length; i += stride) {
       const [row, pos] = visible[i];
-      // Strip S prefix so short-tracker rows read the same as regular ones.
-      const display = row.replace(/^S/i, "");
+      // Keep the S prefix verbatim so an S-row chip ("R-S19") is
+      // visibly distinct from the regular numeric row of the same
+      // index ("R-19"). Earlier we stripped the S to "normalise" the
+      // pill, but that hid the S-row labels entirely behind the
+      // numeric ones.
       const el = document.createElement("div");
-      el.textContent = `R-${display}`;
+      el.textContent = `R-${row}`;
       // Clickable pill so row numbers behave like piers/trackers: hover
       // feedback, pointer cursor, click filters the grid + highlights on map.
       el.style.cssText =
