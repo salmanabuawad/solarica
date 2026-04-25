@@ -308,7 +308,13 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       .catch((e: any) => { if (!ignore) setError(String(e.message || e)); })
       .finally(() => { if (!ignore) setBusy(null); });
     return () => { ignore = true; };
-  }, [projectId]);
+    // Project list is fetched once on mount.  Re-fetching every time
+    // `projectId` changes was causing /api/projects to fire twice on
+    // first paint (mount + the inner setProjectId fallback). The
+    // handleProjectChanged callback re-fetches explicitly when the
+    // user creates / parses a project.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load lightweight project metadata immediately on project change.
   // We wait until the projects list has loaded AND confirmed that
@@ -608,11 +614,29 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         boxShadow: compact ? `${isRtl ? "-" : ""}4px 0 16px rgba(0,0,0,0.25)` : "none",
       }}
     >
-      <div style={{ padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", height: 56 }}>
+      <div style={{
+        // Taller header so the logo can grow into the available space
+        // without overflowing the sidebar width. `objectFit: contain`
+        // keeps the artwork's aspect ratio — only the rendered size
+        // changes, the logo content itself is unmodified.
+        padding: "8px 10px",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        background: "#ffffff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        height: 96,
+      }}>
         <img
-          src="/logo.svg"
+          src="/logo.png"
           alt="Solarica"
-          style={{ display: "block", width: "auto", maxWidth: "100%", height: "100%", maxHeight: 56, objectFit: "contain", objectPosition: "center" }}
+          style={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            objectPosition: "center",
+          }}
         />
       </div>
       <nav style={{ padding: "10px 8px", display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto" }}>
