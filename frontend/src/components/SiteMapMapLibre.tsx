@@ -664,16 +664,17 @@ export default function SiteMapMapLibre({
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
       });
 
-      // Pier number labels + viewport change: recompute on any movement end.
+      // Pier number labels + viewport change: recompute on any
+      // movement end. The initial refresh is owned by dedicated
+      // useEffects (`refreshPierLabels` / `refreshRowLabels` /
+      // `refreshBlockLabels`), so we don't fire them again here —
+      // doing so caused a double-render flicker on first paint.
       const refresh = () => {
         refreshPierLabels();
         refreshRowLabels();
       };
       map.on("moveend", refresh);
       map.on("zoomend", refresh);
-      refresh();
-      refreshBlockLabels();
-      refreshRowLabels();
     });
 
     return () => {
@@ -732,10 +733,23 @@ export default function SiteMapMapLibre({
       const src = map.getSource("piers") as GeoJSONSource | undefined;
       if (!src) { setTimeout(apply, 50); return; }
       src.setData(piersGeoJSON as any);
-      refreshPierLabels();
+      // Note: pier-label markers are NOT rebuilt here.  They only
+      // show `pier_code` (which doesn't change when pierStatuses
+      // updates), so destroying + recreating them on every status
+      // edit was a major source of visible flicker.  A dedicated
+      // effect below refreshes them only when the pier *set* or the
+      // label-threshold prefs actually change.
     };
     apply();
   }, [piersGeoJSON]);
+
+  // Pier labels only depend on the pier set + threshold prefs, not on
+  // statuses. Splitting this out kills the blink that used to fire on
+  // every status update.
+  useEffect(() => {
+    refreshPierLabels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [piers.length, imageWidth, pierLabelThreshold, pierDetailThreshold]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -744,7 +758,9 @@ export default function SiteMapMapLibre({
       const src = map.getSource("blocks") as GeoJSONSource | undefined;
       if (!src) { setTimeout(apply, 50); return; }
       src.setData(blocksGeoJSON as any);
-      refreshBlockLabels();
+      // refreshBlockLabels is owned by its dedicated effect below —
+      // calling it here too caused the labels to blink on every
+      // blocks-data tick.
     };
     apply();
   }, [blocksGeoJSON]);
@@ -784,7 +800,9 @@ export default function SiteMapMapLibre({
           map.setLayoutProperty("trackers-selected", "visibility", trackersOn ? "visible" : "none");
         }
       } catch { /* noop */ }
-      refreshRowLabels();
+      // Row labels live on their own effect (deps: rowLabelsOn +
+      // rowLabelData) so they don't re-render every time the tracker
+      // line data ticks — used to be a major flicker source.
     };
     apply();
   }, [trackersGeoJSON]);
@@ -883,13 +901,14 @@ export default function SiteMapMapLibre({
       show("trackers-selected", trackersOn);
       show("dccb-layer", layerVisible(layers, "dccb", false));
       show("inverters-layer", layerVisible(layers, "inverters", false));
-      // Block labels are HTML markers and can't use MapLibre layout
-      // visibility. Rebuild the marker set: create when the checkbox is
-      // on (and tear down when off) so the label set always matches the
-      // checkbox state — even if the checkbox was toggled AFTER block
-      // data arrived.
-      refreshBlockLabels();
-      refreshPierLabels();
+      // Block labels: cheap toggle on existing markers (display:
+      // none/""), no destroy-and-rebuild.  A separate effect below
+      // owns the actual marker creation when the checkbox flips on
+      // for the first time. This stops the visible flicker that used
+      // to fire whenever ANY layer checkbox changed.
+      for (const m of blockMarkersRef.current) {
+        m.getElement().style.display = blockLabelsOn ? "" : "none";
+      }
     };
     apply();
     // Row-label rendering lives in its OWN effect below so that toggling
@@ -907,6 +926,19 @@ export default function SiteMapMapLibre({
   useEffect(() => {
     refreshRowLabels();
   }, [rowLabelsOn, rowLabelData]);
+
+  // ---- Block labels — dedicated effect ----------------------------------
+  //
+  // Block-label HTML markers are expensive to recreate (DOM + style +
+  // map.addMarker per block). Rebuild only when the block set changes
+  // or the BlockLabels checkbox actually flips. The visibility effect
+  // above just toggles `display` on already-built markers, which is
+  // cheap and doesn't blink.
+  const blockLabelsOn = layerVisible(layers, "blockLabels");
+  useEffect(() => {
+    refreshBlockLabels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockLabelsOn, blocks, imageWidth]);
 
   // ---- HTML marker helpers ----------------------------------------------
 
