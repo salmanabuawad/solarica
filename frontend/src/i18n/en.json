@@ -60,7 +60,9 @@
     "dragThenApply": "Drag, then press ✓",
     "zoomHere": "Zoom & select this area",
     "grow": "Grow",
-    "shrink": "Shrink"
+    "shrink": "Shrink",
+    "exportExcel": "Export to Excel",
+    "exportTooltip": "Export the current view to a CSV file Excel can open"
   },
   "status": {
     "New": "New",

@@ -931,6 +931,46 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 <button onClick={() => setGridFilterValue("")} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}>Clear</button>
               )}
               <span style={{ fontSize: 12, color: "#64748b" }}>{filteredPiers.length.toLocaleString()} piers</span>
+              {/* Spacer to push the export button to the right edge of
+                  the toolbar — keeps it visually distinct from the
+                  filter widgets on its left. */}
+              <span style={{ flex: 1 }} />
+              <button
+                type="button"
+                title={t("details.exportTooltip", "Export the current view to a CSV file Excel can open")}
+                onClick={() => {
+                  const api = pierGridApiRef.current;
+                  if (!api || typeof api.exportDataAsCsv !== "function") return;
+                  const today = new Date().toISOString().slice(0, 10);
+                  api.exportDataAsCsv({
+                    fileName: `piers-${projectId || "export"}-${today}.csv`,
+                    // Respect column visibility, sort, and active filter
+                    // chips — what you see in the grid is what you get.
+                    onlySelectedAllPages: false,
+                  });
+                }}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #16a34a",
+                  background: "#16a34a",
+                  color: "#fff",
+                  cursor: "pointer",
+                  boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 4v12" />
+                  <polyline points="6 10 12 16 18 10" />
+                  <path d="M5 20h14" />
+                </svg>
+                {t("details.exportExcel", "Export to Excel")}
+              </button>
             </div>
             <FilterChipBar
               model={pierGridFilterModel}
@@ -950,21 +990,30 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <SimpleGrid
               rows={gridRows}
               columns={applyFieldConfigs(compact ? [
-                // Dedicated selection column so the multi-select checkbox
-                // sits as the grid's first column (ahead of any pinned
-                // data column).
+                // Dedicated selection column — the very first thing in
+                // the grid, sat right against the side panel. The
+                // checkbox renderer + header check-all is wired here
+                // (rather than on pier_code) so users always have a
+                // single, obvious "select-row" target. lockPosition +
+                // declaration order pin it to the absolute left.
                 {
                   colId: "__select", headerName: "", pinned: "left",
-                  width: 40, minWidth: 40, maxWidth: 40,
+                  width: 44, minWidth: 44, maxWidth: 44,
                   sortable: false, filter: false, resizable: false,
                   suppressMenu: true, suppressMovable: true,
                   suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: "left",
+                  lockPosition: "left", lockPinned: true,
+                  checkboxSelection: true,
+                  headerCheckboxSelection: true,
+                  headerCheckboxSelectionFilteredOnly: true,
                 },
                 // Single flat header row — grouped bands were rendering
-                // inconsistently when a column was pinned.
+                // inconsistently when a column was pinned. pier_code
+                // is no longer pinned so the checkbox column is the
+                // *only* thing pinned-left and reads as the grid's
+                // first cell.
+                { field: "pier_code", headerName: "Pier", headerTooltip: "Pier code" },
                 { field: "block_code", headerName: "Block", headerTooltip: "Block code" },
-                { field: "pier_code", headerName: "Pier", headerTooltip: "Pier code", pinned: "left" },
                 { field: "tracker_code", headerName: "Tracker", headerTooltip: "Tracker code" },
                 { field: "row_num", headerName: "Row", headerTooltip: "Row number" },
                 { field: "pier_type", headerName: "Pier Type", headerTooltip: "Pier type" },
@@ -976,32 +1025,38 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   cellEditorParams: { values: [...STATUS_OPTIONS] },
                 },
               ] : [
-                // Dedicated selection column pinned on the far left — the
-                // multi-select checkbox is the first thing in the grid.
+                // Dedicated selection column pinned on the far left —
+                // the multi-select checkbox sits flush against the side
+                // panel as the very first thing in the grid.
                 {
                   colId: "__select", headerName: "", pinned: "left",
-                  width: 40, minWidth: 40, maxWidth: 40,
+                  width: 44, minWidth: 44, maxWidth: 44,
                   sortable: false, filter: false, resizable: false,
                   suppressMenu: true, suppressMovable: true,
                   suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: "left",
+                  lockPosition: "left", lockPinned: true,
+                  checkboxSelection: true,
+                  headerCheckboxSelection: true,
+                  headerCheckboxSelectionFilteredOnly: true,
                 },
                 // Narrow defaults — columns flex proportionally but are
                 // capped so the table stays scannable instead of ballooning
-                // on wide monitors.
-                { field: "block_code",        headerName: "Block",        headerTooltip: "Block code",      flex: 1, minWidth: 60,  maxWidth: 90  },
-                { field: "pier_code",         headerName: "Pier",         headerTooltip: "Pier code",       pinned: "left", width: 100, minWidth: 90,  maxWidth: 120 },
-                { field: "tracker_code",      headerName: "Tracker",      headerTooltip: "Tracker code",    flex: 1, minWidth: 70,  maxWidth: 100 },
-                { field: "row_num",           headerName: "Row",          headerTooltip: "Row number",      flex: 1, minWidth: 55,  maxWidth: 75  },
-                { field: "pier_type",         headerName: "Pier Type",    headerTooltip: "HAP / HMP / SAP / SAPE / SAPEND / SMP", flex: 1, minWidth: 80,  maxWidth: 100 },
-                { field: "structure_code",    headerName: "Structure",    headerTooltip: "Structure code",  flex: 1, minWidth: 80,  maxWidth: 100 },
-                { field: "slope_band",        headerName: "Slope",        headerTooltip: "Slope band",      flex: 1, minWidth: 65,  maxWidth: 85  },
-                { field: "tracker_type_code", headerName: "Tracker Type", headerTooltip: "Tracker type code", flex: 1.2, minWidth: 110, maxWidth: 160 },
-                { field: "row_type",          headerName: "Row Type",     headerTooltip: "full = regular row, short = S-prefixed short tracker at block edge", flex: 1, minWidth: 70, maxWidth: 95 },
+                // on wide monitors. Widths trimmed once short codes (B1,
+                // T0001, P01, HAP, etc.) made the original sizes feel
+                // padded with empty space.
+                { field: "pier_code",         headerName: "Pier",         headerTooltip: "Pier code",       width: 84,  minWidth: 75,  maxWidth: 100 },
+                { field: "block_code",        headerName: "Block",        headerTooltip: "Block code",      flex: 1, minWidth: 50,  maxWidth: 75  },
+                { field: "tracker_code",      headerName: "Tracker",      headerTooltip: "Tracker code",    flex: 1, minWidth: 60,  maxWidth: 85  },
+                { field: "row_num",           headerName: "Row",          headerTooltip: "Row number",      flex: 1, minWidth: 48,  maxWidth: 65  },
+                { field: "pier_type",         headerName: "Type",         headerTooltip: "HAP / HMP / SAP / SAPE / SAPEND / SMP", flex: 1, minWidth: 60,  maxWidth: 80  },
+                { field: "structure_code",    headerName: "Struct.",      headerTooltip: "Structure code",  flex: 1, minWidth: 65,  maxWidth: 85  },
+                { field: "slope_band",        headerName: "Slope",        headerTooltip: "Slope band",      flex: 1, minWidth: 55,  maxWidth: 75  },
+                { field: "tracker_type_code", headerName: "Tracker Type", headerTooltip: "Tracker type code", flex: 1.1, minWidth: 95, maxWidth: 130 },
+                { field: "row_type",          headerName: "Row Type",     headerTooltip: "full = regular row, short = S-prefixed short tracker at block edge", flex: 1, minWidth: 60, maxWidth: 80 },
                 {
                   field: "status", headerName: "Status",
                   headerTooltip: "Click a cell to change status",
-                  width: 150, minWidth: 140, maxWidth: 170,
+                  width: 120, minWidth: 110, maxWidth: 140,
                   cellRenderer: StatusPill, cellClass: "status-cell",
                   editable: true, singleClickEdit: true,
                   cellEditor: "agSelectCellEditor",

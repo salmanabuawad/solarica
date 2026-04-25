@@ -60,7 +60,9 @@
     "dragThenApply": "Перетащите и нажмите ✓",
     "zoomHere": "Приблизить и выбрать область",
     "grow": "Увеличить",
-    "shrink": "Уменьшить"
+    "shrink": "Уменьшить",
+    "exportExcel": "Экспорт в Excel",
+    "exportTooltip": "Экспортировать текущий вид в CSV, открываемый Excel"
   },
   "status": {
     "New": "Новый",

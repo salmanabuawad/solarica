@@ -60,7 +60,9 @@
     "dragThenApply": "اسحب ثم اضغط ✓",
     "zoomHere": "تكبير واختيار هذه المنطقة",
     "grow": "تكبير",
-    "shrink": "تصغير"
+    "shrink": "تصغير",
+    "exportExcel": "تصدير إلى Excel",
+    "exportTooltip": "تصدير العرض الحالي إلى ملف CSV يمكن لـ Excel فتحه"
   },
   "status": {
     "New": "جديد",

@@ -60,7 +60,9 @@
     "dragThenApply": "גררו ולחצו ✓",
     "zoomHere": "זום לאזור זה ובחירה",
     "grow": "הגדלה",
-    "shrink": "הקטנה"
+    "shrink": "הקטנה",
+    "exportExcel": "ייצוא לאקסל",
+    "exportTooltip": "ייצוא הטבלה הנוכחית לקובץ CSV שאקסל יודע לפתוח"
   },
   "status": {
     "New": "חדש",
