@@ -686,14 +686,32 @@ export default function SiteMapMapLibre({
 
   // Resize the GL canvas when the container transitions from hidden to visible
   // (e.g. accordion toggling). Without this the canvas stays at 0x0 after a
-  // display:none→block cycle.
+  // display:none→block cycle. Also re-fit the camera to the current bounds
+  // whenever the container's pixel size changes substantially — otherwise
+  // the first fitBounds (which fires before the lazy parent has finished
+  // laying out) leaves the trackers as a tiny dot in the middle of the map.
+  const boundsRef = useRef<maplibregl.LngLatBounds | null>(null);
+  useEffect(() => { boundsRef.current = bounds; }, [bounds]);
   useEffect(() => {
     const el = containerRef.current;
     const map = mapRef.current;
     if (!el || !map) return;
+    // First-time auto-fit only.  Once we successfully fit the map to
+    // its bounds against a real, non-zero canvas, we stop auto-fitting
+    // on resize — otherwise window-resizes and side-panel toggles
+    // would fight against any zoom/pan the user has done since.
+    let firstFitDone = false;
     const ro = new ResizeObserver(() => {
-      if (el.clientWidth > 0 && el.clientHeight > 0) {
-        map.resize();
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w <= 0 || h <= 0) return;
+      map.resize();
+      if (!firstFitDone) {
+        const b = boundsRef.current;
+        if (b) {
+          map.fitBounds(b, { padding: 56, duration: 0 });
+          firstFitDone = true;
+        }
       }
     });
     ro.observe(el);
@@ -1069,17 +1087,21 @@ export default function SiteMapMapLibre({
     const container = containerRef.current;
     if (!map || !container) return;
 
-    const crect = container.getBoundingClientRect();
+    // The map container can still be reporting 0×0 right after lazy
+    // loading. Pick a sensible default and let the ResizeObserver below
+    // upgrade everything once the real container size is known.
     const minSide = 60;
-    const maxSide = Math.round(Math.min(crect.width, crect.height) * 0.9);
-    let side = Math.round(Math.min(crect.width, crect.height) * 0.14);
-    // Park in the bottom-LEFT corner by default (next to the side panel).
+    let side = 110;          // initial size used until container measures
+    let maxSide = 600;       // recalculated once container has size
     const margin = 10;
-    const initialTop = Math.max(margin, crect.height - side - margin);
 
     const box = document.createElement("div");
+    // Anchor with `bottom`+`left` so the square is always parked at the
+    // bottom-left even if the container hasn't laid out yet (useEffect
+    // can fire before the lazy-Suspense parent has its real height).
+    // The drag handler swaps `bottom` → `top` on first interaction.
     box.style.cssText =
-      `position: absolute; left: ${margin}px; top: ${initialTop}px; ` +
+      `position: absolute; left: ${margin}px; bottom: ${margin}px; ` +
       `width: ${side}px; height: ${side}px; ` +
       // Soft-dashed outline + a subtle tinted fill so the drag area is
       // discoverable without screaming for attention, and a crisp drop
@@ -1087,6 +1109,35 @@ export default function SiteMapMapLibre({
       `border: 1.5px dashed #334155; background: rgba(248,250,252,0.35); ` +
       `border-radius: 8px; cursor: grab; z-index: 20; touch-action: none; ` +
       `box-shadow: 0 2px 8px rgba(15,23,42,0.08);`;
+
+    // Once the container actually has size, scale `side` to ~14 % of
+    // the shorter edge and clamp to the new max. Box stays anchored
+    // bottom-left via CSS `bottom` until the user interacts with it.
+    const ro = new ResizeObserver(() => {
+      const c = container.getBoundingClientRect();
+      if (!c.width || !c.height) return;
+      maxSide = Math.round(Math.min(c.width, c.height) * 0.9);
+      const target = Math.round(Math.min(c.width, c.height) * 0.14);
+      const next = Math.max(minSide, Math.min(maxSide, target));
+      if (next !== side) {
+        side = next;
+        box.style.width = `${side}px`;
+        box.style.height = `${side}px`;
+      }
+    });
+    ro.observe(container);
+
+    // Convert from CSS `bottom` to absolute `top` lazily, the first
+    // time the user grabs the box. Without this, every mouse move
+    // would have to recompute against `bottom`, and resizing wouldn't
+    // keep the box pinned to the bottom-left until the user moves it.
+    function pinToTop() {
+      if (box.style.top) return;
+      const c = container.getBoundingClientRect();
+      const offsetTop = c.height - side - margin;
+      box.style.top = `${Math.max(margin, offsetTop)}px`;
+      box.style.bottom = "";
+    }
 
     // Small pill-style toolbar parked at the top of the square with
     // icon-only buttons: ✓ apply, + grow, − shrink. Each button is a
@@ -1143,10 +1194,13 @@ export default function SiteMapMapLibre({
     function updateHintVisibility() { /* no-op */ }
 
     function resize(delta: number) {
+      // First +/- click pins the box to top/left coords so we can
+      // recompute its centre from `style.left/top`.
+      pinToTop();
       const c = container.getBoundingClientRect();
       const newSide = Math.max(minSide, Math.min(maxSide, side + delta));
       const prevCX = parseFloat(box.style.left) + side / 2;
-      const prevCY = parseFloat(box.style.top) + side / 2;
+      const prevCY = parseFloat(box.style.top || "0") + side / 2;
       side = newSide;
       box.style.width = `${side}px`;
       box.style.height = `${side}px`;
@@ -1161,6 +1215,8 @@ export default function SiteMapMapLibre({
     function onDown(ev: PointerEvent) {
       ev.preventDefault();
       ev.stopPropagation();
+      // Convert from CSS bottom→top so the move handler can use top.
+      pinToTop();
       dragging = true;
       isBoxDraggingRef.current = true;
       box.style.cursor = "grabbing";
@@ -1190,6 +1246,7 @@ export default function SiteMapMapLibre({
     }
 
     function applyZoom() {
+      pinToTop();   // ensure style.top is populated for the math below
       // Compute world bounds under the box and zoom-fit them.
       const c = container.getBoundingClientRect();
       const x0 = parseFloat(box.style.left);
@@ -1239,8 +1296,11 @@ export default function SiteMapMapLibre({
           box.style.height = `${side}px`;
           updateHintVisibility();
         }
+        // Re-park to the bottom-left using CSS `bottom` (not `top`) so
+        // the position survives any subsequent container resize.
         box.style.left = `${margin}px`;
-        box.style.top  = `${Math.max(margin, cc.height - side - margin)}px`;
+        box.style.top = "";
+        box.style.bottom = `${margin}px`;
       });
     }
 
@@ -1248,6 +1308,7 @@ export default function SiteMapMapLibre({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     return () => {
+      ro.disconnect();
       box.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);

@@ -851,7 +851,29 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 <button onClick={() => setGridFilterValue("")} style={{ fontSize: 12, background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>Clear filter</button>
               )}
             </div>
-            <div style={{ height: compact ? "calc(100vh - 230px)" : "calc(100vh - 200px)", minHeight: compact ? 300 : 400, borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0" }}>
+            <div style={{
+              // 100dvh = "dynamic" viewport height — on iOS Safari the
+              // address bar / tab bar shrink it as they slide in/out, so
+              // the map never sits behind those system bars. Plain
+              // 100vh treats the viewport as if those bars were gone,
+              // which is what cropped the map at the bottom on phones.
+              // Fall back to 100vh for browsers that don't speak dvh.
+              height: compact
+                ? "calc(100dvh - 230px)"
+                : "calc(100dvh - 200px)",
+              minHeight: compact ? 280 : 380,
+              maxHeight: "calc(100vh - 120px)",
+              borderRadius: 12,
+              overflow: "hidden",
+              border: "1px solid #e2e8f0",
+              // Mobile padding so the map's rounded corners don't bleed
+              // off the screen edges; desktop gets none (ample room).
+              margin: compact ? "0 6px" : 0,
+              // Honour iOS safe-area inset so the bottom edge clears
+              // the home indicator / tab bar.
+              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+              boxSizing: "border-box",
+            }}>
               <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 13, color: "#64748b" }}>Loading map…</div>}>
                 <SiteMapMapLibre
                   imageWidth={project?.base_image?.width || 1}
