@@ -171,9 +171,22 @@ export default function FieldConfigManager() {
                   <td style={{ ...td, textAlign: "right" }}>
                     <input
                       type="number"
+                      min={30}
+                      max={600}
+                      step={4}
                       value={r.width ?? ""}
                       placeholder="auto"
-                      onChange={(e) => patch(r, { width: e.target.value === "" ? null : Number(e.target.value) })}
+                      title="Column width in pixels (30–600). Leave blank for auto."
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === "") { patch(r, { width: null }); return; }
+                        // Clamp to [30, 600] so an accidental keypress
+                        // (e.g. typing 2 → 20) can't collapse a column
+                        // to a sliver. Empty stays as null = auto.
+                        const n = Number(raw);
+                        if (!Number.isFinite(n)) return;
+                        patch(r, { width: Math.max(30, Math.min(600, Math.round(n))) });
+                      }}
                       style={{ ...inp, width: 80, textAlign: "right" }}
                     />
                   </td>
