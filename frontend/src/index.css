@@ -235,6 +235,38 @@ html, body {
   --ag-grid-size: 6px;
 }
 
+/* Cells truncate with an ellipsis when content overflows the cell —
+   instead of being chopped mid-character.  Applies everywhere; on
+   mobile the narrower columns make this far more visible. */
+.ag-theme-quartz .ag-cell {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ag-theme-quartz .ag-header-cell-text {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Mobile / narrow viewport: shrink the grid font, row height, and
+   horizontal cell padding so more characters fit per column without
+   needing horizontal scroll.  Together with the ellipsis above, data
+   that still overflows reads as "T0001-P0…" instead of "T0001-P". */
+@media (max-width: 768px) {
+  .ag-theme-quartz {
+    --ag-font-size: 11px;
+    --ag-row-height: 28px;
+    --ag-header-height: 32px;
+    --ag-cell-horizontal-padding: 6px;
+    --ag-grid-size: 4px;
+  }
+  .ag-theme-quartz .ag-header-cell {
+    font-size: 10.5px;
+    letter-spacing: 0.01em;
+  }
+}
+
 /* Header: semibold, slightly tracked letters, bolder bottom border */
 .ag-theme-quartz .ag-header {
   border-bottom: 2px solid #cbd5e1;
