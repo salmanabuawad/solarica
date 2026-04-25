@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  getProject,
-  getPlantInfo,
   updatePlantInfo,
   createProject,
   listProjectFiles,
@@ -33,11 +31,14 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
   const compact = isMobile || isTablet;
   const { online } = useOnlineStatus();
   const [error, setError] = useState("");
-  // Use props from App when available; fall back to local state for backward compat.
-  const [localProject, setLocalProject] = useState<any>(null);
-  const [localPlantInfo, setLocalPlantInfo] = useState<any>(null);
-  const project = projectProp ?? localProject;
-  const plantInfo = plantInfoProp ?? localPlantInfo;
+  // Project + plantInfo are owned exclusively by App.tsx now — we
+  // read them from props and never re-fetch. Used to fetch them
+  // ourselves as a "legacy" fallback, but that meant /api/projects/:id
+  // and /api/projects/:id/plant-info each fired 3 times on a fresh
+  // load (App + 2 SystemPanel instances), causing the visible blink
+  // as state arrived in waves.
+  const project = projectProp ?? null;
+  const plantInfo = plantInfoProp ?? null;
   const [editingPlant, setEditingPlant] = useState(false);
   const [plantDraft, setPlantDraft] = useState<any>({});
   const [files, setFiles] = useState<any[]>([]);
@@ -62,38 +63,22 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
     }
   }
 
-  // Legacy: fetch everything only when props aren't provided.
-  async function refreshAll() {
-    if (!projectId) return;
-    try {
-      const [proj, pi, fl] = await Promise.all([
-        projectProp ? Promise.resolve(null) : getProject(projectId).catch(() => null),
-        plantInfoProp ? Promise.resolve(null) : getPlantInfo(projectId).catch(() => ({})),
-        listProjectFiles(projectId).catch(() => []),
-      ]);
-      if (!projectProp) setLocalProject(proj);
-      if (!plantInfoProp) setLocalPlantInfo(pi);
-      setFiles(fl);
-    } catch (e: any) {
-      setError(String(e.message || e));
-    }
-  }
-
+  // Only the "files" section actually shows the file list — the
+  // "info" section just renders project/plantInfo from props.  Skip
+  // the listProjectFiles call entirely when we're rendering the
+  // info section so two mounted SystemPanels don't both hit
+  // /api/files (one would dedupe on jDeduped if concurrent, but in
+  // practice the two effects fire moments apart and the dedupe map
+  // has already cleared, producing two real HTTP requests).
   useEffect(() => {
     setError("");
     setParseMsg("");
-    setLocalProject(null);
-    setLocalPlantInfo(null);
     setFiles([]);
     setEditingPlant(false);
-    if (projectId) {
-      if (projectProp && plantInfoProp) {
-        refreshFiles();
-      } else {
-        refreshAll();
-      }
+    if (projectId && section === "files") {
+      refreshFiles();
     }
-  }, [projectId]);
+  }, [projectId, section]);
 
   async function handleCreateProject() {
     const id = newProjectId.trim();
@@ -161,7 +146,8 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
           setBusy("Parsing… this may take a minute or two");
           const result = await parseProject(projectId);
           setParseMsg(`Parsed: ${result.block_count} blocks, ${result.tracker_count} trackers, ${result.pier_count} piers`);
-          await refreshAll();
+          await refreshFiles();
+          // App.tsx owns project + plantInfo; ask it to re-fetch.
           onProjectChanged?.(projectId);
         } catch (e: any) {
           setError(String(e.message || e));
@@ -183,7 +169,8 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
         toSave.tolerance_ratio = isNaN(n) ? 0.05 : n;
       }
       const updated = await updatePlantInfo(projectId, toSave);
-      setLocalPlantInfo(updated);
+      // App.tsx owns plantInfo state via the onPlantInfoChanged
+      // callback — no need to mirror it locally.
       onPlantInfoChanged?.(updated);
       setEditingPlant(false);
     } catch (e: any) {

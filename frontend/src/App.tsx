@@ -350,7 +350,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     params.set("project", projectId);
     window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
     return () => { ignore = true; };
-  }, [projectId, refreshKey, projects]);
+    // `projects` was previously listed as a dep so the early-return
+    // validation re-ran when the project list arrived. That made the
+    // project + plant-info endpoints fire twice on every load — once
+    // before /api/projects responded and once after. The other
+    // useEffect (line ~290) already calls setProjectId() when the URL
+    // slug is invalid, which triggers THIS effect via the projectId
+    // dep with the corrected id, so removing `projects` is safe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, refreshKey]);
 
   // Load heavy data (blocks, trackers, 25k piers) in the background after
   // project metadata loads. This way the data is ready by the time the user
@@ -595,7 +603,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const sidebar = (
     <aside
       style={{
-        width: compact ? "min(220px, 78vw)" : 172,
+        width: compact ? "min(220px, 78vw)" : 200,
         flexShrink: 0,
         background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
         color: "#e2e8f0",
@@ -615,27 +623,29 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       }}
     >
       <div style={{
-        // Taller header so the logo can grow into the available space
-        // without overflowing the sidebar width. `objectFit: contain`
-        // keeps the artwork's aspect ratio — only the rendered size
-        // changes, the logo content itself is unmodified.
-        padding: "8px 10px",
+        // Comfortable breathing room above and below the wordmark
+        // (16 px) so the logo doesn't kiss the top of the sidebar
+        // or the navigation underneath.  Sides keep tight padding
+        // so the logo still extends close to the sidebar edges.
+        padding: "16px 6px",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         background: "#ffffff",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        height: 96,
       }}>
         <img
           src="/logo.png"
           alt="Solarica"
           style={{
             display: "block",
+            // `width: 100%` plus `max-width: none` overrides the
+            // browser's default `max-width: 100%` on <img> so the
+            // bitmap is up-scaled to fill the sidebar (152 → ~190 px
+            // on desktop).  The image's natural aspect drives height.
             width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            objectPosition: "center",
+            maxWidth: "none",
+            height: "auto",
           }}
         />
       </div>
@@ -1059,26 +1069,13 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <SimpleGrid
               rows={gridRows}
               columns={applyFieldConfigs(compact ? [
-                // Dedicated selection column — the very first thing in
-                // the grid, sat right against the side panel.
-                // SimpleGrid wires `rowSelection.checkboxes` (v33 API)
-                // which auto-places the checkbox + header check-all
-                // here; we MUST NOT also set `checkboxSelection` on
-                // the column or ag-grid renders a second checkbox.
-                {
-                  colId: "__select", headerName: "", pinned: "left",
-                  width: 44, minWidth: 44, maxWidth: 44,
-                  sortable: false, filter: false, resizable: false,
-                  suppressMenu: true, suppressMovable: true,
-                  suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: "left", lockPinned: true,
-                },
-                // Single flat header row — grouped bands were rendering
-                // inconsistently when a column was pinned. pier_code
-                // is no longer pinned so the checkbox column is the
-                // *only* thing pinned-left and reads as the grid's
-                // first cell.
-                { field: "pier_code", headerName: "Pier", headerTooltip: "Pier code" },
+                // No dedicated `__select` column — ag-grid v33 renders
+                // the row + header checkboxes inside the first column
+                // automatically (rowSelection.checkboxes / headerCheckbox
+                // wired up in SimpleGrid). Reserving a separate column
+                // produced an extra empty header row above the real
+                // headers (`ag-header-parent-hidden` group cell).
+                { field: "pier_code", headerName: "Pier", headerTooltip: "Pier code", pinned: "left" },
                 { field: "block_code", headerName: "Block", headerTooltip: "Block code" },
                 { field: "tracker_code", headerName: "Tracker", headerTooltip: "Tracker code" },
                 { field: "row_num", headerName: "Row", headerTooltip: "Row number" },
@@ -1091,21 +1088,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   cellEditorParams: { values: [...STATUS_OPTIONS] },
                 },
               ] : [
-                // Dedicated selection column pinned on the far left —
-                // the multi-select checkbox sits flush against the side
-                // panel as the very first thing in the grid.  SimpleGrid
-                // wires `rowSelection.checkboxes` (v33 API) which
-                // auto-places the checkbox here; do not set
-                // `checkboxSelection` on the column or ag-grid renders
-                // a duplicate.
-                {
-                  colId: "__select", headerName: "", pinned: "left",
-                  width: 44, minWidth: 44, maxWidth: 44,
-                  sortable: false, filter: false, resizable: false,
-                  suppressMenu: true, suppressMovable: true,
-                  suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: "left", lockPinned: true,
-                },
+                // No dedicated `__select` column — ag-grid v33 renders
+                // the row + header checkboxes inside the first regular
+                // column (pier_code) automatically. A reserved
+                // selection column added an extra empty header row
+                // (`ag-header-parent-hidden`) above the real headers.
+                //
                 // Widths are content-driven: a one-time DB scan measured
                 // the actual max length of each field across every pier,
                 // and the result was upserted into `field_configurations`
@@ -1114,7 +1102,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 // is unreachable) and match the DB defaults exactly.
                 // Formula: chars * 7 + 30 px (24 px L+R padding + ~6 px
                 // for the sort / filter icon).
-                { field: "pier_code",         headerName: "Pier",         headerTooltip: "Pier code",       width: 100 },
+                { field: "pier_code",         headerName: "Pier",         headerTooltip: "Pier code",       pinned: "left", width: 100 },
                 { field: "block_code",        headerName: "Block",        headerTooltip: "Block code",      width: 70  },
                 { field: "tracker_code",      headerName: "Tracker",      headerTooltip: "Tracker code",    width: 85  },
                 { field: "row_num",           headerName: "Row",          headerTooltip: "Row number",      width: 60  },
@@ -1256,8 +1244,13 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       </div>
 
       {/* ---- TAB: Field Config (admin only) ---- */}
-      {authUser.role === "admin" && (
-        <div style={{ display: activeTab === "fields" ? "block" : "none" }}>
+      {/* Admin tabs are conditionally rendered (not just hidden via
+          display:none) so their internal data fetch only fires when
+          the tab is actually opened. Previously these mounted on
+          first paint and each fired /api/field-configs and /api/users
+          immediately, contributing to the visible blink. */}
+      {authUser.role === "admin" && activeTab === "fields" && (
+        <div>
           <Suspense fallback={<div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>{t("app.loading")}</div>}>
             <FieldConfigManager />
           </Suspense>
@@ -1265,8 +1258,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       )}
 
       {/* ---- TAB: Users (admin only) ---- */}
-      {authUser.role === "admin" && (
-        <div style={{ display: activeTab === "users" ? "block" : "none" }}>
+      {authUser.role === "admin" && activeTab === "users" && (
+        <div>
           <Suspense fallback={<div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>{t("app.loading")}</div>}>
             <UsersManager />
           </Suspense>

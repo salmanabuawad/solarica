@@ -458,7 +458,10 @@ export interface FieldConfig {
 
 export async function listFieldConfigs(gridName?: string): Promise<FieldConfig[]> {
   const qs = gridName ? `?grid_name=${encodeURIComponent(gridName)}` : "";
-  return j<FieldConfig[]>(`${API}/api/field-configs${qs}`);
+  // jDeduped collapses concurrent identical fetches into a single
+  // HTTP request — useful here because both App and FieldConfigManager
+  // can spin up the same query within the same tick.
+  return jDeduped<FieldConfig[]>(`${API}/api/field-configs${qs}`);
 }
 
 export async function upsertFieldConfigs(rows: FieldConfig[]): Promise<{ updated: number }> {

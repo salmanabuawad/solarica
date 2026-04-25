@@ -73,6 +73,7 @@ export default function SiteMapMapLibre({
   const blockMarkersRef = useRef<maplibregl.Marker[]>([]);
   const rowLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   const pierLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const trackerLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   // Ref raised while the corner zoom-square is actively being dragged,
   // so the map click handlers can skip pier / tracker / block clicks
   // under the pointer during a drag.
@@ -89,6 +90,7 @@ export default function SiteMapMapLibre({
   const piersRef = useRef(piers);
   useEffect(() => { piersRef.current = piers; }, [piers]);
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
+  const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
 
   // ---- GeoJSON sources (memoized by dataset) ------------------------------
 
@@ -242,6 +244,32 @@ export default function SiteMapMapLibre({
     }
     return rowEdges;
   }, [piers, imageWidth]);
+
+  // Tracker labels: compute one position per tracker_code, anchored at
+  // the centre of the tracker bbox so the label sits over its row.
+  // Only rendered when the user is zoomed in enough (see
+  // refreshTrackerLabels below) — otherwise 1 533 labels would clobber
+  // the map.
+  const trackerLabelData = useMemo(() => {
+    const out: Record<string, { lng: number; lat: number }> = {};
+    if (!imageWidth || imageWidth <= 0) return out;
+    for (const t of trackers) {
+      if (!t?.tracker_code) continue;
+      const box = t.bbox as { x: number; y: number; w: number; h: number } | undefined;
+      let cx: number, cy: number;
+      if (box && typeof box.x === "number" && typeof box.w === "number") {
+        cx = box.x + box.w / 2;
+        cy = box.y + box.h / 2;
+      } else if (typeof t.center_x === "number" && typeof t.center_y === "number") {
+        cx = t.center_x; cy = t.center_y;
+      } else {
+        continue;
+      }
+      const [lng, lat] = rotatedToLngLat(cx, cy, imageWidth);
+      out[t.tracker_code] = { lng, lat };
+    }
+    return out;
+  }, [trackers, imageWidth]);
 
   // DCCB + Inverter sources — both come from the electrical parser as
   // `{type, name, x, y}` in PDF-point coordinates, so the same 90° CCW
@@ -652,6 +680,7 @@ export default function SiteMapMapLibre({
       const refresh = () => {
         refreshPierLabels();
         refreshRowLabels();
+        refreshTrackerLabels();
       };
       map.on("moveend", refresh);
       map.on("zoomend", refresh);
@@ -927,6 +956,19 @@ export default function SiteMapMapLibre({
     refreshRowLabels();
   }, [rowLabelsOn, rowLabelData]);
 
+  // ---- Tracker labels — dedicated effect --------------------------------
+  //
+  // Tracker codes (T0001…T1533) appear as small chips when the Trackers
+  // checkbox is on AND the user is zoomed in enough to read them
+  // (1 533 labels at site overview would be unreadable). The actual
+  // rendering happens in refreshTrackerLabels which checks the zoom
+  // level and the viewport — this effect just resets the label set
+  // when the toggle or data changes.
+  const trackersOnForLabels = layerVisible(layers, "trackers");
+  useEffect(() => {
+    refreshTrackerLabels();
+  }, [trackersOnForLabels, trackerLabelData]);
+
   // ---- Block labels — dedicated effect ----------------------------------
   //
   // Block-label HTML markers are expensive to recreate (DOM + style +
@@ -947,6 +989,8 @@ export default function SiteMapMapLibre({
     pierLabelMarkersRef.current = [];
     for (const m of rowLabelMarkersRef.current) m.remove();
     rowLabelMarkersRef.current = [];
+    for (const m of trackerLabelMarkersRef.current) m.remove();
+    trackerLabelMarkersRef.current = [];
     for (const m of blockMarkersRef.current) m.remove();
     blockMarkersRef.current = [];
   }
@@ -974,6 +1018,7 @@ export default function SiteMapMapLibre({
 
   // Keep the data ref in sync so the zoom/move handlers always see fresh data.
   useEffect(() => { rowLabelDataRef.current = rowLabelData; }, [rowLabelData]);
+  useEffect(() => { trackerLabelDataRef.current = trackerLabelData; }, [trackerLabelData]);
 
   function refreshRowLabels() {
     const map = mapRef.current;
@@ -1012,6 +1057,48 @@ export default function SiteMapMapLibre({
         .setLngLat([pos.lng, pos.lat + 0.003])
         .addTo(map);
       rowLabelMarkersRef.current.push(marker);
+    }
+  }
+
+  // Tracker labels — small "T0001" pills centred on each tracker. With
+  // 1 533 trackers we only render labels above a zoom threshold (the
+  // map text would be unreadable below it) and clip to the viewport so
+  // the marker count stays bounded as the user pans around.
+  function refreshTrackerLabels() {
+    const map = mapRef.current;
+    if (!map) return;
+    for (const m of trackerLabelMarkersRef.current) m.remove();
+    trackerLabelMarkersRef.current = [];
+    if (!layerVisible(layersRef.current, "trackers")) return;
+    // Anything below ~zoom 14 produces overlapping chips that read as
+    // visual noise; gate the labels until the user zooms in.
+    if (map.getZoom() < 14) return;
+
+    const bounds = map.getBounds();
+    let placed = 0;
+    for (const [code, pos] of Object.entries(trackerLabelDataRef.current)) {
+      if (!bounds.contains([pos.lng, pos.lat])) continue;
+      const el = document.createElement("div");
+      el.textContent = code;
+      el.style.cssText =
+        "font: 700 10px Arial, sans-serif; color: #15803d; cursor: pointer; " +
+        "background: rgba(255,255,255,0.92); border: 1px solid #86efac; " +
+        "border-radius: 999px; padding: 0 6px; white-space: nowrap; " +
+        "box-shadow: 0 1px 2px rgba(0,0,0,0.06); user-select: none;";
+      el.addEventListener("mouseenter", () => { el.style.background = "#dcfce7"; });
+      el.addEventListener("mouseleave", () => { el.style.background = "rgba(255,255,255,0.92)"; });
+      el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        onTrackerClick({ tracker_code: code });
+      });
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat([pos.lng, pos.lat])
+        .addTo(map);
+      trackerLabelMarkersRef.current.push(marker);
+      placed++;
+      // Hard cap so a stuck zoom-out can't accidentally try to mount
+      // 1 500 DOM nodes.
+      if (placed > 400) break;
     }
   }
 
