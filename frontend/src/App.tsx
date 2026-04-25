@@ -752,6 +752,25 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               ☰
             </button>
           )}
+          {/* Logo on mobile: the sidebar is hidden behind the hamburger
+              by default, so on phones the brand wasn't visible at all
+              until the user opened the slide-out. Pinning it to the
+              top header keeps the brand present at every page. */}
+          {compact && (
+            <img
+              src="/logo.png"
+              alt="Solarica"
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                height: 32,
+                width: "auto",
+                maxWidth: "40vw",
+                objectFit: "contain",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            />
+          )}
           <select
             autoComplete="off"
             value={projectId}
