@@ -410,7 +410,13 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setInverters([]);
     setDccbs([]);
 
-    setBusy(t("app.loading"));
+    // Heavy data (blocks/trackers/piers/statuses) loads in the
+    // background — no busy overlay. The project-info tab is
+    // already interactive once project + plantInfo land, so
+    // blocking the whole screen for a 2 s pier fetch made
+    // first-paint feel slow. The Details tab shows its own
+    // inline loading state if the user navigates there before
+    // the data arrives.
     Promise.all([getBlocks(projectId), getTrackers(projectId), getPiers(projectId), getPierStatuses(projectId)])
       .then(([b, tr, pi, st]) => {
         if (ignore) return;
@@ -419,20 +425,24 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         setPiers(pi);
         setPierStatuses(st || {});
       })
-      .catch((e: any) => { if (!ignore) setError(String(e.message || e)); })
-      .finally(() => { if (!ignore) setBusy(null); });
+      .catch((e: any) => { if (!ignore) setError(String(e.message || e)); });
 
-    // Fetch the electrical devices in parallel but don't block the
-    // overall "loading" spinner — the core map still renders without
-    // them. Failures are soft (empty arrays keep the layers blank).
-    getElectricalDevices(projectId)
-      .then((dev) => {
-        if (ignore) return;
-        setInverters(dev?.inverters ?? []);
-        setDccbs(dev?.dccb ?? []);
-      })
-      .catch(() => { /* soft failure — layers stay empty */ });
-    return () => { ignore = true; };
+    // Electrical devices is the slowest endpoint (4 s+, re-parses
+    // the PDF on every call) and the layers it feeds are off by
+    // default — defer it.  setTimeout pushes the fetch off the
+    // critical-path microtask queue so it doesn't compete with
+    // the heavy-data fetch above for bandwidth.
+    const tid = setTimeout(() => {
+      if (ignore) return;
+      getElectricalDevices(projectId)
+        .then((dev) => {
+          if (ignore) return;
+          setInverters(dev?.inverters ?? []);
+          setDccbs(dev?.dccb ?? []);
+        })
+        .catch(() => { /* soft failure — layers stay empty */ });
+    }, 1500);
+    return () => { ignore = true; clearTimeout(tid); };
   }, [projectId, refreshKey, project]);
 
   function handleStatusChange(pierId: string, status: string) {

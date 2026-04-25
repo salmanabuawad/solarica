@@ -9,15 +9,26 @@ sharing the same leading INV index (see `electrical_parser`).
 If the project has no construction PDF (or the file is missing on disk)
 we return empty lists rather than 500-ing — the map layers simply stay
 empty and the user sees no markers.
+
+Performance:
+- The PDF text-extraction step (~4 s on Ashalim) is cached per project
+  via an in-process dict keyed by (project_uuid, latest pdf mtime).
+  The cache invalidates automatically on re-upload / re-parse because
+  any file mtime change produces a different cache key.
 """
 from __future__ import annotations
 
+import os
 from fastapi import APIRouter, HTTPException
 
 from app.services import db_store
 from .electrical_parser import extract_dccb, infer_inverters_from_dccb
 
 router = APIRouter()
+
+# In-process cache: { (project_uuid, "mtime1,mtime2,..."): {"dccb": [...], "inverters": [...]} }
+# Reset on process restart, which is fine — the parsing is deterministic.
+_DEVICES_CACHE: dict[tuple[str, str], dict] = {}
 
 
 def _text_words_from_pdf(pdf_path: str) -> list[dict]:
@@ -65,13 +76,24 @@ def get_electrical_devices(project_id: str) -> dict:
     # of the construction PDF.  Scan every uploaded PDF for this project
     # and union the hits.
     files = db_store.list_project_files(uuid)
-    pdf_paths = [
+    pdf_paths = sorted(
         f["storage_path"]
         for f in files
         if f.get("storage_path", "").lower().endswith(".pdf")
-    ]
+    )
     if not pdf_paths:
         return {"dccb": [], "inverters": []}
+
+    # Cache key includes every PDF's mtime so re-uploading a file
+    # naturally invalidates the cache.
+    try:
+        mtimes = ",".join(str(int(os.path.getmtime(p))) for p in pdf_paths)
+    except Exception:
+        mtimes = "0"
+    cache_key = (uuid, mtimes)
+    cached = _DEVICES_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
 
     text_blocks: list[dict] = []
     for p in pdf_paths:
@@ -86,4 +108,6 @@ def get_electrical_devices(project_id: str) -> dict:
         import sys
         print(f"[electrical_parser] failed: {e!r}", file=sys.stderr)
         dccb, inverters = [], []
-    return {"dccb": dccb, "inverters": inverters}
+    result = {"dccb": dccb, "inverters": inverters}
+    _DEVICES_CACHE[cache_key] = result
+    return result
