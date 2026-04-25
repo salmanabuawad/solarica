@@ -72,6 +72,9 @@
     "Rejected": "Rejeté",
     "Fixed": "Corrigé"
   },
+  "dashboard": {
+    "totalPiers": "Total des pieux"
+  },
   "column": {
     "block": "Bloc",
     "pier": "Pieu",

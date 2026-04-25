@@ -72,6 +72,9 @@
     "Rejected": "مرفوض",
     "Fixed": "تم الإصلاح"
   },
+  "dashboard": {
+    "totalPiers": "إجمالي الأعمدة"
+  },
   "column": {
     "block": "كتلة",
     "pier": "عمود",

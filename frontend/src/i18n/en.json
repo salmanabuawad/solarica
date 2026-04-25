@@ -72,6 +72,9 @@
     "Rejected": "Rejected",
     "Fixed": "Fixed"
   },
+  "dashboard": {
+    "totalPiers": "Total Piers"
+  },
   "column": {
     "block": "Block",
     "pier": "Pier",

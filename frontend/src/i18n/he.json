@@ -72,6 +72,9 @@
     "Rejected": "נדחה",
     "Fixed": "תוקן"
   },
+  "dashboard": {
+    "totalPiers": "סך כל העמודים"
+  },
   "column": {
     "block": "בלוק",
     "pier": "עמוד",

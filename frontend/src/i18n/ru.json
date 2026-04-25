@@ -72,6 +72,9 @@
     "Rejected": "Отклонено",
     "Fixed": "Исправлено"
   },
+  "dashboard": {
+    "totalPiers": "Всего опор"
+  },
   "column": {
     "block": "Блок",
     "pier": "Опора",

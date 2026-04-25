@@ -10,6 +10,7 @@ const UsersManager = lazy(() => import("./components/UsersManager"));
 import { useFieldConfigs, applyFieldConfigs } from "./hooks/useFieldConfigs";
 const FieldConfigManager = lazy(() => import("./components/FieldConfigManager"));
 import SimpleGrid from "./components/SimpleGrid";
+import StatusDashboard from "./components/StatusDashboard";
 import LayerTogglePanel from "./components/LayerTogglePanel";
 import PierModal from "./components/PierModal";
 import SystemPanel from "./components/SystemPanel";
@@ -175,8 +176,12 @@ const INITIAL_LAYERS = [
   { key: "row_labels",  label: "Row numbers", visible: true },
   { key: "piers",       label: "Piers",       visible: true },
   { key: "trackers",    label: "Trackers",    visible: true },
+  // Single "Blocks" checkbox now drives BOTH the block fill/outline
+  // AND the block-number HTML markers — keeps the checkbox row to
+  // four entries so it stays on a single line on phones. The map
+  // component still reads `blockLabels` for the marker visibility but
+  // the App layer to map shim below mirrors `blocks` → `blockLabels`.
   { key: "blocks",      label: "Blocks",      visible: false },
-  { key: "blockLabels", label: "Block labels", visible: false },
   // Electrical devices (Inverters / DCCB) are loaded and rendered on
   // the map, but their checkboxes are hidden for now until the symbol
   // set and labelling are finalised. To re-expose them, re-add:
@@ -188,8 +193,8 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   piers:       "layers.piers",
   trackers:    "layers.trackers",
   blocks:      "layers.blocks",
-  blockLabels: "layers.blockLabels",
-  inverters:   "layers.inverters",  // kept for when the checkboxes come back
+  blockLabels: "layers.blockLabels",  // unused in the toolbar; kept for compat
+  inverters:   "layers.inverters",
   dccb:        "layers.dccb",
 };
 
@@ -789,26 +794,35 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
       {/* ---- TAB: Details (Grid / Map) ---- */}
       <div style={{ display: activeTab === "mapgrid" ? "block" : "none" }}>
+        {/* Status dashboard — total piers + breakdown by status. Lives
+            above the Grid/Map toggle so the operator sees the rollout
+            at a glance regardless of which view they're in. */}
+        <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
+
         {/* Grid/Map toggle */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
           <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
           <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
         </div>
 
-        {/* Bulk status toolbar — visible when piers are selected */}
+        {/* Bulk status toolbar — visible when piers are selected. One
+            row even on phones: "N piers" abbreviation, smaller font,
+            no wrap (the row scrolls horizontally if absolutely needed). */}
         {selectedPierCodes.size > 0 && (
           <div style={{
-            display: "flex", alignItems: "center", gap: 8, padding: "8px 12px",
+            display: "flex", alignItems: "center", gap: 6, padding: "6px 10px",
             marginBottom: 8, borderRadius: 8, background: "#eff6ff",
-            border: "1px solid #bfdbfe", flexWrap: "wrap",
+            border: "1px solid #bfdbfe", flexWrap: "nowrap",
+            overflowX: "auto", whiteSpace: "nowrap",
+            WebkitOverflowScrolling: "touch",
           }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#1e40af" }}>
-              {selectedPierCodes.size.toLocaleString()} pier{selectedPierCodes.size === 1 ? "" : "s"} selected
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#1e40af", flexShrink: 0 }}>
+              {selectedPierCodes.size.toLocaleString()}&nbsp;pier{selectedPierCodes.size === 1 ? "" : "s"}
             </span>
             <select
               value={bulkStatus}
               onChange={(e) => setBulkStatus(e.target.value)}
-              style={{ padding: "4px 8px", borderRadius: 6, border: "1px solid #93c5fd", fontSize: 13 }}
+              style={{ padding: "3px 6px", borderRadius: 6, border: "1px solid #93c5fd", fontSize: 12, flex: "0 1 auto", minWidth: 0 }}
             >
               <option value="">Set status…</option>
               {["New", "In Progress", "Implemented", "Approved", "Rejected", "Fixed"].map((s) => (
@@ -819,16 +833,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               disabled={!bulkStatus}
               onClick={() => setBulkConfirmOpen(true)}
               style={{
-                padding: "4px 12px", borderRadius: 6, fontSize: 13, fontWeight: 600,
+                padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 600,
                 border: "none", cursor: bulkStatus ? "pointer" : "default",
-                background: bulkStatus ? "#2563eb" : "#93c5fd", color: "#fff",
+                background: bulkStatus ? "#2563eb" : "#93c5fd", color: "#fff", flexShrink: 0,
               }}
             >Apply</button>
             <button
               onClick={() => { setSelectedPierCodes(new Set()); setBulkStatus(""); }}
               style={{
-                padding: "4px 8px", borderRadius: 6, fontSize: 13,
-                border: "1px solid #bfdbfe", background: "#fff", color: "#64748b", cursor: "pointer",
+                padding: "3px 8px", borderRadius: 6, fontSize: 12,
+                border: "1px solid #bfdbfe", background: "#fff", color: "#64748b", cursor: "pointer", flexShrink: 0,
               }}
             >Clear</button>
           </div>
@@ -888,7 +902,14 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   selectedBlock={null}
                   selectedTracker={gridFilterBy === "tracker" && gridFilterSet ? trackers.find((t: any) => gridFilterSet.has(String(t.tracker_code || "").toUpperCase())) : null}
                   selectedPier={selectedPier}
-                  layers={layers}
+                  // Mirror "blocks" → "blockLabels" so the single
+                  // Blocks checkbox in the layer panel drives both
+                  // the block fill/outline AND the block-number
+                  // markers on the map.
+                  layers={(() => {
+                    const blocksOn = layers.find((l) => l.key === "blocks")?.visible ?? false;
+                    return [...layers, { key: "blockLabels", label: "Block labels", visible: blocksOn }];
+                  })()}
                   onBlockClick={() => {}}
                   onTrackerClick={(t: any) => {
                     if (t && t.__row) {
@@ -991,11 +1012,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               rows={gridRows}
               columns={applyFieldConfigs(compact ? [
                 // Dedicated selection column — the very first thing in
-                // the grid, sat right against the side panel. The
-                // checkbox renderer + header check-all is wired here
-                // (rather than on pier_code) so users always have a
-                // single, obvious "select-row" target. lockPosition +
-                // declaration order pin it to the absolute left.
+                // the grid, sat right against the side panel.
+                // SimpleGrid wires `rowSelection.checkboxes` (v33 API)
+                // which auto-places the checkbox + header check-all
+                // here; we MUST NOT also set `checkboxSelection` on
+                // the column or ag-grid renders a second checkbox.
                 {
                   colId: "__select", headerName: "", pinned: "left",
                   width: 44, minWidth: 44, maxWidth: 44,
@@ -1003,9 +1024,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   suppressMenu: true, suppressMovable: true,
                   suppressSizeToFit: true, suppressNavigable: true,
                   lockPosition: "left", lockPinned: true,
-                  checkboxSelection: true,
-                  headerCheckboxSelection: true,
-                  headerCheckboxSelectionFilteredOnly: true,
                 },
                 // Single flat header row — grouped bands were rendering
                 // inconsistently when a column was pinned. pier_code
@@ -1027,7 +1045,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               ] : [
                 // Dedicated selection column pinned on the far left —
                 // the multi-select checkbox sits flush against the side
-                // panel as the very first thing in the grid.
+                // panel as the very first thing in the grid.  SimpleGrid
+                // wires `rowSelection.checkboxes` (v33 API) which
+                // auto-places the checkbox here; do not set
+                // `checkboxSelection` on the column or ag-grid renders
+                // a duplicate.
                 {
                   colId: "__select", headerName: "", pinned: "left",
                   width: 44, minWidth: 44, maxWidth: 44,
@@ -1035,9 +1057,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   suppressMenu: true, suppressMovable: true,
                   suppressSizeToFit: true, suppressNavigable: true,
                   lockPosition: "left", lockPinned: true,
-                  checkboxSelection: true,
-                  headerCheckboxSelection: true,
-                  headerCheckboxSelectionFilteredOnly: true,
                 },
                 // Widths are content-driven: a one-time DB scan measured
                 // the actual max length of each field across every pier,

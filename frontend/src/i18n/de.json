@@ -72,6 +72,9 @@
     "Rejected": "Abgelehnt",
     "Fixed": "Behoben"
   },
+  "dashboard": {
+    "totalPiers": "Pfähle gesamt"
+  },
   "column": {
     "block": "Block",
     "pier": "Pfahl",
