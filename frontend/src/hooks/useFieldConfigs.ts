@@ -47,6 +47,7 @@ export function useFieldConfigs(gridName: string | null | undefined): FieldConfi
 export function applyFieldConfigs(
   cols: any[],
   configs: FieldConfigMap | null,
+  widthMultiplier: number = 1,
 ): any[] {
   if (!configs || Object.keys(configs).length === 0) return cols;
 
@@ -64,8 +65,12 @@ export function applyFieldConfigs(
     if (cfg.pin_side) merged.pinned = cfg.pin_side;
     else if (cfg.pin_side === null && col.pinned) merged.pinned = undefined;
     if (cfg.width != null) {
-      merged.width = cfg.width;
-      merged.minWidth = Math.min(col.minWidth ?? 60, cfg.width);
+      // Scale the configured width by the multiplier (used on mobile
+      // to render columns at e.g. 70 % of the desktop width). Floored
+      // at 30 px so a small multiplier can't collapse a column.
+      const scaled = Math.max(30, Math.round(cfg.width * widthMultiplier));
+      merged.width = scaled;
+      merged.minWidth = Math.min(col.minWidth ?? 60, scaled);
     }
     // ag-grid rejects custom top-level props; stash our order in `context`.
     merged.context = { ...(col.context || {}), fc_order: cfg.column_order ?? Number.POSITIVE_INFINITY };

@@ -318,6 +318,25 @@ html, body {
   justify-content: flex-start;
 }
 
+/* Selection checkbox in the first column: sit flush against the
+   left edge of the cell so it reads as a row-leading control,
+   not as part of the pier_code text. ag-grid v33's
+   rowSelection.checkboxes places the checkbox INSIDE the first
+   regular column; without this rule the cell's flex layout
+   centres the checkbox + text pair. */
+.ag-theme-quartz .ag-cell-wrapper {
+  justify-content: flex-start;
+}
+.ag-theme-quartz .ag-selection-checkbox {
+  margin-right: 6px;
+  margin-left: 0;
+}
+/* Header check-all sits in the same horizontal slot as the row
+   checkbox so they line up in a column. */
+.ag-theme-quartz .ag-header-select-all {
+  margin-right: 6px;
+}
+
 /* Header groups (e.g. Identification / Attributes / State) */
 .ag-theme-quartz .ag-header-group-cell {
   background: var(--solarica-header-group-bg);

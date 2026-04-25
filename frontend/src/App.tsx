@@ -1255,7 +1255,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   cellEditorParams: { values: [...STATUS_OPTIONS] },
                   pinned: "right",
                 },
-              ], piersFieldConfigs)}
+              // On phones, render every column at 70 % of its
+              // configured pixel width so more columns fit per
+              // viewport. Desktop keeps the configured widths verbatim.
+              ], piersFieldConfigs, compact ? 0.7 : 1)}
               height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
               enableQuickFilter
               quickFilterPlaceholder="Search piers..."
