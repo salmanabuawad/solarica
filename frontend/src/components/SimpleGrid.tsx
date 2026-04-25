@@ -127,18 +127,13 @@ export default function SimpleGrid({
             gridApiRef.current = e.api;
             if (externalGridApiRef) externalGridApiRef.current = e.api;
             setQuickFilter(e.api, q);
-            // sizeColumnsToFit fails if the grid is inside a hidden tab
-            // (display:none → zero width). Defer until visible, then keep
-            // refitting on resize so the grid always hugs the viewport.
-            const el = e.api.getGridBodyElement?.();
-            const fit = () => { try { e.api.sizeColumnsToFit?.(); } catch { /* grid gone */ } };
-            if (el && el.clientWidth > 0) fit();
-            if (el) {
-              const ro = new ResizeObserver((entries) => {
-                if (entries[0]?.contentRect?.width > 0) fit();
-              });
-              ro.observe(el);
-            }
+            // NOTE: previously this called sizeColumnsToFit() on grid
+            // ready + every ResizeObserver tick.  That stretched all
+            // columns to fill the viewport, OVERRIDING the per-column
+            // widths set in `field_configurations`.  We now respect
+            // the configured pixel widths exactly: if the total is
+            // wider than the grid the user gets a horizontal scroll;
+            // if narrower, there's some empty space on the right.
             // Apply any pre-existing external selection.
             if (selectedIds) {
               applyingExternalSelection.current = true;
