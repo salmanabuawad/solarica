@@ -31,6 +31,10 @@ export interface SiteMapProps {
    *   - "both" : both — coloured dot AND icon overlay
    */
   pierStatusDisplay?: "icon" | "color" | "both";
+  /** Show every Nth row/tracker label when more than denseThreshold are in view. */
+  mapLabelStride?: number;
+  /** When ≤ this many row/tracker labels are visible, render them all. */
+  mapLabelDenseThreshold?: number;
 }
 
 /** Fill colours for the five pier types. */

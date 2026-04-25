@@ -259,6 +259,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [pierStatusDisplay, setPierStatusDisplay] = useState<"icon" | "color" | "both">(
     () => userPrefs.getPierStatusDisplay(),
   );
+  // Map label sampling — when the viewport shows a lot of rows /
+  // trackers, render only every Nth label so they don't pile on top
+  // of each other. mapLabelDenseThreshold = "show all if visible
+  // count is below this".
+  const [mapLabelStride, setMapLabelStride] = useState<number>(
+    () => userPrefs.getMapLabelStride(),
+  );
+  const [mapLabelDenseThreshold, setMapLabelDenseThreshold] = useState<number>(
+    () => userPrefs.getMapLabelDenseThreshold(),
+  );
   // Shared pier selection across Grid and Map. `selectedPierCodes` is the
   // single source of truth — the grid checkboxes and map box-select both
   // feed it.
@@ -282,6 +292,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   useEffect(() => { userPrefs.setPierLabelThreshold(pierLabelThreshold); }, [pierLabelThreshold]);
   useEffect(() => { userPrefs.setPierDetailThreshold(pierDetailThreshold); }, [pierDetailThreshold]);
   useEffect(() => { userPrefs.setPierStatusDisplay(pierStatusDisplay); }, [pierStatusDisplay]);
+  useEffect(() => { userPrefs.setMapLabelStride(mapLabelStride); }, [mapLabelStride]);
+  useEffect(() => { userPrefs.setMapLabelDenseThreshold(mapLabelDenseThreshold); }, [mapLabelDenseThreshold]);
 
   // Clear selection whenever the active project changes so we don't carry
   // stale pier codes between datasets.
@@ -840,6 +852,25 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <input id="pierDetailThreshold" type="number" min={0} max={50} step={1} value={pierDetailThreshold} onChange={(e) => { const v = parseInt(e.target.value || "0", 10); setPierDetailThreshold(Number.isFinite(v) ? Math.max(0, Math.min(50, v)) : 0); }} style={{ width: 60, padding: "6px 8px", fontSize: 13, borderRadius: 8, border: "1px solid #d1d5db" }} />
               <span style={{ fontSize: 12, color: "#94a3b8" }}>piers visible</span>
             </div>
+            {/* Map label sampling: every Nth label when zoomed out,
+                every label when fewer than threshold are in view. */}
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <label htmlFor="mapLabelStride" style={{ fontSize: 12, color: "#64748b" }}>
+                {t("prefs.mapLabelStride", "Show every Nth row/tracker label")}
+              </label>
+              <input id="mapLabelStride" type="number" min={1} max={50} step={1} value={mapLabelStride}
+                onChange={(e) => { const v = parseInt(e.target.value || "10", 10); setMapLabelStride(Number.isFinite(v) ? Math.max(1, Math.min(50, v)) : 10); }}
+                style={{ width: 60, padding: "6px 8px", fontSize: 13, borderRadius: 8, border: "1px solid #d1d5db" }} />
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <label htmlFor="mapLabelDenseThreshold" style={{ fontSize: 12, color: "#64748b" }}>
+                {t("prefs.mapLabelDenseThreshold", "Show all when ≤")}
+              </label>
+              <input id="mapLabelDenseThreshold" type="number" min={1} max={500} step={1} value={mapLabelDenseThreshold}
+                onChange={(e) => { const v = parseInt(e.target.value || "20", 10); setMapLabelDenseThreshold(Number.isFinite(v) ? Math.max(1, Math.min(500, v)) : 20); }}
+                style={{ width: 60, padding: "6px 8px", fontSize: 13, borderRadius: 8, border: "1px solid #d1d5db" }} />
+              <span style={{ fontSize: 12, color: "#94a3b8" }}>{t("prefs.mapLabelInView", "in view")}</span>
+            </div>
             {/* How status is shown on the map dot — icon, colour, or both. */}
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <label htmlFor="pierStatusDisplay" style={{ fontSize: 12, color: "#64748b" }}>{t("prefs.pierStatusDisplay", "Show pier status as")}</label>
@@ -1045,6 +1076,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   pierLabelThreshold={pierLabelThreshold}
                   pierDetailThreshold={pierDetailThreshold}
                   pierStatusDisplay={pierStatusDisplay}
+                  mapLabelStride={mapLabelStride}
+                  mapLabelDenseThreshold={mapLabelDenseThreshold}
                 />
               </Suspense>
             </div>

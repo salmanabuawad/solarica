@@ -120,7 +120,10 @@
     "pierStatusDisplay": "Show pier status as",
     "pierStatusDisplay.icon": "Icon",
     "pierStatusDisplay.color": "Colour",
-    "pierStatusDisplay.both": "Icon + Colour"
+    "pierStatusDisplay.both": "Icon + Colour",
+    "mapLabelStride": "Show every Nth row/tracker label",
+    "mapLabelDenseThreshold": "Show all when ≤",
+    "mapLabelInView": "in view"
   },
   "settings": {
     "title": "Settings",

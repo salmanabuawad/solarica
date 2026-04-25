@@ -8,6 +8,12 @@ const KEYS = {
   pierLabelThreshold: "solarica.pierLabelThreshold",
   pierDetailThreshold: "solarica.pierDetailThreshold",
   pierStatusDisplay: "solarica.pierStatusDisplay",
+  // When the map shows row + tracker labels, only render every Nth
+  // when there are too many in the viewport — otherwise the chips
+  // overlap into a single illegible blur.
+  mapLabelStride: "solarica.mapLabelStride",
+  // ...unless the visible count is small enough to fit comfortably.
+  mapLabelDenseThreshold: "solarica.mapLabelDenseThreshold",
 } as const;
 
 export type PierStatusDisplay = "color" | "icon" | "both";
@@ -16,6 +22,8 @@ const DEFAULTS = {
   pierLabelThreshold: 25,
   pierDetailThreshold: 4,
   pierStatusDisplay: "icon" as PierStatusDisplay,
+  mapLabelStride: 10,
+  mapLabelDenseThreshold: 20,
 };
 
 function readNumber(key: string, fallback: number): number {
@@ -57,4 +65,8 @@ export const userPrefs = {
   getPierStatusDisplay: (): PierStatusDisplay =>
     readEnum<PierStatusDisplay>(KEYS.pierStatusDisplay, PIER_STATUS_DISPLAY_VALUES, DEFAULTS.pierStatusDisplay),
   setPierStatusDisplay: (v: PierStatusDisplay) => writeString(KEYS.pierStatusDisplay, v),
+  getMapLabelStride: () => readNumber(KEYS.mapLabelStride, DEFAULTS.mapLabelStride),
+  setMapLabelStride: (v: number) => writeNumber(KEYS.mapLabelStride, v),
+  getMapLabelDenseThreshold: () => readNumber(KEYS.mapLabelDenseThreshold, DEFAULTS.mapLabelDenseThreshold),
+  setMapLabelDenseThreshold: (v: number) => writeNumber(KEYS.mapLabelDenseThreshold, v),
 };

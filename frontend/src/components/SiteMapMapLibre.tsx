@@ -66,6 +66,8 @@ export default function SiteMapMapLibre({
   pierLabelThreshold = 25,
   pierDetailThreshold = 4,
   pierStatusDisplay = "icon",
+  mapLabelStride = 10,
+  mapLabelDenseThreshold = 20,
 }: SiteMapProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -91,6 +93,13 @@ export default function SiteMapMapLibre({
   useEffect(() => { piersRef.current = piers; }, [piers]);
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
   const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
+  // Sampling prefs are read from refs by the map's `moveend`/`zoomend`
+  // handlers, which are registered once at mount; without the refs
+  // those handlers would see the first-render values forever.
+  const mapLabelStrideRef = useRef(mapLabelStride);
+  const mapLabelDenseThresholdRef = useRef(mapLabelDenseThreshold);
+  useEffect(() => { mapLabelStrideRef.current = mapLabelStride; }, [mapLabelStride]);
+  useEffect(() => { mapLabelDenseThresholdRef.current = mapLabelDenseThreshold; }, [mapLabelDenseThreshold]);
 
   // ---- GeoJSON sources (memoized by dataset) ------------------------------
 
@@ -954,7 +963,8 @@ export default function SiteMapMapLibre({
   const rowLabelsOn = layerVisible(layers, "row_labels");
   useEffect(() => {
     refreshRowLabels();
-  }, [rowLabelsOn, rowLabelData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowLabelsOn, rowLabelData, mapLabelStride, mapLabelDenseThreshold]);
 
   // ---- Tracker labels — dedicated effect --------------------------------
   //
@@ -967,7 +977,8 @@ export default function SiteMapMapLibre({
   const trackersOnForLabels = layerVisible(layers, "trackers");
   useEffect(() => {
     refreshTrackerLabels();
-  }, [trackersOnForLabels, trackerLabelData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackersOnForLabels, trackerLabelData, mapLabelStride, mapLabelDenseThreshold]);
 
   // ---- Block labels — dedicated effect ----------------------------------
   //
@@ -1030,8 +1041,19 @@ export default function SiteMapMapLibre({
     if (!layerVisible(layersRef.current, "row_labels")) return;
 
     const bounds = map.getBounds();
-    for (const [row, pos] of Object.entries(rowLabelDataRef.current)) {
-      if (!bounds.contains([pos.lng, pos.lat])) continue;
+    // Two-pass sampling so the chips spread evenly across the
+    // viewport: first collect every row whose marker position lies
+    // in-bounds, then either render them all (if the count fits the
+    // dense-threshold) or keep every Nth.
+    const visible: [string, { lng: number; lat: number }][] = [];
+    for (const e of Object.entries(rowLabelDataRef.current)) {
+      if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
+    }
+    const stride = visible.length <= mapLabelDenseThresholdRef.current
+      ? 1
+      : Math.max(1, mapLabelStrideRef.current);
+    for (let i = 0; i < visible.length; i += stride) {
+      const [row, pos] = visible[i];
       // Strip S prefix so short-tracker rows read the same as regular ones.
       const display = row.replace(/^S/i, "");
       const el = document.createElement("div");
@@ -1071,13 +1093,19 @@ export default function SiteMapMapLibre({
     trackerLabelMarkersRef.current = [];
     if (!layerVisible(layersRef.current, "trackers")) return;
 
-    // Mirror refreshRowLabels: no zoom gate, no sampling, no
-    // marker cap — every tracker whose centre is in the visible
-    // viewport gets a label. The user explicitly asked the tracker
-    // numbers to behave like the row numbers.
+    // Same sampling policy as refreshRowLabels: render every tracker
+    // when the visible count fits, otherwise stride every Nth so
+    // chips don't pile on top of each other.
     const bounds = map.getBounds();
-    for (const [code, pos] of Object.entries(trackerLabelDataRef.current)) {
-      if (!bounds.contains([pos.lng, pos.lat])) continue;
+    const visible: [string, { lng: number; lat: number }][] = [];
+    for (const e of Object.entries(trackerLabelDataRef.current)) {
+      if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
+    }
+    const stride = visible.length <= mapLabelDenseThresholdRef.current
+      ? 1
+      : Math.max(1, mapLabelStrideRef.current);
+    for (let i = 0; i < visible.length; i += stride) {
+      const [code, pos] = visible[i];
       const el = document.createElement("div");
       el.textContent = code;
       el.style.cssText =
