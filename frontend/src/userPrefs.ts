@@ -7,11 +7,15 @@
 const KEYS = {
   pierLabelThreshold: "solarica.pierLabelThreshold",
   pierDetailThreshold: "solarica.pierDetailThreshold",
+  pierStatusDisplay: "solarica.pierStatusDisplay",
 } as const;
+
+export type PierStatusDisplay = "color" | "icon" | "both";
 
 const DEFAULTS = {
   pierLabelThreshold: 25,
   pierDetailThreshold: 4,
+  pierStatusDisplay: "icon" as PierStatusDisplay,
 };
 
 function readNumber(key: string, fallback: number): number {
@@ -31,9 +35,26 @@ function writeNumber(key: string, value: number) {
   }
 }
 
+function readEnum<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  const raw = window.localStorage.getItem(key);
+  if (raw && (allowed as readonly string[]).includes(raw)) return raw as T;
+  return fallback;
+}
+
+function writeString(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(key, value); } catch { /* ignore quota */ }
+}
+
+const PIER_STATUS_DISPLAY_VALUES = ["color", "icon", "both"] as const;
+
 export const userPrefs = {
   getPierLabelThreshold: () => readNumber(KEYS.pierLabelThreshold, DEFAULTS.pierLabelThreshold),
   setPierLabelThreshold: (v: number) => writeNumber(KEYS.pierLabelThreshold, v),
   getPierDetailThreshold: () => readNumber(KEYS.pierDetailThreshold, DEFAULTS.pierDetailThreshold),
   setPierDetailThreshold: (v: number) => writeNumber(KEYS.pierDetailThreshold, v),
+  getPierStatusDisplay: (): PierStatusDisplay =>
+    readEnum<PierStatusDisplay>(KEYS.pierStatusDisplay, PIER_STATUS_DISPLAY_VALUES, DEFAULTS.pierStatusDisplay),
+  setPierStatusDisplay: (v: PierStatusDisplay) => writeString(KEYS.pierStatusDisplay, v),
 };

@@ -65,6 +65,7 @@ export default function SiteMapMapLibre({
   bulkSelectedPierCodes,
   pierLabelThreshold = 25,
   pierDetailThreshold = 4,
+  pierStatusDisplay = "icon",
 }: SiteMapProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -429,13 +430,17 @@ export default function SiteMapMapLibre({
         },
       });
 
-      // --- Pier circles + status rings + selection ---------------------
+      // --- Pier circles + selection ------------------------------------
       //
-      // A pier's fill reflects its current *status* when it's not "New"
-      // (matches the grid's status-pill colours so the map and table tell
-      // the same story at a glance). "New" piers fall back to their
-      // pier_type colour. A white ring around status-ful piers keeps them
-      // legible regardless of what colour's behind them.
+      // Pier dot colour follows the user preference `pierStatusDisplay`:
+      //   • "icon"  → dot is always the pier_type colour, status comes
+      //               from the icon symbol layer (default)
+      //   • "color" → dot fill = status colour for non-New piers, no
+      //               icon overlay
+      //   • "both"  → status-coloured dot AND status icon
+      // Both expressions are added at construction time; the visibility
+      // effect below toggles the icon symbol layer based on the pref.
+      const wantStatusColor = pierStatusDisplay !== "icon";
       map.addLayer({
         id: "piers-layer",
         type: "circle",
@@ -449,38 +454,13 @@ export default function SiteMapMapLibre({
             14, 6,
             18, 10,
           ],
-          "circle-color": [
-            "case",
-            ["!=", ["get", "status"], "New"], ["get", "status_color"],
-            ["get", "color"],
-          ],
+          "circle-color": wantStatusColor
+            ? ["case", ["!=", ["get", "status"], "New"], ["get", "status_color"], ["get", "color"]]
+            : ["get", "color"],
           "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": [
-            "case",
-            ["!=", ["get", "status"], "New"], 1.5,
-            0,
-          ],
-        },
-      });
-      // Extra status-coloured halo so piers pop off the map even at low zoom.
-      map.addLayer({
-        id: "pier-status-rings",
-        type: "circle",
-        source: "piers",
-        filter: ["!=", ["get", "status"], "New"],
-        paint: {
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 3,
-            6, 4.5,
-            10, 7,
-            14, 10,
-            18, 15,
-          ],
-          "circle-color": "rgba(0,0,0,0)",
-          "circle-stroke-color": ["get", "status_color"],
-          "circle-stroke-width": 2,
-          "circle-stroke-opacity": 0.55,
+          "circle-stroke-width": wantStatusColor
+            ? ["case", ["!=", ["get", "status"], "New"], 1.5, 0]
+            : 0,
         },
       });
 
@@ -889,10 +869,30 @@ export default function SiteMapMapLibre({
       const blockLabelsOn = layerVisible(layers, "blockLabels");
       const trackersOn = layerVisible(layers, "trackers");
       const rowLabelsOn = layerVisible(layers, "row_labels");
+      // Icon overlay only renders when the user wants the icon variant
+      // (default) or both. When set to "color" the dot's fill colour
+      // alone communicates status — no icon.
+      const wantIcon = pierStatusDisplay !== "color";
       show("piers-layer", piersOn);
       show("piers-selected", piersOn);
-      show("pier-status-rings", piersOn);
-      show("pier-status-icons", piersOn);
+      show("pier-status-icons", piersOn && wantIcon);
+      // Live-update the pier dot's colour expression when the user
+      // flips the "Show status as" preference. Without this the
+      // expression stays whatever was set inside on("load") and the
+      // dropdown change has no visible effect on the map.
+      if (map.getLayer("piers-layer")) {
+        const wantStatusColor = pierStatusDisplay !== "icon";
+        map.setPaintProperty("piers-layer", "circle-color",
+          wantStatusColor
+            ? ["case", ["!=", ["get", "status"], "New"], ["get", "status_color"], ["get", "color"]]
+            : ["get", "color"],
+        );
+        map.setPaintProperty("piers-layer", "circle-stroke-width",
+          wantStatusColor
+            ? ["case", ["!=", ["get", "status"], "New"], 1.5, 0]
+            : 0,
+        );
+      }
       show("blocks-fill", blocksOn);
       show("blocks-outline", blocksOn);
       show("blocks-selected", blocksOn);
@@ -915,7 +915,7 @@ export default function SiteMapMapLibre({
     // Blocks / Block labels / Trackers doesn't destroy and rebuild the row
     // markers each time (previously this loop ran on every layer change
     // and visually wiped the row labels mid-toggle).
-  }, [layers, pierLabelThreshold, pierDetailThreshold]);
+  }, [layers, pierLabelThreshold, pierDetailThreshold, pierStatusDisplay]);
 
   // ---- Row labels — dedicated effect ------------------------------------
   //

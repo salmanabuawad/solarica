@@ -24,6 +24,13 @@ export interface SiteMapProps {
   pierLabelThreshold?: number;
   /** Full detail cards show only when the number of visible piers is ≤ this. */
   pierDetailThreshold?: number;
+  /**
+   * How to encode pier *status* on the map dot:
+   *   - "icon" : dot stays pier_type-coloured, status shown as icon (default)
+   *   - "color": dot fills with the status colour, no icon
+   *   - "both" : both — coloured dot AND icon overlay
+   */
+  pierStatusDisplay?: "icon" | "color" | "both";
 }
 
 /** Fill colours for the five pier types. */

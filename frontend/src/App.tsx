@@ -249,6 +249,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [pierDetailThreshold, setPierDetailThreshold] = useState<number>(
     () => userPrefs.getPierDetailThreshold(),
   );
+  // How status is encoded on the map dot: "icon" (default — coloured
+  // pier_type fill + status icon overlay), "color" (status colour fill,
+  // no icon), or "both". Persisted in localStorage via userPrefs.
+  const [pierStatusDisplay, setPierStatusDisplay] = useState<"icon" | "color" | "both">(
+    () => userPrefs.getPierStatusDisplay(),
+  );
   // Shared pier selection across Grid and Map. `selectedPierCodes` is the
   // single source of truth — the grid checkboxes and map box-select both
   // feed it.
@@ -271,6 +277,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   // Persist user preferences.
   useEffect(() => { userPrefs.setPierLabelThreshold(pierLabelThreshold); }, [pierLabelThreshold]);
   useEffect(() => { userPrefs.setPierDetailThreshold(pierDetailThreshold); }, [pierDetailThreshold]);
+  useEffect(() => { userPrefs.setPierStatusDisplay(pierStatusDisplay); }, [pierStatusDisplay]);
 
   // Clear selection whenever the active project changes so we don't carry
   // stale pier codes between datasets.
@@ -783,6 +790,24 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <input id="pierDetailThreshold" type="number" min={0} max={50} step={1} value={pierDetailThreshold} onChange={(e) => { const v = parseInt(e.target.value || "0", 10); setPierDetailThreshold(Number.isFinite(v) ? Math.max(0, Math.min(50, v)) : 0); }} style={{ width: 60, padding: "6px 8px", fontSize: 13, borderRadius: 8, border: "1px solid #d1d5db" }} />
               <span style={{ fontSize: 12, color: "#94a3b8" }}>piers visible</span>
             </div>
+            {/* How status is shown on the map dot — icon, colour, or both. */}
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <label htmlFor="pierStatusDisplay" style={{ fontSize: 12, color: "#64748b" }}>{t("prefs.pierStatusDisplay", "Show pier status as")}</label>
+              <select
+                id="pierStatusDisplay"
+                value={pierStatusDisplay}
+                onChange={(e) => {
+                  const v = e.target.value as "icon" | "color" | "both";
+                  setPierStatusDisplay(v);
+                  userPrefs.setPierStatusDisplay(v);
+                }}
+                style={{ padding: "6px 8px", fontSize: 13, borderRadius: 8, border: "1px solid #d1d5db", background: "#fff" }}
+              >
+                <option value="icon">{t("prefs.pierStatusDisplay.icon", "Icon")}</option>
+                <option value="color">{t("prefs.pierStatusDisplay.color", "Colour")}</option>
+                <option value="both">{t("prefs.pierStatusDisplay.both", "Icon + Colour")}</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -799,10 +824,48 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             at a glance regardless of which view they're in. */}
         <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
 
-        {/* Grid/Map toggle */}
+        {/* Grid/Map toggle + Export-to-Excel on the same row. The
+            export button sits flush to the right edge so it's always
+            visible regardless of which view (grid/map) is active. */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
           <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
           <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
+          <span style={{ flex: 1 }} />
+          <button
+            type="button"
+            title={t("details.exportTooltip", "Export the current view to a CSV file Excel can open")}
+            onClick={() => {
+              const api = pierGridApiRef.current;
+              if (!api || typeof api.exportDataAsCsv !== "function") return;
+              const today = new Date().toISOString().slice(0, 10);
+              api.exportDataAsCsv({
+                fileName: `piers-${projectId || "export"}-${today}.csv`,
+                onlySelectedAllPages: false,
+              });
+            }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid #16a34a",
+              background: "#16a34a",
+              color: "#fff",
+              cursor: "pointer",
+              boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
+              flexShrink: 0,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 4v12" />
+              <polyline points="6 10 12 16 18 10" />
+              <path d="M5 20h14" />
+            </svg>
+            {t("details.exportExcel", "Export to Excel")}
+          </button>
         </div>
 
         {/* Bulk status toolbar — visible when piers are selected. One
@@ -927,6 +990,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   bulkSelectedPierCodes={selectedPierCodes}
                   pierLabelThreshold={pierLabelThreshold}
                   pierDetailThreshold={pierDetailThreshold}
+                  pierStatusDisplay={pierStatusDisplay}
                 />
               </Suspense>
             </div>
@@ -952,46 +1016,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 <button onClick={() => setGridFilterValue("")} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}>Clear</button>
               )}
               <span style={{ fontSize: 12, color: "#64748b" }}>{filteredPiers.length.toLocaleString()} piers</span>
-              {/* Spacer to push the export button to the right edge of
-                  the toolbar — keeps it visually distinct from the
-                  filter widgets on its left. */}
-              <span style={{ flex: 1 }} />
-              <button
-                type="button"
-                title={t("details.exportTooltip", "Export the current view to a CSV file Excel can open")}
-                onClick={() => {
-                  const api = pierGridApiRef.current;
-                  if (!api || typeof api.exportDataAsCsv !== "function") return;
-                  const today = new Date().toISOString().slice(0, 10);
-                  api.exportDataAsCsv({
-                    fileName: `piers-${projectId || "export"}-${today}.csv`,
-                    // Respect column visibility, sort, and active filter
-                    // chips — what you see in the grid is what you get.
-                    onlySelectedAllPages: false,
-                  });
-                }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "6px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #16a34a",
-                  background: "#16a34a",
-                  color: "#fff",
-                  cursor: "pointer",
-                  boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
-                }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M12 4v12" />
-                  <polyline points="6 10 12 16 18 10" />
-                  <path d="M5 20h14" />
-                </svg>
-                {t("details.exportExcel", "Export to Excel")}
-              </button>
             </div>
             <FilterChipBar
               model={pierGridFilterModel}

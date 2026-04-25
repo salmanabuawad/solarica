@@ -116,7 +116,11 @@
     "brNormal": "Normal",
     "brDark": "Dark",
     "brContrast": "Contrast",
-    "fontSize": "Font size"
+    "fontSize": "Font size",
+    "pierStatusDisplay": "Show pier status as",
+    "pierStatusDisplay.icon": "Icon",
+    "pierStatusDisplay.color": "Colour",
+    "pierStatusDisplay.both": "Icon + Colour"
   },
   "settings": {
     "title": "Settings",
