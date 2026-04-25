@@ -738,10 +738,50 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       )}
 
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        {/* Mobile-only logo strip ABOVE everything — the brand sits
+            on its own row at the very top of the page so nothing else
+            (hamburger, project picker, status pills) competes with it
+            for visual priority. Sidebar is still reachable via the
+            hamburger in the row below. Desktop has the logo in the
+            sidebar already, so we skip this strip there. */}
+        {compact && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "8px 12px",
+              background: "#ffffff",
+              borderBottom: "1px solid #e2e8f0",
+              position: "sticky",
+              top: 0,
+              zIndex: 11,
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="Solarica"
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                display: "block",
+                height: "auto",
+                width: "100%",
+                maxWidth: 320,
+                cursor: "pointer",
+              }}
+            />
+          </div>
+        )}
         {/* Top bar: project selector + hamburger (mobile/tablet) */}
         <div style={{
           display: "flex", alignItems: "center", gap: 10, padding: compact ? "10px 16px" : "14px 20px",
-          background: "#ffffff", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, zIndex: 10,
+          background: "#ffffff", borderBottom: "1px solid #e2e8f0",
+          position: "sticky",
+          // On mobile this row stacks below the logo strip (logo strip
+          // sits at top:0). Compute the offset so this row sticks just
+          // beneath it. Desktop has no logo strip, top:0 is correct.
+          top: compact ? 56 : 0,
+          zIndex: 10,
         }}>
           {compact && (
             <button
@@ -751,25 +791,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             >
               ☰
             </button>
-          )}
-          {/* Logo on mobile: the sidebar is hidden behind the hamburger
-              by default, so on phones the brand wasn't visible at all
-              until the user opened the slide-out. Pinning it to the
-              top header keeps the brand present at every page. */}
-          {compact && (
-            <img
-              src="/logo.png"
-              alt="Solarica"
-              onClick={() => setSidebarOpen(true)}
-              style={{
-                height: 32,
-                width: "auto",
-                maxWidth: "40vw",
-                objectFit: "contain",
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
-            />
           )}
           <select
             autoComplete="off"
