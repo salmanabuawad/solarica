@@ -740,7 +740,19 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               if (val === "__new__") { setShowNewProjectModal(true); return; }
               setProjectId(val);
             }}
-            style={{ minWidth: 0, flex: 1, maxWidth: 320, padding: "8px 10px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, background: "#fff" }}
+            style={{
+              minWidth: 0, flex: 1, maxWidth: 320,
+              // Bigger, bolder project name on phones — at the small
+              // viewport the picker is the most-used control on the
+              // header bar and a 13 px label was hard to read.
+              padding: compact ? "8px 12px" : "8px 10px",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1",
+              background: "#fff",
+              fontSize: compact ? 16 : 13,
+              fontWeight: compact ? 600 : 400,
+              color: "#0f172a",
+            }}
           >
             <optgroup label="Existing Projects">
               {!projects.length && <option value="">No projects</option>}
