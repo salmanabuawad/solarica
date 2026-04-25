@@ -254,27 +254,51 @@ html, body {
    needing horizontal scroll.  Together with the ellipsis above, data
    that still overflows reads as "T0001-P0…" instead of "T0001-P". */
 @media (max-width: 768px) {
+  /* Phone: shrink everything so the configured column widths
+     (which come from field_configurations and are the same on
+     mobile and desktop) actually fit the data without truncation. */
   .ag-theme-quartz {
-    --ag-font-size: 10.5px;
+    --ag-font-size: 10px;
     --ag-row-height: 26px;
-    --ag-header-height: 30px;
-    --ag-cell-horizontal-padding: 5px;
+    --ag-header-height: 28px;
+    --ag-cell-horizontal-padding: 4px;
     --ag-grid-size: 3px;
   }
-  .ag-theme-quartz .ag-header-cell {
+  .ag-theme-quartz .ag-cell {
     font-size: 10px;
+  }
+  .ag-theme-quartz .ag-header-cell {
+    font-size: 9.5px;
     letter-spacing: 0;
   }
-  /* Status pill in the grid: shrink the rounded chip + icon so it
-     fits the new 92 px column without truncation. */
+  /* Status pill: even tighter on phones so 'In Progress' fits
+     the 92 px configured column. */
   .ag-theme-quartz .status-pill {
-    font-size: 10px;
-    padding: 1px 8px 1px 6px;
-    gap: 4px;
+    font-size: 9.5px;
+    padding: 1px 6px 1px 4px;
+    gap: 3px;
   }
   .ag-theme-quartz .status-pill svg {
-    width: 11px;
-    height: 11px;
+    width: 10px;
+    height: 10px;
+  }
+}
+/* Even smaller phones (<= 420px) — the screens where every pixel
+   matters. Drop another half-step and tighten cell padding to 3 px. */
+@media (max-width: 420px) {
+  .ag-theme-quartz {
+    --ag-font-size: 9.5px;
+    --ag-cell-horizontal-padding: 3px;
+  }
+  .ag-theme-quartz .ag-cell {
+    font-size: 9.5px;
+  }
+  .ag-theme-quartz .ag-header-cell {
+    font-size: 9px;
+  }
+  .ag-theme-quartz .status-pill {
+    font-size: 9px;
+    padding: 1px 5px 1px 3px;
   }
 }
 
