@@ -110,11 +110,13 @@ export default function SimpleGrid({
           enableRtl={typeof document !== "undefined" && document.documentElement.dir === "rtl"}
           rowSelection={{
             mode: rowSelection === "multiple" ? "multiRow" : "singleRow",
-            // New v33 API — ag-grid auto-places the row + header checkboxes
-            // on the first column, which we've reserved as `__select` with
-            // `lockPosition: "left"`.
-            checkboxes: rowSelection === "multiple",
-            headerCheckbox: rowSelection === "multiple",
+            // checkboxes/headerCheckbox are disabled here on purpose —
+            // the consumer (App.tsx) decides where the checkbox lives
+            // by adding a column with `checkboxSelection: true` to the
+            // column defs. That lets us pin the checkbox to either
+            // side of the grid (left vs right edge).
+            checkboxes: false,
+            headerCheckbox: false,
             enableClickSelection: false,
           }}
           pagination={pagination}

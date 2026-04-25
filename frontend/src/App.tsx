@@ -1203,12 +1203,22 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <SimpleGrid
               rows={gridRows}
               columns={applyFieldConfigs(compact ? [
-                // No dedicated `__select` column — ag-grid v33 renders
-                // the row + header checkboxes inside the first column
-                // automatically (rowSelection.checkboxes / headerCheckbox
-                // wired up in SimpleGrid). Reserving a separate column
-                // produced an extra empty header row above the real
-                // headers (`ag-header-parent-hidden` group cell).
+                // Dedicated selection column pinned to the RIGHT side
+                // of the grid (not flush-left under pier_code). The
+                // SimpleGrid wrapper passes `checkboxes: false` to
+                // ag-grid so the v33 auto-placement is suppressed and
+                // the checkbox renders here.
+                {
+                  colId: "__select", headerName: "", pinned: "right",
+                  width: 40, minWidth: 40, maxWidth: 40,
+                  sortable: false, filter: false, resizable: false,
+                  suppressMenu: true, suppressMovable: true,
+                  suppressSizeToFit: true, suppressNavigable: true,
+                  lockPosition: "right", lockPinned: true,
+                  checkboxSelection: true,
+                  headerCheckboxSelection: true,
+                  headerCheckboxSelectionFilteredOnly: true,
+                },
                 { field: "pier_code", headerName: "Pier", headerTooltip: "Pier code", pinned: "left" },
                 { field: "block_code", headerName: "Block", headerTooltip: "Block code" },
                 { field: "tracker_code", headerName: "Tracker", headerTooltip: "Tracker code" },
@@ -1222,12 +1232,21 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   cellEditorParams: { values: [...STATUS_OPTIONS] },
                 },
               ] : [
-                // No dedicated `__select` column — ag-grid v33 renders
-                // the row + header checkboxes inside the first regular
-                // column (pier_code) automatically. A reserved
-                // selection column added an extra empty header row
-                // (`ag-header-parent-hidden`) above the real headers.
-                //
+                // Dedicated selection column pinned RIGHT — same
+                // setup as the compact layout above. Sits on the
+                // far right edge of the grid, opposite the
+                // pier_code (pinned left) column.
+                {
+                  colId: "__select", headerName: "", pinned: "right",
+                  width: 40, minWidth: 40, maxWidth: 40,
+                  sortable: false, filter: false, resizable: false,
+                  suppressMenu: true, suppressMovable: true,
+                  suppressSizeToFit: true, suppressNavigable: true,
+                  lockPosition: "right", lockPinned: true,
+                  checkboxSelection: true,
+                  headerCheckboxSelection: true,
+                  headerCheckboxSelectionFilteredOnly: true,
+                },
                 // Widths are content-driven: a one-time DB scan measured
                 // the actual max length of each field across every pier,
                 // and the result was upserted into `field_configurations`
