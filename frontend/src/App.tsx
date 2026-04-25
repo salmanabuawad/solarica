@@ -806,10 +806,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               setProjectId(val);
             }}
             style={{
-              minWidth: 0, flex: 1, maxWidth: 320,
-              // Bigger, bolder project name on phones — at the small
-              // viewport the picker is the most-used control on the
-              // header bar and a 13 px label was hard to read.
+              minWidth: 0, flex: 1,
+              // On phones let the project picker stretch as wide as
+              // the row allows (the picker is the most-tapped
+              // control); cap it at 320 px on desktop where the
+              // header bar carries other widgets.
+              maxWidth: compact ? "100%" : 320,
               padding: compact ? "8px 12px" : "8px 10px",
               borderRadius: 8,
               border: "1px solid #cbd5e1",
