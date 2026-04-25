@@ -541,11 +541,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     return filteredPiers.map((p: any) => {
       const raw = String(p.row_num ?? "").trim();
       const isShort = /^S\d+$/i.test(raw);
-      const numeric = isShort ? raw.slice(1) : raw;
+      // Keep the row label as-is (S-prefixed when applicable) so the
+      // Row column shows "S19" verbatim — same value the API + map
+      // labels carry. Earlier we stripped the S to "normalise" the
+      // display, which made S-rows indistinguishable from the regular
+      // numeric row of the same index.
       return {
         ...p,
-        row_num: numeric,           // what the user sees in the "Row" column
-        row_num_raw: raw,            // preserved for any downstream code that needs the original label
+        row_num: raw,
+        row_num_raw: raw,
         row_type: isShort ? "short" : (raw ? "full" : ""),
         status: pierStatuses[p.pier_code] || "New",
       };
