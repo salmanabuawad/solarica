@@ -13,6 +13,7 @@ import SimpleGrid from "./components/SimpleGrid";
 import StatusDashboard from "./components/StatusDashboard";
 import LayerTogglePanel from "./components/LayerTogglePanel";
 import PierModal from "./components/PierModal";
+import TrackerModal from "./components/TrackerModal";
 import SystemPanel from "./components/SystemPanel";
 import { BusyOverlay, ConfirmModal, PromptModal } from "./components/Modals";
 import SyncQueuePanel from "./components/SyncQueuePanel";
@@ -235,6 +236,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [dccbs, setDccbs] = useState<any[]>([]);
   const [selectedPier, setSelectedPier] = useState<any>(null);
   const [selectedPierFull, setSelectedPierFull] = useState<any>(null);
+  // Selected tracker for the read-only details modal (clicking a
+  // tracker line / label / chip on the map opens it).
+  const [selectedTracker, setSelectedTracker] = useState<any>(null);
   const [gridFilterBy, setGridFilterBy] = useState<"row" | "tracker">("row");
   const [gridFilterValue, setGridFilterValue] = useState("");
   const [pierStatuses, setPierStatuses] = useState<Record<string, string>>({});
@@ -1022,14 +1026,18 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   onBlockClick={() => {}}
                   onTrackerClick={(t: any) => {
                     if (t && t.__row) {
-                      // Row-label click (from SiteMapMapLibre) — switch the
-                      // grid filter to the "rows" mode and pre-fill it.
+                      // Row-label click — keeps the legacy filter behaviour.
                       setGridFilterBy("row");
                       setGridFilterValue(String(t.row || t.row_num || ""));
-                    } else {
-                      setGridFilterBy("tracker");
-                      setGridFilterValue(t.tracker_code || "");
+                      return;
                     }
+                    // Tracker click on the map → open the details modal.
+                    // If the click came from the chip (which only carries
+                    // {tracker_code}), look up the full tracker object so
+                    // the modal can render block / type / sheet / etc.
+                    const code = t?.tracker_code || "";
+                    const full = code ? trackers.find((x: any) => x.tracker_code === code) : null;
+                    setSelectedTracker(full || t || null);
                   }}
                   onPierClick={handlePierClick}
                   onAreaSelect={handleAreaSelect}
@@ -1042,6 +1050,19 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             </div>
             {selectedPierFull && (
               <PierModal selected={selectedPierFull} status={pierStatuses[selectedPier?.pier_code] || ""} onStatusChange={handleStatusChange} onClose={() => { setSelectedPier(null); setSelectedPierFull(null); }} />
+            )}
+            {selectedTracker && (
+              <TrackerModal
+                tracker={selectedTracker}
+                pierStatuses={pierStatuses}
+                piers={piers}
+                onShowInGrid={(code) => {
+                  setGridFilterBy("tracker");
+                  setGridFilterValue(code);
+                  setMode("grid");
+                }}
+                onClose={() => setSelectedTracker(null)}
+              />
             )}
           </div>
         ) : (
