@@ -1213,12 +1213,18 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 // ag-grid so the v33 auto-placement is suppressed and
                 // the checkbox renders here.
                 {
-                  colId: "__select", headerName: "", pinned: "right",
+                  // Pin the selection column to the row's leading
+                  // edge for the current language: LEFT in English /
+                  // any LTR locale, RIGHT in Hebrew / Arabic. The
+                  // checkbox always sits at the start of the row
+                  // visually, regardless of writing direction.
+                  colId: "__select", headerName: "",
+                  pinned: isRtl ? "right" : "left",
                   width: 40, minWidth: 40, maxWidth: 40,
                   sortable: false, filter: false, resizable: false,
                   suppressMenu: true, suppressMovable: true,
                   suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: "right", lockPinned: true,
+                  lockPosition: isRtl ? "right" : "left", lockPinned: true,
                   checkboxSelection: true,
                   headerCheckboxSelection: true,
                   headerCheckboxSelectionFilteredOnly: true,
@@ -1241,12 +1247,18 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 // far right edge of the grid, opposite the
                 // pier_code (pinned left) column.
                 {
-                  colId: "__select", headerName: "", pinned: "right",
+                  // Pin the selection column to the row's leading
+                  // edge for the current language: LEFT in English /
+                  // any LTR locale, RIGHT in Hebrew / Arabic. The
+                  // checkbox always sits at the start of the row
+                  // visually, regardless of writing direction.
+                  colId: "__select", headerName: "",
+                  pinned: isRtl ? "right" : "left",
                   width: 40, minWidth: 40, maxWidth: 40,
                   sortable: false, filter: false, resizable: false,
                   suppressMenu: true, suppressMovable: true,
                   suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: "right", lockPinned: true,
+                  lockPosition: isRtl ? "right" : "left", lockPinned: true,
                   checkboxSelection: true,
                   headerCheckboxSelection: true,
                   headerCheckboxSelectionFilteredOnly: true,
