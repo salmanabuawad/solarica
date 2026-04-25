@@ -255,15 +255,26 @@ html, body {
    that still overflows reads as "T0001-P0…" instead of "T0001-P". */
 @media (max-width: 768px) {
   .ag-theme-quartz {
-    --ag-font-size: 11px;
-    --ag-row-height: 28px;
-    --ag-header-height: 32px;
-    --ag-cell-horizontal-padding: 6px;
-    --ag-grid-size: 4px;
+    --ag-font-size: 10.5px;
+    --ag-row-height: 26px;
+    --ag-header-height: 30px;
+    --ag-cell-horizontal-padding: 5px;
+    --ag-grid-size: 3px;
   }
   .ag-theme-quartz .ag-header-cell {
-    font-size: 10.5px;
-    letter-spacing: 0.01em;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  /* Status pill in the grid: shrink the rounded chip + icon so it
+     fits the new 92 px column without truncation. */
+  .ag-theme-quartz .status-pill {
+    font-size: 10px;
+    padding: 1px 8px 1px 6px;
+    gap: 4px;
+  }
+  .ag-theme-quartz .status-pill svg {
+    width: 11px;
+    height: 11px;
   }
 }
 
