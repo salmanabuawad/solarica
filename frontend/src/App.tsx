@@ -1039,24 +1039,27 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   headerCheckboxSelection: true,
                   headerCheckboxSelectionFilteredOnly: true,
                 },
-                // Narrow defaults — columns flex proportionally but are
-                // capped so the table stays scannable instead of ballooning
-                // on wide monitors. Widths trimmed once short codes (B1,
-                // T0001, P01, HAP, etc.) made the original sizes feel
-                // padded with empty space.
-                { field: "pier_code",         headerName: "Pier",         headerTooltip: "Pier code",       width: 84,  minWidth: 75,  maxWidth: 100 },
-                { field: "block_code",        headerName: "Block",        headerTooltip: "Block code",      flex: 1, minWidth: 50,  maxWidth: 75  },
-                { field: "tracker_code",      headerName: "Tracker",      headerTooltip: "Tracker code",    flex: 1, minWidth: 60,  maxWidth: 85  },
-                { field: "row_num",           headerName: "Row",          headerTooltip: "Row number",      flex: 1, minWidth: 48,  maxWidth: 65  },
-                { field: "pier_type",         headerName: "Type",         headerTooltip: "HAP / HMP / SAP / SAPE / SAPEND / SMP", flex: 1, minWidth: 60,  maxWidth: 80  },
-                { field: "structure_code",    headerName: "Struct.",      headerTooltip: "Structure code",  flex: 1, minWidth: 65,  maxWidth: 85  },
-                { field: "slope_band",        headerName: "Slope",        headerTooltip: "Slope band",      flex: 1, minWidth: 55,  maxWidth: 75  },
-                { field: "tracker_type_code", headerName: "Tracker Type", headerTooltip: "Tracker type code", flex: 1.1, minWidth: 95, maxWidth: 130 },
-                { field: "row_type",          headerName: "Row Type",     headerTooltip: "full = regular row, short = S-prefixed short tracker at block edge", flex: 1, minWidth: 60, maxWidth: 80 },
+                // Widths are content-driven: a one-time DB scan measured
+                // the actual max length of each field across every pier,
+                // and the result was upserted into `field_configurations`
+                // for grid_name='piers-list'.  The values below are the
+                // React-side fallback (used only if the field-config API
+                // is unreachable) and match the DB defaults exactly.
+                // Formula: chars * 7 + 30 px (24 px L+R padding + ~6 px
+                // for the sort / filter icon).
+                { field: "pier_code",         headerName: "Pier",         headerTooltip: "Pier code",       width: 100 },
+                { field: "block_code",        headerName: "Block",        headerTooltip: "Block code",      width: 70  },
+                { field: "tracker_code",      headerName: "Tracker",      headerTooltip: "Tracker code",    width: 85  },
+                { field: "row_num",           headerName: "Row",          headerTooltip: "Row number",      width: 60  },
+                { field: "pier_type",         headerName: "Type",         headerTooltip: "HAP / HMP / SAP / SAPE / SAPEND / SMP", width: 80 },
+                { field: "structure_code",    headerName: "Struct.",      headerTooltip: "Structure code",  width: 85  },
+                { field: "slope_band",        headerName: "Slope",        headerTooltip: "Slope band",      width: 80  },
+                { field: "tracker_type_code", headerName: "Tracker Type", headerTooltip: "Tracker type code", width: 175 },
+                { field: "row_type",          headerName: "Row Type",     headerTooltip: "full = regular row, short = S-prefixed short tracker at block edge", width: 95 },
                 {
                   field: "status", headerName: "Status",
                   headerTooltip: "Click a cell to change status",
-                  width: 120, minWidth: 110, maxWidth: 140,
+                  width: 120,
                   cellRenderer: StatusPill, cellClass: "status-cell",
                   editable: true, singleClickEdit: true,
                   cellEditor: "agSelectCellEditor",

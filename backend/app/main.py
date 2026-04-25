@@ -317,18 +317,21 @@ CREATE INDEX IF NOT EXISTS idx_field_configurations_grid_name
 # is missing.
 FIELD_CONFIG_SEEDS: dict[str, list[dict]] = {
     "piers-list": [
-        # Pier, Tracker, Row first; Block hidden by default (user can show it
-        # again from the Field Config tab).
-        {"field_name": "pier_code",          "display_name": "Pier",          "column_order": 1, "visible": True,  "pin_side": "left"},
-        {"field_name": "tracker_code",       "display_name": "Tracker",       "column_order": 2, "visible": True},
-        {"field_name": "row_num",            "display_name": "Row",           "column_order": 3, "visible": True},
-        {"field_name": "pier_type",          "display_name": "Pier Type",     "column_order": 4, "visible": True},
-        {"field_name": "structure_code",     "display_name": "Structure",     "column_order": 5, "visible": True},
-        {"field_name": "slope_band",         "display_name": "Slope",         "column_order": 6, "visible": True},
-        {"field_name": "tracker_type_code",  "display_name": "Tracker Type",  "column_order": 7, "visible": True},
-        {"field_name": "status",             "display_name": "Status",        "column_order": 8, "visible": True,  "pin_side": "right"},
-        {"field_name": "block_code",         "display_name": "Block",         "column_order": 9, "visible": False},
-        {"field_name": "row_type",           "display_name": "Row Type",      "column_order": 10, "visible": False},
+        # Widths derived from a one-time scan of actual pier data
+        # (max(LENGTH) per field) using width = chars*7 + 30 px (left
+        # padding 12 + right padding 12 + sort-icon room 6).  Pier
+        # checkbox column lives outside this config (it's the special
+        # __select column locked-pinned to the absolute left).
+        {"field_name": "pier_code",          "display_name": "Pier",          "column_order": 1,  "visible": True,                       "width": 100},
+        {"field_name": "tracker_code",       "display_name": "Tracker",       "column_order": 2,  "visible": True,                       "width": 85},
+        {"field_name": "row_num",            "display_name": "Row",           "column_order": 3,  "visible": True,                       "width": 60},
+        {"field_name": "pier_type",          "display_name": "Type",          "column_order": 4,  "visible": True,                       "width": 80},
+        {"field_name": "structure_code",     "display_name": "Struct.",       "column_order": 5,  "visible": True,                       "width": 85},
+        {"field_name": "slope_band",         "display_name": "Slope",         "column_order": 6,  "visible": True,                       "width": 80},
+        {"field_name": "tracker_type_code",  "display_name": "Tracker Type",  "column_order": 7,  "visible": True,                       "width": 175},
+        {"field_name": "status",             "display_name": "Status",        "column_order": 8,  "visible": True,  "pin_side": "right", "width": 120},
+        {"field_name": "block_code",         "display_name": "Block",         "column_order": 9,  "visible": False,                      "width": 70},
+        {"field_name": "row_type",           "display_name": "Row Type",      "column_order": 10, "visible": False,                      "width": 95},
     ],
     "devices-bom": [
         {"field_name": "part_no",      "display_name": "Part No",    "column_order": 1, "visible": True},
