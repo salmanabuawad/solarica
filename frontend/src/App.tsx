@@ -568,24 +568,63 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   // incorrect. We strip the prefix on display and keep the short/full
   // distinction in a separate `row_type` column users can show via
   // Field Config.
+  // gridRows used to depend on `pierStatuses` and rebuild all 24 k
+  // row objects on every status edit — the cause of the perceived
+  // lag even after the map-side feature-state fix. Each rebuild
+  // also triggered ag-grid's full row-data diff. The fix:
+  //   1. Bake the *initial* status into gridRows (from the first
+  //      pierStatuses value at build time, via a ref).
+  //   2. Drop pierStatuses from the deps so the array stays stable
+  //      across status edits.
+  //   3. A separate useEffect below diffs pierStatuses against the
+  //      previous map and calls node.setDataValue("status", ...) only
+  //      for rows whose status actually changed.
+  const pierStatusesAtBuildRef = useRef<Record<string, string>>({});
+  pierStatusesAtBuildRef.current = pierStatuses;
   const gridRows = useMemo(() => {
+    const ps = pierStatusesAtBuildRef.current;
     return filteredPiers.map((p: any) => {
       const raw = String(p.row_num ?? "").trim();
       const isShort = /^S\d+$/i.test(raw);
-      // Keep the row label as-is (S-prefixed when applicable) so the
-      // Row column shows "S19" verbatim — same value the API + map
-      // labels carry. Earlier we stripped the S to "normalise" the
-      // display, which made S-rows indistinguishable from the regular
-      // numeric row of the same index.
       return {
         ...p,
         row_num: raw,
         row_num_raw: raw,
         row_type: isShort ? "short" : (raw ? "full" : ""),
-        status: pierStatuses[p.pier_code] || "New",
+        status: ps[p.pier_code] || "New",
       };
     });
-  }, [filteredPiers, pierStatuses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredPiers]);
+
+  // Keep ag-grid's view of pier status in sync with the React state
+  // by diffing changes and patching only the affected nodes — never
+  // by rebuilding the 24 k-element rowData. lastStatuses tracks the
+  // last applied snapshot so each edit costs O(changed-piers).
+  const lastGridStatusesRef = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const api = pierGridApiRef.current;
+    if (!api) return;
+    const prev = lastGridStatusesRef.current;
+    const next = pierStatuses || {};
+    // Walk the union of keys that changed (added or modified).
+    for (const code of Object.keys(next)) {
+      if (prev[code] === next[code]) continue;
+      try {
+        const node = api.getRowNode?.(code);
+        if (node) node.setDataValue("status", next[code]);
+      } catch { /* node missing — fine */ }
+    }
+    // Walk keys removed (status reverted to "New").
+    for (const code of Object.keys(prev)) {
+      if (next[code] !== undefined) continue;
+      try {
+        const node = api.getRowNode?.(code);
+        if (node) node.setDataValue("status", "New");
+      } catch { /* noop */ }
+    }
+    lastGridStatusesRef.current = { ...next };
+  }, [pierStatuses]);
 
   const STATUS_BG: Record<string, string> = {
     "New": "#ffffff",
