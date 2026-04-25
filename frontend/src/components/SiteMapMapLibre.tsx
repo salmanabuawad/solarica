@@ -1071,32 +1071,13 @@ export default function SiteMapMapLibre({
     trackerLabelMarkersRef.current = [];
     if (!layerVisible(layersRef.current, "trackers")) return;
 
+    // Mirror refreshRowLabels: no zoom gate, no sampling, no
+    // marker cap — every tracker whose centre is in the visible
+    // viewport gets a label. The user explicitly asked the tracker
+    // numbers to behave like the row numbers.
     const bounds = map.getBounds();
-    const zoom = map.getZoom();
-    // Cap the number of labels rendered based on zoom level so the
-    // user always sees *some* labels (not gated entirely by a zoom
-    // threshold) but the count stays bounded:
-    //   < zoom 11  → 0 labels (entire site overview, would be clutter)
-    //   11..13     → up to 80 labels (sample across the viewport)
-    //   13..15     → up to 250
-    //   >= 15      → up to 600 (essentially everything in view)
-    const cap = zoom < 11 ? 0
-              : zoom < 13 ? 80
-              : zoom < 15 ? 250
-              : 600;
-    if (cap === 0) return;
-
-    // When the cap < total visible trackers, sample every Nth tracker
-    // so the chips spread across the viewport instead of clustering
-    // in whatever order Object.entries returns first.
-    const allEntries = Object.entries(trackerLabelDataRef.current);
-    const visible: [string, { lng: number; lat: number }][] = [];
-    for (const e of allEntries) if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
-    const stride = visible.length > cap ? Math.ceil(visible.length / cap) : 1;
-
-    let placed = 0;
-    for (let i = 0; i < visible.length; i += stride) {
-      const [code, pos] = visible[i];
+    for (const [code, pos] of Object.entries(trackerLabelDataRef.current)) {
+      if (!bounds.contains([pos.lng, pos.lat])) continue;
       const el = document.createElement("div");
       el.textContent = code;
       el.style.cssText =
@@ -1114,8 +1095,6 @@ export default function SiteMapMapLibre({
         .setLngLat([pos.lng, pos.lat])
         .addTo(map);
       trackerLabelMarkersRef.current.push(marker);
-      placed++;
-      if (placed >= cap) break;
     }
   }
 
