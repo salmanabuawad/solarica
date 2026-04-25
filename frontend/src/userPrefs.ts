@@ -14,6 +14,9 @@ const KEYS = {
   mapLabelStride: "solarica.mapLabelStride",
   // ...unless the visible count is small enough to fit comfortably.
   mapLabelDenseThreshold: "solarica.mapLabelDenseThreshold",
+  // Per-layer visibility — persists the on/off state of each layer
+  // checkbox across sessions so toggles aren't lost on refresh.
+  layerVisibility: "solarica.layerVisibility",
 } as const;
 
 export type PierStatusDisplay = "color" | "icon" | "both";
@@ -69,4 +72,17 @@ export const userPrefs = {
   setMapLabelStride: (v: number) => writeNumber(KEYS.mapLabelStride, v),
   getMapLabelDenseThreshold: () => readNumber(KEYS.mapLabelDenseThreshold, DEFAULTS.mapLabelDenseThreshold),
   setMapLabelDenseThreshold: (v: number) => writeNumber(KEYS.mapLabelDenseThreshold, v),
+  getLayerVisibility: (): Record<string, boolean> => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = window.localStorage.getItem(KEYS.layerVisibility);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch { return {}; }
+  },
+  setLayerVisibility: (m: Record<string, boolean>) => {
+    if (typeof window === "undefined") return;
+    try { window.localStorage.setItem(KEYS.layerVisibility, JSON.stringify(m)); } catch { /* quota */ }
+  },
 };

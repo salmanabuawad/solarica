@@ -242,7 +242,24 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [gridFilterBy, setGridFilterBy] = useState<"row" | "tracker">("row");
   const [gridFilterValue, setGridFilterValue] = useState("");
   const [pierStatuses, setPierStatuses] = useState<Record<string, string>>({});
-  const [layers, setLayers] = useState(INITIAL_LAYERS);
+  const [layers, setLayers] = useState(() => {
+    // Restore per-layer visibility from localStorage so the user's
+    // checkbox toggles survive refreshes. Falls back to INITIAL_LAYERS
+    // defaults (row/piers/trackers ON, blocks OFF) on first visit or
+    // if the stored map doesn't include a given key.
+    const saved = userPrefs.getLayerVisibility();
+    return INITIAL_LAYERS.map((l) =>
+      saved && Object.prototype.hasOwnProperty.call(saved, l.key)
+        ? { ...l, visible: !!saved[l.key] }
+        : l,
+    );
+  });
+  // Persist on every change. (Cheap — 5 keys × boolean serialised.)
+  useEffect(() => {
+    const m: Record<string, boolean> = {};
+    for (const l of layers) m[l.key] = !!l.visible;
+    userPrefs.setLayerVisibility(m);
+  }, [layers]);
   const [error, setError] = useState("");
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
