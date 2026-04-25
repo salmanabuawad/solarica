@@ -201,6 +201,24 @@ body, #root {
     "Helvetica Neue", Arial, sans-serif;
 }
 
+/* Mobile safety: keep the whole app inside the viewport. Without this
+   any descendant that accidentally measures wider than 100% (long
+   filenames, ag-grid horizontal scroll, etc.) drags the whole page to
+   the right and leaves the bottom edge cropped behind the iOS Safari
+   chrome. */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+#root {
+  width: 100%;
+  max-width: 100vw;
+  min-height: 100dvh;
+}
+
 /* ── AG Grid Quartz overrides ────────────────────────────────────────── */
 
 .ag-theme-quartz {

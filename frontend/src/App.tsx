@@ -852,16 +852,17 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               )}
             </div>
             <div style={{
-              // 100dvh = "dynamic" viewport height — on iOS Safari the
-              // address bar / tab bar shrink it as they slide in/out, so
-              // the map never sits behind those system bars. Plain
-              // 100vh treats the viewport as if those bars were gone,
-              // which is what cropped the map at the bottom on phones.
-              // Fall back to 100vh for browsers that don't speak dvh.
+              // 100svh = "small" viewport height — the smallest the
+              // viewport can be with ALL browser chrome visible.  Using
+              // `svh` instead of `dvh` (or worse, `vh`) guarantees the
+              // map fits even when iOS Safari's address+tab bars are
+              // both showing and the user has selected piers (extra
+              // bulk toolbar above the map).  Fallback to 100vh for
+              // browsers that don't speak svh.
               height: compact
-                ? "calc(100dvh - 230px)"
+                ? "calc(100svh - 290px)"
                 : "calc(100dvh - 200px)",
-              minHeight: compact ? 280 : 380,
+              minHeight: compact ? 240 : 380,
               maxHeight: "calc(100vh - 120px)",
               borderRadius: 12,
               overflow: "hidden",
@@ -871,7 +872,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               margin: compact ? "0 6px" : 0,
               // Honour iOS safe-area inset so the bottom edge clears
               // the home indicator / tab bar.
-              paddingBottom: "env(safe-area-inset-bottom, 0px)",
+              marginBottom: "env(safe-area-inset-bottom, 0px)",
               boxSizing: "border-box",
             }}>
               <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 13, color: "#64748b" }}>Loading map…</div>}>
