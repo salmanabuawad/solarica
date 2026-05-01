@@ -1702,7 +1702,7 @@ export default function SiteMapMapLibre({
       show("trackers-selected", trackersOn);
       show("electrical-zone-bands-fill", layerVisible(layers, "string_zones", true));
       show("electrical-zone-bands-outline", layerVisible(layers, "string_zones", true));
-      show("electrical-row-guides-layer", layerVisible(layers, "string_zones", true));
+      show("electrical-row-guides-layer", true);
       show("electrical-zones-layer", layerVisible(layers, "string_zones", true));
       show("electrical-zones-labels", layerVisible(layers, "string_zones", true));
       show("dccb-layer", layerVisible(layers, "dccb", false));
