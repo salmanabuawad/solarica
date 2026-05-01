@@ -101,7 +101,7 @@ export default function SiteMapMapLibre({
   const piersRef = useRef(piers);
   useEffect(() => { piersRef.current = piers; }, [piers]);
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
-  const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizers?: any; modules?: any }>>({});
+  const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }>>({});
   const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
   // Sampling prefs are read from refs by the map's `moveend`/`zoomend`
   // handlers, which are registered once at mount; without the refs
@@ -352,7 +352,7 @@ export default function SiteMapMapLibre({
   }, [piers, imageWidth]);
 
   const electricalRowLabelData = useMemo(() => {
-    const out: Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizers?: any; modules?: any }> = {};
+    const out: Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }> = {};
     if (!imageWidth || imageWidth <= 0) return out;
     for (const row of electricalRows || []) {
       if (typeof row?.x !== "number" || typeof row?.y !== "number") continue;
@@ -363,6 +363,8 @@ export default function SiteMapMapLibre({
         zone: String(row.zone ?? ""),
         strings: row.string_count,
         stringNumbers: Array.isArray(row.string_numbers) ? row.string_numbers : [],
+        optimizerPattern: row.optimizer_pattern || "",
+        splitStrings: Array.isArray(row.split_strings) ? row.split_strings : [],
         optimizers: row.optimizer_count,
         modules: row.module_count,
       };
@@ -1873,7 +1875,7 @@ export default function SiteMapMapLibre({
     if (!layerVisible(layersRef.current, "row_labels")) return;
 
     const bounds = map.getBounds();
-    const visible: [string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizers?: any; modules?: any }][] = [];
+    const visible: [string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }][] = [];
     for (const e of Object.entries(electricalRowLabelDataRef.current)) {
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
@@ -1884,8 +1886,11 @@ export default function SiteMapMapLibre({
       const [id, pos] = visible[i];
       const row = id.split("-row-").pop() || id;
       const stringLabel = formatStringNumbers(pos.stringNumbers || []);
+      const splitLabel = (pos.splitStrings || []).join(", ");
       const el = document.createElement("div");
-      el.textContent = stringLabel ? `Z${pos.zone} ${stringLabel}` : `R-${row}`;
+      el.textContent = stringLabel
+        ? `Z${pos.zone} ${stringLabel} OP.${pos.optimizers ?? ""}${splitLabel ? " split" : ""}`
+        : `R-${row}`;
       el.title = `Zone ${pos.zone}`;
       el.style.cssText =
         "font: 700 10px Arial, sans-serif; color: #075985; cursor: pointer; " +
@@ -1905,6 +1910,8 @@ export default function SiteMapMapLibre({
             `<div>String numbers ${stringLabel || "-"}</div>` +
             `<div>String count ${pos.strings ?? "-"}</div>` +
             `<div>Optimizers ${pos.optimizers ?? "-"}</div>` +
+            `<div>Optimizer pattern ${pos.optimizerPattern || "-"}</div>` +
+            `<div>Split strings ${splitLabel || "-"}</div>` +
             `<div>Modules ${pos.modules ?? "-"}</div>` +
             `</div>`,
           )

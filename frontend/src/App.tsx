@@ -215,6 +215,13 @@ function getInitialProjectId() {
   return params.get("project") || "";
 }
 
+function formatDottedPattern(prefix: string, values: number[]) {
+  const nums = [...new Set(values)]
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
+  return nums.length ? `${prefix}.${nums.join(".")}` : "";
+}
+
 export default function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getCurrentUser());
   if (!authUser) {
@@ -639,11 +646,68 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     });
   }, [electricalZones, stringOptimizerModel]);
 
+  const electricalPhysicalRows = useMemo(() => {
+    const physicalRows = Array.isArray(stringOptimizerModel?.physical_rows)
+      ? stringOptimizerModel.physical_rows
+      : [];
+    const stringRows = new Map<string, Set<number>>();
+    for (const row of physicalRows) {
+      const rowNo = Number(row?.physical_row);
+      for (const s of row?.strings || []) {
+        const zone = Number(s?.zone);
+        const stringNo = Number(s?.string_in_zone);
+        if (!rowNo || !zone || !stringNo) continue;
+        const key = `${zone}.${stringNo}`;
+        if (!stringRows.has(key)) stringRows.set(key, new Set());
+        stringRows.get(key)!.add(rowNo);
+      }
+    }
+    return physicalRows.map((row: any) => {
+      const rowNo = Number(row?.physical_row);
+      const strings = Array.isArray(row?.strings) ? row.strings : [];
+      const stringNumbers = strings
+        .map((s: any) => Number(s?.string_in_zone))
+        .filter((n: number) => Number.isFinite(n))
+        .sort((a: number, b: number) => a - b);
+      const zones = [...new Set(strings.map((s: any) => Number(s?.zone)).filter(Boolean))].sort((a, b) => a - b);
+      const splitStrings = strings
+        .filter((s: any) => (stringRows.get(`${Number(s?.zone)}.${Number(s?.string_in_zone)}`)?.size || 0) > 1)
+        .map((s: any) => `Z${Number(s.zone)} S.${Number(s.string_in_zone)}`);
+      const optimizerPattern = strings
+        .map((s: any) => `S.${Number(s.string_in_zone)} OP.1-${Number(s.optimizer_count || 0)}`)
+        .join("; ");
+      return {
+        id: `row-${rowNo}`,
+        physical_row: rowNo,
+        zones: zones.map((z) => `Z${z}`).join(", "),
+        string_numbers: stringNumbers,
+        string_pattern: formatDottedPattern("S", stringNumbers),
+        string_count: row?.string_count ?? strings.length,
+        optimizer_count: row?.optimizer_count ?? strings.reduce((sum: number, s: any) => sum + Number(s.optimizer_count || 0), 0),
+        optimizer_pattern: optimizerPattern,
+        module_count: row?.module_count ?? strings.reduce((sum: number, s: any) => sum + Number(s.module_count || 0), 0),
+        split_strings: splitStrings.join(", "),
+      };
+    });
+  }, [stringOptimizerModel]);
+
   const electricalRowMarkers = useMemo(() => {
     const physicalRows = Array.isArray(stringOptimizerModel?.physical_rows)
       ? stringOptimizerModel.physical_rows
       : [];
     const rowStats = new Map<number, any>();
+    const stringRows = new Map<string, Set<number>>();
+    for (const row of physicalRows) {
+      const rowNo = Number(row?.physical_row);
+      for (const s of row?.strings || []) {
+        const zone = Number(s?.zone);
+        const stringNo = Number(s?.string_in_zone);
+        if (!rowNo || !zone || !stringNo) continue;
+        const key = `${zone}.${stringNo}`;
+        if (!stringRows.has(key)) stringRows.set(key, new Set());
+        stringRows.get(key)!.add(rowNo);
+      }
+    }
     for (const row of physicalRows) {
       const rowNo = Number(row?.physical_row);
       if (rowNo) rowStats.set(rowNo, row);
@@ -681,6 +745,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 .map((s: any) => Number(s?.string_in_zone))
                 .filter((n: number) => Number.isFinite(n))
                 .sort((a: number, b: number) => a - b)
+            : [],
+          optimizer_pattern: Array.isArray(stat.strings)
+            ? stat.strings
+                .map((s: any) => `S.${Number(s?.string_in_zone)} OP.1-${Number(s?.optimizer_count || 0)}`)
+                .join("; ")
+            : "",
+          split_strings: Array.isArray(stat.strings)
+            ? stat.strings
+                .filter((s: any) => (stringRows.get(`${Number(s?.zone)}.${Number(s?.string_in_zone)}`)?.size || 0) > 1)
+                .map((s: any) => `S.${Number(s?.string_in_zone)}`)
             : [],
         });
       });
@@ -1466,28 +1540,27 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
               <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-                {electricalZoneRows.length.toLocaleString()} string zones
+                {electricalPhysicalRows.length.toLocaleString()} physical rows
               </span>
               <span style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
                 Pier grid will appear after the ramming PDF is uploaded and parsed.
               </span>
             </div>
             <SimpleGrid
-              rows={electricalZoneRows}
+              rows={electricalPhysicalRows}
               columns={[
-                { field: "zone", headerName: "Zone", width: 90, type: "numericColumn" },
+                { field: "physical_row", headerName: "Row", width: 90, type: "numericColumn" },
+                { field: "zones", headerName: "Zone", width: 100 },
+                { field: "string_pattern", headerName: "String Numbers", width: 160 },
                 { field: "string_count", headerName: "Strings", width: 110, type: "numericColumn" },
                 { field: "optimizer_count", headerName: "Optimizers", width: 130, type: "numericColumn" },
+                { field: "optimizer_pattern", headerName: "Optimizer Pattern", minWidth: 240, flex: 1 },
                 { field: "module_count", headerName: "Modules", width: 120, type: "numericColumn" },
-                { field: "physical_rows", headerName: "Physical Rows", width: 140 },
-                { field: "source_file", headerName: "Source File", minWidth: 260, flex: 1 },
-                { field: "page", headerName: "Page", width: 80, type: "numericColumn" },
-                { field: "x", headerName: "X", width: 90, type: "numericColumn" },
-                { field: "y", headerName: "Y", width: 90, type: "numericColumn" },
+                { field: "split_strings", headerName: "Split Strings", width: 160 },
               ]}
               height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
               enableQuickFilter
-              quickFilterPlaceholder="Search string zones..."
+              quickFilterPlaceholder="Search electrical rows..."
               getRowId={(p: any) => p.data?.id}
               gridApiRef={pierGridApiRef}
             />
