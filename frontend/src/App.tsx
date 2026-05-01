@@ -202,7 +202,7 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   trackers:    "layers.trackers",
   blocks:      "layers.blocks",
   blockLabels: "layers.blockLabels",  // unused in the toolbar; kept for compat
-  string_zones: "String zones",
+  string_zones: "Strings",
   inverters:   "layers.inverters",
   dccb:        "layers.dccb",
   security_cameras: "Security cameras",

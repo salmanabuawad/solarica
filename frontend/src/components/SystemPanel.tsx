@@ -102,6 +102,12 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
   );
   const optimizersPerString = firstDefined(assetSummary?.optimizersPerString, projectStringMetadata.optimizers_per_string);
   const trackerRowCount = Number(project?.tracker_count || 0) > 0 ? project?.row_count : undefined;
+  const isElectricalProject = Boolean(
+    project?.parse_scope === "electrical_only"
+    || project?.document_profile === "agro_pv_epl"
+    || projectStringSummary.strings
+    || projectStringMetadata.expected_optimizers
+  );
 
   // Only fetch files (lightweight); project + plantInfo come from props.
   async function refreshFiles() {
@@ -202,7 +208,9 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
 
   function handleParse() {
     if (!projectId) return;
-    const message = hasRammingPdf
+    const message = isElectricalProject
+      ? "Parse will refresh the electrical model from uploaded electrical documents. Continue?"
+      : hasRammingPdf
       ? "Parse will clear all existing project data and rebuild from uploaded files. Continue?"
       : "No ramming PDF is uploaded. Parse will check the electrical/EPL documents only; upload the ramming PDF later to build blocks, trackers, and piers. Continue?";
     setConfirmState({
@@ -217,7 +225,7 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
           setBusy("Parsing… this may take a minute or two");
           const result = await parseProject(projectId);
           if (result.parse_scope === "electrical_only") {
-            setParseMsg(`Electrical check: ${Number(result.string_count || 0).toLocaleString()} strings, ${Number(result.optimizer_count || 0).toLocaleString()} optimizers. Ramming PDF still needed for piers.`);
+            setParseMsg(`Electrical check: ${Number(result.string_count || 0).toLocaleString()} strings, ${Number(result.optimizer_count || 0).toLocaleString()} optimizers.`);
           } else {
             setParseMsg(`Parsed: ${result.block_count} blocks, ${result.tracker_count} trackers, ${result.pier_count} piers`);
           }
@@ -255,7 +263,8 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
 
   const hasConstructionPdf = files.some((f) => f.kind === "construction_pdf");
   const hasRammingPdf = files.some((f) => f.kind === "ramming_pdf");
-  const parseDisabled = parsing || !hasConstructionPdf || !online;
+  const hasAnyFile = files.length > 0;
+  const parseDisabled = parsing || !online || (isElectricalProject ? !hasAnyFile : !hasConstructionPdf);
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -322,19 +331,30 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
         )}
         {projectId ? (
           <>
-            <FileReadinessCheck files={files} />
+            {isElectricalProject ? (
+              <ElectricalReadinessCheck
+                strings={stringCount}
+                inverters={plantInfo?.inverters}
+                dccb={plantInfo?.dccb}
+                fileCount={files.length}
+              />
+            ) : (
+              <FileReadinessCheck files={files} />
+            )}
             <BatchUploadField onUpload={handleBatchUpload} disabled={!online} />
-            <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 10 }}>
-              <FileUploadField label="Construction PDF" kind="construction_pdf" files={files} onUpload={handleFileUpload} disabled={!online} />
-              <FileUploadField label="Ramming PDF" kind="ramming_pdf" files={files} onUpload={handleFileUpload} disabled={!online} />
-              <FileUploadField label="Block Mapping" kind="block_mapping" files={files} onUpload={handleFileUpload} disabled={!online} />
-            </div>
+            {!isElectricalProject && (
+              <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 10 }}>
+                <FileUploadField label="Construction PDF" kind="construction_pdf" files={files} onUpload={handleFileUpload} disabled={!online} />
+                <FileUploadField label="Ramming PDF" kind="ramming_pdf" files={files} onUpload={handleFileUpload} disabled={!online} />
+                <FileUploadField label="Block Mapping" kind="block_mapping" files={files} onUpload={handleFileUpload} disabled={!online} />
+              </div>
+            )}
             <UploadedFilesList files={files} />
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button
                 onClick={handleParse}
                 disabled={parseDisabled}
-                title={!online ? "Parsing requires an internet connection" : !hasConstructionPdf ? "Upload a construction PDF first" : ""}
+                title={!online ? "Parsing requires an internet connection" : parseDisabled ? (isElectricalProject ? "Upload at least one electrical document first" : "Upload a construction PDF first") : ""}
                 style={{
                   fontSize: 13, padding: "8px 16px", borderRadius: 6, border: "none",
                   background: parseDisabled ? "#cbd5e1" : "#0f172a",
@@ -344,7 +364,7 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
               >
                 {parsing ? t("sp.parsing") : t("sp.parse")}
               </button>
-              {!hasRammingPdf && hasConstructionPdf && (
+              {!isElectricalProject && !hasRammingPdf && hasConstructionPdf && (
                 <span style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
                   Ramming PDF may be required after site detection.
                 </span>
@@ -634,6 +654,17 @@ function ReadinessItem({ label, value, tone }: { label: string; value: string; t
     <div>
       <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
       <div style={{ fontSize: 13, color, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
+}
+
+function ElectricalReadinessCheck({ strings, inverters, dccb, fileCount }: { strings: any; inverters: any; dccb: any; fileCount: number }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 10, padding: "8px 0 10px", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0", marginBottom: 10 }}>
+      <ReadinessItem label="Strings" value={formatMetaValue(strings) || "Missing"} tone={strings ? "ok" : "muted"} />
+      <ReadinessItem label="Inverters" value={formatMetaValue(inverters) || "Missing"} tone={inverters ? "ok" : "muted"} />
+      <ReadinessItem label="DCCB" value={formatMetaValue(dccb) || "Missing"} tone={dccb ? "ok" : "muted"} />
+      <ReadinessItem label="Electrical files" value={`${fileCount} file${fileCount === 1 ? "" : "s"}`} tone={fileCount ? "ok" : "muted"} />
     </div>
   );
 }

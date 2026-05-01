@@ -11,8 +11,9 @@ def attach_map_source_image_url(project_id: str, project_uuid: str, payload: dic
     """Attach a public PNG render URL to a string-optimizer map_source.
 
     The frontend needs the actual drawing page as the map substrate. We render
-    the authoritative PDF page once into /projects/<id>/map_source/*.png, which
-    is served by the existing public StaticFiles mount.
+    the authoritative PDF page once into the project artifacts folder and serve
+    it through a public API route. Production nginx only proxies /api/* to the
+    backend, so returning /projects/* would fall through to the frontend shell.
     """
     map_source = payload.get("map_source") or {}
     if not isinstance(map_source, dict):
@@ -53,7 +54,7 @@ def attach_map_source_image_url(project_id: str, project_uuid: str, payload: dic
                 pix.save(str(out_path))
                 map_source["image_width_px"] = pix.width
                 map_source["image_height_px"] = pix.height
-        map_source["image_url"] = f"/projects/{project_id}/map_source/{out_path.name}"
+        map_source["image_url"] = f"/api/public/projects/{project_id}/map-source-image/{out_path.stem}"
     except Exception as exc:
         map_source["image_error"] = str(exc)
 
