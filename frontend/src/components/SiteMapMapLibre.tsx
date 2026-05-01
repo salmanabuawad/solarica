@@ -101,7 +101,7 @@ export default function SiteMapMapLibre({
   const piersRef = useRef(piers);
   useEffect(() => { piersRef.current = piers; }, [piers]);
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
-  const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; strings?: any; optimizers?: any; modules?: any }>>({});
+  const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizers?: any; modules?: any }>>({});
   const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
   // Sampling prefs are read from refs by the map's `moveend`/`zoomend`
   // handlers, which are registered once at mount; without the refs
@@ -352,7 +352,7 @@ export default function SiteMapMapLibre({
   }, [piers, imageWidth]);
 
   const electricalRowLabelData = useMemo(() => {
-    const out: Record<string, { lng: number; lat: number; zone: string; strings?: any; optimizers?: any; modules?: any }> = {};
+    const out: Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizers?: any; modules?: any }> = {};
     if (!imageWidth || imageWidth <= 0) return out;
     for (const row of electricalRows || []) {
       if (typeof row?.x !== "number" || typeof row?.y !== "number") continue;
@@ -362,6 +362,7 @@ export default function SiteMapMapLibre({
         lat,
         zone: String(row.zone ?? ""),
         strings: row.string_count,
+        stringNumbers: Array.isArray(row.string_numbers) ? row.string_numbers : [],
         optimizers: row.optimizer_count,
         modules: row.module_count,
       };
@@ -383,30 +384,88 @@ export default function SiteMapMapLibre({
         .filter((x: any) => typeof x === "number"),
     ];
     if (!xs.length) return { type: "FeatureCollection" as const, features };
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const span = Math.max(120, maxX - minX);
-    const stringPitch = Math.max(32, Math.min(72, span / 20));
+    const maxModulesInRow = Math.max(
+      1,
+      ...(electricalRows || []).map((row: any) => Number(row?.module_count || 0)).filter(Number.isFinite),
+    );
+    const modulePitch = (imageWidth * 0.56) / maxModulesInRow;
     for (const row of electricalRows || []) {
       if (typeof row?.x !== "number" || typeof row?.y !== "number") continue;
       const rowNo = row.row_num ?? "";
       const stringCount = Number(row.string_count || 0);
-      const rowLength = Math.max(70, stringPitch * Math.max(1, stringCount || 2));
+      const moduleCount = Number(row.module_count || 0);
+      const rowLength = Math.max(260, modulePitch * Math.max(1, moduleCount || stringCount * 44 || 88));
       const halfLength = rowLength / 2;
       const centerX = Number(row.x);
+      const x0 = Math.max(20, centerX - halfLength);
+      const x1 = Math.min(imageWidth - 20, centerX + halfLength);
       features.push({
         type: "Feature" as const,
         geometry: {
           type: "LineString" as const,
           coordinates: [
-            rotatedToLngLat(centerX - halfLength, Number(row.y), imageWidth),
-            rotatedToLngLat(centerX + halfLength, Number(row.y), imageWidth),
+            rotatedToLngLat(x0, Number(row.y), imageWidth),
+            rotatedToLngLat(x1, Number(row.y), imageWidth),
           ],
         },
         properties: {
           row: String(rowNo),
           zone: String(row.zone ?? ""),
           strings: stringCount || null,
+        },
+      });
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [electricalRows, electricalZones, imageWidth]);
+
+  const electricalZoneBandGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features };
+    }
+    const rowsByZone: Record<string, any[]> = {};
+    for (const row of electricalRows || []) {
+      const zone = String(row?.zone ?? "");
+      if (!zone || typeof row?.x !== "number" || typeof row?.y !== "number") continue;
+      (rowsByZone[zone] ??= []).push(row);
+    }
+    const maxModulesInRow = Math.max(
+      1,
+      ...(electricalRows || []).map((row: any) => Number(row?.module_count || 0)).filter(Number.isFinite),
+    );
+    const modulePitch = (imageWidth * 0.56) / maxModulesInRow;
+    for (const zone of electricalZones || []) {
+      const src = zone?.source || {};
+      const zoneKey = String(zone?.zone ?? "");
+      const rows = rowsByZone[zoneKey] || [];
+      if (!zoneKey || typeof src.x !== "number" || !rows.length) continue;
+      const ys = rows.map((row) => Number(row.y)).filter(Number.isFinite);
+      if (!ys.length) continue;
+      const maxZoneModules = Math.max(
+        1,
+        ...rows.map((row) => Number(row.module_count || 0)).filter(Number.isFinite),
+      );
+      const rowLength = Math.max(260, modulePitch * maxZoneModules);
+      const halfLength = rowLength / 2;
+      const centerX = Number(src.x);
+      const x0 = Math.max(20, centerX - halfLength);
+      const x1 = Math.min(imageWidth - 20, centerX + halfLength);
+      const y0 = Math.min(...ys) - 12;
+      const y1 = Math.max(...ys) + 12;
+      const ring = [
+        rotatedToLngLat(x0, y0, imageWidth),
+        rotatedToLngLat(x1, y0, imageWidth),
+        rotatedToLngLat(x1, y1, imageWidth),
+        rotatedToLngLat(x0, y1, imageWidth),
+        rotatedToLngLat(x0, y0, imageWidth),
+      ];
+      features.push({
+        type: "Feature" as const,
+        id: `zone-band-${zoneKey}`,
+        geometry: { type: "Polygon" as const, coordinates: [ring] },
+        properties: {
+          zone: zoneKey,
+          string_count: Number(zone.string_count || 0) || null,
         },
       });
     }
@@ -679,6 +738,7 @@ export default function SiteMapMapLibre({
       map.addSource("pier-statuses", { type: "geojson", data: pierStatusGeoJSON });
       map.addSource("electrical-zones", { type: "geojson", data: electricalZonesGeoJSON });
       map.addSource("electrical-row-guides", { type: "geojson", data: electricalRowGuideGeoJSON });
+      map.addSource("electrical-zone-bands", { type: "geojson", data: electricalZoneBandGeoJSON });
       map.addSource("dccb", { type: "geojson", data: dccbGeoJSON });
       map.addSource("inverters", { type: "geojson", data: inverterGeoJSON });
       map.addSource("security-devices", { type: "geojson", data: securityDevicesGeoJSON });
@@ -756,19 +816,55 @@ export default function SiteMapMapLibre({
         },
       });
       map.addLayer({
-        id: "electrical-row-guides-layer",
+        id: "electrical-zone-bands-fill",
+        type: "fill",
+        source: "electrical-zone-bands",
+        paint: {
+          "fill-color": [
+            "case",
+            ["==", ["get", "string_count"], 11],
+            "#0ea5e9",
+            "#f59e0b",
+          ],
+          "fill-opacity": 0.055,
+        },
+      });
+      map.addLayer({
+        id: "electrical-zone-bands-outline",
         type: "line",
-        source: "electrical-row-guides",
+        source: "electrical-zone-bands",
         layout: { "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#38bdf8",
-          "line-opacity": 0.42,
+          "line-color": [
+            "case",
+            ["==", ["get", "string_count"], 11],
+            "#0284c7",
+            "#d97706",
+          ],
+          "line-opacity": 0.28,
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
             0, 0.7,
             8, 1,
             14, 1.6,
-            18, 2.3,
+            18, 2.2,
+          ],
+        },
+      });
+      map.addLayer({
+        id: "electrical-row-guides-layer",
+        type: "line",
+        source: "electrical-row-guides",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#cbd5e1",
+          "line-opacity": 0.88,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 1,
+            8, 1.4,
+            14, 2.2,
+            18, 3,
           ],
         },
       });
@@ -1490,6 +1586,7 @@ export default function SiteMapMapLibre({
     const apply = () => {
       (map.getSource("electrical-zones") as GeoJSONSource | undefined)?.setData(electricalZonesGeoJSON as any);
       (map.getSource("electrical-row-guides") as GeoJSONSource | undefined)?.setData(electricalRowGuideGeoJSON as any);
+      (map.getSource("electrical-zone-bands") as GeoJSONSource | undefined)?.setData(electricalZoneBandGeoJSON as any);
       (map.getSource("dccb") as GeoJSONSource | undefined)?.setData(dccbGeoJSON as any);
       (map.getSource("inverters") as GeoJSONSource | undefined)?.setData(inverterGeoJSON as any);
       (map.getSource("security-devices") as GeoJSONSource | undefined)?.setData(securityDevicesGeoJSON as any);
@@ -1498,7 +1595,7 @@ export default function SiteMapMapLibre({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1601,6 +1698,9 @@ export default function SiteMapMapLibre({
       show("trackers-casing", trackersOn);
       show("trackers-line", trackersOn);
       show("trackers-selected", trackersOn);
+      show("electrical-zone-bands-fill", layerVisible(layers, "string_zones", true));
+      show("electrical-zone-bands-outline", layerVisible(layers, "string_zones", true));
+      show("electrical-row-guides-layer", layerVisible(layers, "string_zones", true));
       show("electrical-zones-layer", layerVisible(layers, "string_zones", true));
       show("electrical-zones-labels", layerVisible(layers, "string_zones", true));
       show("dccb-layer", layerVisible(layers, "dccb", false));
@@ -1773,7 +1873,7 @@ export default function SiteMapMapLibre({
     if (!layerVisible(layersRef.current, "row_labels")) return;
 
     const bounds = map.getBounds();
-    const visible: [string, { lng: number; lat: number; zone: string; strings?: any; optimizers?: any; modules?: any }][] = [];
+    const visible: [string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizers?: any; modules?: any }][] = [];
     for (const e of Object.entries(electricalRowLabelDataRef.current)) {
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
@@ -1783,8 +1883,9 @@ export default function SiteMapMapLibre({
     for (let i = 0; i < visible.length; i += stride) {
       const [id, pos] = visible[i];
       const row = id.split("-row-").pop() || id;
+      const stringLabel = formatStringNumbers(pos.stringNumbers || []);
       const el = document.createElement("div");
-      el.textContent = `R-${row}`;
+      el.textContent = stringLabel ? `Z${pos.zone} ${stringLabel}` : `R-${row}`;
       el.title = `Zone ${pos.zone}`;
       el.style.cssText =
         "font: 700 10px Arial, sans-serif; color: #075985; cursor: pointer; " +
@@ -1801,7 +1902,8 @@ export default function SiteMapMapLibre({
             `<div style="font: 12px Arial, sans-serif; min-width: 150px;">` +
             `<div style="font-weight:700;margin-bottom:4px;">Physical row ${row}</div>` +
             `<div>Zone ${pos.zone || "-"}</div>` +
-            `<div>Strings ${pos.strings ?? "-"}</div>` +
+            `<div>String numbers ${stringLabel || "-"}</div>` +
+            `<div>String count ${pos.strings ?? "-"}</div>` +
             `<div>Optimizers ${pos.optimizers ?? "-"}</div>` +
             `<div>Modules ${pos.modules ?? "-"}</div>` +
             `</div>`,
@@ -1813,6 +1915,14 @@ export default function SiteMapMapLibre({
         .addTo(map);
       electricalRowMarkersRef.current.push(marker);
     }
+  }
+
+  function formatStringNumbers(values: number[]) {
+    const nums = [...new Set(values)]
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+    if (!nums.length) return "";
+    return `S.${nums.join(".")}`;
   }
 
   function refreshTrackerLabels() {

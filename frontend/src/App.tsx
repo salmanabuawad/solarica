@@ -676,6 +676,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           string_count: stat.string_count ?? null,
           optimizer_count: stat.optimizer_count ?? null,
           module_count: stat.module_count ?? null,
+          string_numbers: Array.isArray(stat.strings)
+            ? stat.strings
+                .map((s: any) => Number(s?.string_in_zone))
+                .filter((n: number) => Number.isFinite(n))
+                .sort((a: number, b: number) => a - b)
+            : [],
         });
       });
     }
