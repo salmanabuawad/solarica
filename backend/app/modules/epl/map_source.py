@@ -41,7 +41,8 @@ def attach_map_source_image_url(project_id: str, project_uuid: str, payload: dic
     render_dir = PROJECTS_ROOT / project_id / "map_source"
     render_dir.mkdir(parents=True, exist_ok=True)
     safe_stem = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in pdf_path.stem)
-    out_path = render_dir / f"{safe_stem}_p{page_no:03d}.png"
+    zoom = 1.0
+    out_path = render_dir / f"{safe_stem}_z1_p{page_no:03d}.png"
 
     try:
         if not out_path.exists() or out_path.stat().st_mtime < pdf_path.stat().st_mtime:
@@ -49,7 +50,6 @@ def attach_map_source_image_url(project_id: str, project_uuid: str, payload: dic
 
             with fitz.open(str(pdf_path)) as doc:
                 page = doc.load_page(max(0, min(page_no - 1, len(doc) - 1)))
-                zoom = 2.0
                 pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
                 pix.save(str(out_path))
                 map_source["image_width_px"] = pix.width
