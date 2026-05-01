@@ -710,7 +710,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   }, [electricalSummary, plantInfo, project, stringOptimizerModel]);
   const mapImageWidth = project?.base_image?.width || electricalMapSource?.page_width || 1;
   const mapImageHeight = project?.base_image?.height || electricalMapSource?.page_height || 1;
-  const mapImageUrl = electricalMapSource?.image_url || "";
+  const mapImageUrl = "";
   const electricalDetailsMode = piers.length === 0 && electricalZoneRows.length > 0;
 
   useEffect(() => {

@@ -148,7 +148,6 @@ def _verify_token(token: str) -> Optional[dict]:
 
 
 _PUBLIC_API_PATHS = {"/api/auth/login"}
-_PUBLIC_API_PREFIXES = ("/api/public/",)
 
 
 @app.middleware("http")
@@ -156,11 +155,7 @@ async def _auth_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
     path = request.url.path
-    if (
-        path.startswith("/api/")
-        and path not in _PUBLIC_API_PATHS
-        and not any(path.startswith(prefix) for prefix in _PUBLIC_API_PREFIXES)
-    ):
+    if path.startswith("/api/") and path not in _PUBLIC_API_PATHS:
         auth = request.headers.get("authorization", "")
         if not auth.startswith("Bearer ") or not _verify_token(auth[7:]):
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
@@ -207,17 +202,6 @@ async def api_me(request: Request):
     if not data:
         raise HTTPException(401, "Not authenticated")
     return data
-
-
-@app.get("/api/public/projects/{project_id}/map-source-image/{image_stem}")
-def api_public_map_source(project_id: str, image_stem: str):
-    if "/" in image_stem or "\\" in image_stem or image_stem in {"", ".", ".."}:
-        raise HTTPException(status_code=400, detail="Invalid image name")
-    path = (PROJECTS_ROOT / project_id / "map_source" / f"{image_stem}.png").resolve()
-    root = (PROJECTS_ROOT / project_id / "map_source").resolve()
-    if root not in path.parents or not path.exists() or not path.is_file():
-        raise HTTPException(status_code=404, detail="Map source image not found")
-    return FileResponse(str(path), media_type="image/png")
 
 
 # --- Users CRUD (admin only) -----------------------------------------
