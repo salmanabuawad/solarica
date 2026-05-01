@@ -8,6 +8,10 @@ export interface SiteMapProps {
   dccbs?: any[];
   /** Inverter devices extracted by the security module (`{type, name, x, y}`). */
   inverters?: any[];
+  /** Electrical string-zone labels from the EPL parser. */
+  electricalZones?: any[];
+  /** Physical row-number markers derived from electrical zones. */
+  electricalRows?: any[];
   pierStatuses?: Record<string, string>;
   selectedBlock: any;
   selectedTracker: any;

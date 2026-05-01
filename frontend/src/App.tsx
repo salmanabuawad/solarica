@@ -1,6 +1,6 @@
 import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getCurrentUser, logout, type AuthUser } from "./api";
+import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
@@ -178,8 +178,9 @@ const INITIAL_LAYERS = [
   // and Blocks are off so a fresh map is uncluttered. The user's
   // toggle state is then persisted to localStorage by the App.tsx
   // useEffect below, so once they enable a layer it survives refreshes.
-  { key: "row_labels",  label: "Row numbers", visible: false },
+  { key: "row_labels",  label: "Row numbers", visible: true },
   { key: "piers",       label: "Piers",       visible: true },
+  { key: "string_zones", label: "String zones", visible: true },
   { key: "trackers",    label: "Trackers",    visible: false },
   // Single "Blocks" checkbox drives BOTH the block fill/outline AND
   // the block-number HTML markers — keeps the checkbox row to four
@@ -187,11 +188,8 @@ const INITIAL_LAYERS = [
   // still reads `blockLabels` for the marker visibility but the App
   // layer-to-map shim below mirrors `blocks` → `blockLabels`.
   { key: "blocks",      label: "Blocks",      visible: false },
-  // Electrical devices (Inverters / DCCB) are loaded and rendered on
-  // the map, but their checkboxes are hidden for now until the symbol
-  // set and labelling are finalised. To re-expose them, re-add:
-  //   { key: "inverters", label: "Inverters", visible: false },
-  //   { key: "dccb",      label: "DCCB",      visible: false },
+  { key: "inverters", label: "Inverters", visible: true },
+  { key: "dccb",      label: "DCCB",      visible: true },
 ];
 const LAYER_LABEL_KEYS: Record<string, string> = {
   row_labels:  "layers.rowNumbers",
@@ -199,6 +197,7 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   trackers:    "layers.trackers",
   blocks:      "layers.blocks",
   blockLabels: "layers.blockLabels",  // unused in the toolbar; kept for compat
+  string_zones: "String zones",
   inverters:   "layers.inverters",
   dccb:        "layers.dccb",
 };
@@ -234,6 +233,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [trackers, setTrackers] = useState<any[]>([]);
   const [piers, setPiers] = useState<any[]>([]);
+  const [stringOptimizerModel, setStringOptimizerModel] = useState<any>(null);
   // Electrical devices extracted from the construction PDF (security
   // module). Tied to the Inverters + DCCB layer checkboxes.
   const [inverters, setInverters] = useState<any[]>([]);
@@ -407,6 +407,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setTrackers([]);
     setPiers([]);
     setPierStatuses({});
+    setStringOptimizerModel(null);
     setInverters([]);
     setDccbs([]);
 
@@ -426,6 +427,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         setPierStatuses(st || {});
       })
       .catch((e: any) => { if (!ignore) setError(String(e.message || e)); });
+
+    getStringOptimizerModel(projectId, false)
+      .then((model) => { if (!ignore) setStringOptimizerModel(model); })
+      .catch(() => { if (!ignore) setStringOptimizerModel(null); });
 
     // Electrical devices is the slowest endpoint (4 s+, re-parses
     // the PDF on every call) and the layers it feeds are off by
@@ -556,6 +561,86 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     }
     return trackers.filter((t: any) => gridFilterSet.has(String(t.tracker_code || "").toUpperCase()));
   }, [trackers, gridFilterBy, gridFilterSet]);
+
+  const electricalZones = useMemo(() => {
+    return Array.isArray(stringOptimizerModel?.string_zones)
+      ? stringOptimizerModel.string_zones
+      : [];
+  }, [stringOptimizerModel]);
+
+  const electricalZoneRows = useMemo(() => {
+    const metadata = stringOptimizerModel?.metadata || {};
+    const modulesPerString = Number(metadata.modules_per_string || 0);
+    const optimizersPerString = Number(metadata.optimizers_per_string || 0);
+    return electricalZones.map((zone: any) => {
+      const rows = Array.isArray(zone.physical_rows) ? zone.physical_rows : [];
+      const stringCount = Number(zone.string_count || 0);
+      const firstRow = rows[0];
+      const lastRow = rows[rows.length - 1];
+      const source = zone.source || {};
+      return {
+        id: `zone-${zone.zone}`,
+        zone: zone.zone,
+        string_count: stringCount,
+        optimizer_count: optimizersPerString ? stringCount * optimizersPerString : null,
+        module_count: modulesPerString ? stringCount * modulesPerString : null,
+        physical_rows: rows.length ? `${firstRow}-${lastRow}` : "-",
+        source_file: source.source_file || "",
+        page: source.page ?? "",
+        x: source.x,
+        y: source.y,
+      };
+    });
+  }, [electricalZones, stringOptimizerModel]);
+
+  const electricalRowMarkers = useMemo(() => {
+    const physicalRows = Array.isArray(stringOptimizerModel?.physical_rows)
+      ? stringOptimizerModel.physical_rows
+      : [];
+    const rowStats = new Map<number, any>();
+    for (const row of physicalRows) {
+      const rowNo = Number(row?.physical_row);
+      if (rowNo) rowStats.set(rowNo, row);
+    }
+    const zonesWithCoords = electricalZones
+      .filter((zone: any) => typeof zone?.source?.x === "number" && typeof zone?.source?.y === "number")
+      .sort((a: any, b: any) => Number(a.source.y) - Number(b.source.y));
+
+    const markers: any[] = [];
+    for (let zi = 0; zi < zonesWithCoords.length; zi += 1) {
+      const zone = zonesWithCoords[zi];
+      const rows = Array.isArray(zone.physical_rows) ? zone.physical_rows.map((r: any) => Number(r)).filter(Boolean) : [];
+      if (!rows.length) continue;
+      const src = zone.source;
+      const prevY = zi > 0 ? Number(zonesWithCoords[zi - 1].source.y) : null;
+      const nextY = zi + 1 < zonesWithCoords.length ? Number(zonesWithCoords[zi + 1].source.y) : null;
+      const spanBefore = prevY == null ? 52 : Math.max(20, (Number(src.y) - prevY) / 2);
+      const spanAfter = nextY == null ? 52 : Math.max(20, (nextY - Number(src.y)) / 2);
+      const startY = Number(src.y) - spanBefore;
+      const endY = Number(src.y) + spanAfter;
+      rows.forEach((rowNo: number, idx: number) => {
+        const stat = rowStats.get(rowNo) || {};
+        const tRow = (idx + 0.5) / rows.length;
+        markers.push({
+          id: `zone-${zone.zone}-row-${rowNo}`,
+          row_num: rowNo,
+          zone: zone.zone,
+          x: Number(src.x),
+          y: startY + (endY - startY) * tRow,
+          string_count: stat.string_count ?? null,
+          optimizer_count: stat.optimizer_count ?? null,
+          module_count: stat.module_count ?? null,
+        });
+      });
+    }
+    return markers;
+  }, [electricalZones, stringOptimizerModel]);
+
+  const electricalSummary = stringOptimizerModel?.summary || project?.strings_optimizers?.summary || null;
+  const electricalMapSource = stringOptimizerModel?.map_source || project?.strings_optimizers?.map_source || {};
+  const mapImageWidth = project?.base_image?.width || electricalMapSource?.page_width || 1;
+  const mapImageHeight = project?.base_image?.height || electricalMapSource?.page_height || 1;
+  const electricalDetailsMode = piers.length === 0 && electricalZoneRows.length > 0;
 
   // Grid rows: apply block/tracker filters, then optionally restrict to
   // whatever piers were visible in the map viewport when the user
@@ -1024,7 +1109,23 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         {/* Status dashboard — total piers + breakdown by status. Lives
             above the Grid/Map toggle so the operator sees the rollout
             at a glance regardless of which view they're in. */}
-        <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
+        {electricalDetailsMode ? (
+          <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "repeat(4, 1fr)", gap: "8px 20px", marginBottom: 10, padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc", fontSize: 13 }}>
+            {[
+              ["String Zones", electricalSummary?.string_zones],
+              ["Strings", electricalSummary?.strings],
+              ["Optimizers", electricalSummary?.optimizers],
+              ["Modules", electricalSummary?.modules],
+            ].map(([label, value]) => (
+              <div key={String(label)}>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2 }}>{label}</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
+        )}
 
         {/* Grid/Map toggle + Export-to-Excel on the same row. The
             export button sits flush to the right edge so it's always
@@ -1041,7 +1142,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               if (!api || typeof api.exportDataAsCsv !== "function") return;
               const today = new Date().toISOString().slice(0, 10);
               api.exportDataAsCsv({
-                fileName: `piers-${projectId || "export"}-${today}.csv`,
+                fileName: `${electricalDetailsMode ? "string-zones" : "piers"}-${projectId || "export"}-${today}.csv`,
                 onlySelectedAllPages: false,
               });
             }}
@@ -1156,13 +1257,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             }}>
               <Suspense fallback={<div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", fontSize: 13, color: "#64748b" }}>Loading map…</div>}>
                 <SiteMapMapLibre
-                  imageWidth={project?.base_image?.width || 1}
-                  imageHeight={project?.base_image?.height || 1}
+                  imageWidth={mapImageWidth}
+                  imageHeight={mapImageHeight}
                   blocks={blocks}
                   trackers={filteredTrackers}
                   piers={filteredPiers}
                   inverters={inverters}
                   dccbs={dccbs}
+                  electricalZones={electricalZones}
+                  electricalRows={electricalRowMarkers}
                   pierStatuses={pierStatuses}
                   selectedBlock={null}
                   selectedTracker={gridFilterBy === "tracker" && gridFilterSet ? trackers.find((t: any) => gridFilterSet.has(String(t.tracker_code || "").toUpperCase())) : null}
@@ -1218,6 +1321,36 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 onClose={() => setSelectedTracker(null)}
               />
             )}
+          </div>
+        ) : electricalDetailsMode ? (
+          <div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+                {electricalZoneRows.length.toLocaleString()} string zones
+              </span>
+              <span style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
+                Pier grid will appear after the ramming PDF is uploaded and parsed.
+              </span>
+            </div>
+            <SimpleGrid
+              rows={electricalZoneRows}
+              columns={[
+                { field: "zone", headerName: "Zone", width: 90, type: "numericColumn" },
+                { field: "string_count", headerName: "Strings", width: 110, type: "numericColumn" },
+                { field: "optimizer_count", headerName: "Optimizers", width: 130, type: "numericColumn" },
+                { field: "module_count", headerName: "Modules", width: 120, type: "numericColumn" },
+                { field: "physical_rows", headerName: "Physical Rows", width: 140 },
+                { field: "source_file", headerName: "Source File", minWidth: 260, flex: 1 },
+                { field: "page", headerName: "Page", width: 80, type: "numericColumn" },
+                { field: "x", headerName: "X", width: 90, type: "numericColumn" },
+                { field: "y", headerName: "Y", width: 90, type: "numericColumn" },
+              ]}
+              height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
+              enableQuickFilter
+              quickFilterPlaceholder="Search string zones..."
+              getRowId={(p: any) => p.data?.id}
+              gridApiRef={pierGridApiRef}
+            />
           </div>
         ) : (
           <div>

@@ -568,6 +568,118 @@ def _project_upload_dir(project_id: str) -> Path:
     return d
 
 
+def _latest_files_by_kind(files: list[dict]) -> dict:
+    """Return the newest uploaded file for each kind.
+
+    db_store.list_project_files returns newest first, so setdefault keeps
+    the file the user uploaded most recently when a kind has several rows.
+    """
+    by_kind = {}
+    for f in files:
+        by_kind.setdefault(f.get("kind"), f)
+    return by_kind
+
+
+def _build_epl_document_summary(files: list[dict], detected_profile: str | None = None) -> dict | None:
+    """Build a no-ramming summary from uploaded electrical/layout PDFs.
+
+    BHK/agro-PV drawing sets may have no structural ramming sheet at all, but
+    the EPL string/optimizer parser can still validate the document package.
+    Return None when the uploaded PDFs do not contain those signals.
+    """
+    pdf_paths = [
+        f["storage_path"]
+        for f in files
+        if str(f.get("storage_path", "")).lower().endswith(".pdf")
+    ]
+    if not pdf_paths:
+        return None
+
+    from app.modules.epl.string_optimizer_parser import build_string_optimizer_model_from_pdfs
+
+    so_model = build_string_optimizer_model_from_pdfs(pdf_paths)
+    so_summary = so_model.get("summary") or {}
+    if not (so_summary.get("strings") or so_summary.get("optimizers")):
+        return None
+
+    metadata = so_model.get("metadata") or {}
+    electrical = {
+        "total_strings": metadata.get("expected_strings"),
+        "total_modules": metadata.get("expected_modules"),
+        "modules_per_string": metadata.get("modules_per_string"),
+        "string_groups": so_summary.get("string_zones"),
+        "devices": (
+            f"{metadata.get('expected_optimizers')} optimizers"
+            if metadata.get("expected_optimizers") is not None
+            else None
+        ),
+    }
+    electrical = {k: v for k, v in electrical.items() if v is not None}
+
+    return {
+        "site_profile": detected_profile or "ground_pier",
+        "document_profile": "agro_pv_epl",
+        "detected_site_profile": detected_profile,
+        "parse_scope": "electrical_only",
+        "extraction_method": "document_epl",
+        "block_count": 0,
+        "tracker_count": 0,
+        "pier_count": 0,
+        "uploaded_pdf_count": len(pdf_paths),
+        "structural_parse": {
+            "status": "waiting_for_ramming_pdf",
+            "message": "Electrical/layout documents were parsed. Upload the ramming PDF to build blocks, trackers, and piers.",
+        },
+        "strings_optimizers": {
+            "project_type": so_model.get("project_type"),
+            "metadata": metadata,
+            "summary": so_summary,
+            "map_source": so_model.get("map_source"),
+            "label_selection": so_model.get("label_selection"),
+            "source_label_summaries": so_model.get("source_label_summaries"),
+        },
+        "electrical": electrical,
+    }
+
+
+def _save_epl_document_parse(project_id: str, project_uuid: str, files: list[dict], detected_profile: str | None = None) -> dict | None:
+    summary = _build_epl_document_summary(files, detected_profile=detected_profile)
+    if not summary:
+        return None
+
+    # Preserve any existing structural artifacts. Electrical-only document
+    # uploads should not wipe an already-parsed pier map.
+    blocks = db_store.get_blocks(project_uuid)
+    trackers = db_store.get_trackers(project_uuid)
+    piers = db_store.get_piers(project_uuid)
+    summary["block_count"] = len(blocks)
+    summary["tracker_count"] = len(trackers)
+    summary["pier_count"] = len(piers)
+
+    existing = db_store.get_project_metadata(project_uuid).get("summary") or {}
+    merged = dict(existing)
+    merged.update(summary)
+    db_store.set_project_metadata(project_uuid, merged)
+    db_store.upsert_project(
+        project_id,
+        site_profile=detected_profile or summary.get("site_profile") or "ground_pier",
+        status="electrical_ready",
+    )
+
+    so_summary = (summary.get("strings_optimizers") or {}).get("summary") or {}
+    return {
+        "status": "electrical_ready",
+        "parse_scope": "electrical_only",
+        "block_count": summary["block_count"],
+        "tracker_count": summary["tracker_count"],
+        "pier_count": summary["pier_count"],
+        "string_count": so_summary.get("strings", 0),
+        "optimizer_count": so_summary.get("optimizers", 0),
+        "module_count": so_summary.get("modules", 0),
+        "requires_ramming": True,
+    }
+
+
 # --- Project list / create / delete ---------------------------------------
 
 class ProjectCreate(BaseModel):
@@ -925,12 +1037,15 @@ def api_parse_project(project_id: str):
     """
     uu = _require_project_uuid(project_id)
     files = db_store.list_project_files(uu)
-    kinds = {f["kind"]: f for f in files}
+    kinds = _latest_files_by_kind(files)
     construction = kinds.get("construction_pdf")
     ramming = kinds.get("ramming_pdf")
     overlay = kinds.get("overlay_image") or construction  # fall back to construction PDF
     block_mapping = kinds.get("block_mapping")
     if not construction:
+        epl_result = _save_epl_document_parse(project_id, uu, files)
+        if epl_result:
+            return epl_result
         raise HTTPException(status_code=400, detail="Missing construction PDF. Upload a file with kind=construction_pdf first.")
 
     # Detect the site profile from the uploaded construction PDF so the
@@ -943,6 +1058,9 @@ def api_parse_project(project_id: str):
     )
 
     if detected_profile == "ground_pier" and not ramming:
+        epl_result = _save_epl_document_parse(project_id, uu, files, detected_profile=detected_profile)
+        if epl_result:
+            return epl_result
         raise HTTPException(
             status_code=400,
             detail="Missing ramming PDF. Upload a file with kind=ramming_pdf first "

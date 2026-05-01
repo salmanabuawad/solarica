@@ -34,6 +34,7 @@ def _read_pdf_blocks(pdf_path: str | Path) -> tuple[str, list[dict[str, Any]]]:
     try:
         with fitz.open(str(pdf_path)) as doc:
             for page_no, page in enumerate(doc, start=1):
+                rect = page.rect
                 page_text = page.get_text("text") or ""
                 text_parts.append(page_text)
                 for b in page.get_text("blocks") or []:
@@ -49,6 +50,8 @@ def _read_pdf_blocks(pdf_path: str | Path) -> tuple[str, list[dict[str, Any]]]:
                         "y": round(float(y0), 2),
                         "x1": round(float(x1), 2),
                         "y1": round(float(y1), 2),
+                        "page_width": round(float(rect.width), 2),
+                        "page_height": round(float(rect.height), 2),
                         "text": txt.strip().replace("\n", " "),
                     })
     except Exception:
@@ -176,6 +179,8 @@ def _extract_string_zone_labels(blocks: list[dict[str, Any]]) -> list[dict[str, 
                 "y": b.get("y"),
                 "x1": b.get("x1"),
                 "y1": b.get("y1"),
+                "page_width": b.get("page_width"),
+                "page_height": b.get("page_height"),
                 "text_block": (b.get("text") or "")[:240],
             })
     return labels
@@ -359,6 +364,10 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
                 "page": label.get("page"),
                 "x": label.get("x"),
                 "y": label.get("y"),
+                "x1": label.get("x1"),
+                "y1": label.get("y1"),
+                "page_width": label.get("page_width"),
+                "page_height": label.get("page_height"),
             },
             "strings": [],
         }
@@ -458,6 +467,15 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
         }
         for file_name, items in sorted(by_file.items())
     }
+    map_source = None
+    if chosen_labels:
+        first = chosen_labels[0]
+        map_source = {
+            "source_file": first.get("source_file"),
+            "page": first.get("page"),
+            "page_width": first.get("page_width"),
+            "page_height": first.get("page_height"),
+        }
 
     return {
         "project_type": "agro_pv_solar_edge",
@@ -481,6 +499,7 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
             "warnings": sum(1 for i in issues if i["severity"] == "warning"),
         },
         "physical_row_detection": physical_info,
+        "map_source": map_source,
         "label_selection": label_selection,
         "source_label_summaries": source_label_summaries,
         "physical_rows": physical_rows,

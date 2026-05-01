@@ -53,6 +53,8 @@ export default function SiteMapMapLibre({
   piers,
   dccbs = [],
   inverters = [],
+  electricalZones = [],
+  electricalRows = [],
   pierStatuses,
   selectedBlock,
   selectedTracker,
@@ -74,6 +76,7 @@ export default function SiteMapMapLibre({
   const mapRef = useRef<MLMap | null>(null);
   const blockMarkersRef = useRef<maplibregl.Marker[]>([]);
   const rowLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const electricalRowMarkersRef = useRef<maplibregl.Marker[]>([]);
   const pierLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   const trackerLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   // Ref raised while the corner zoom-square is actively being dragged,
@@ -92,6 +95,7 @@ export default function SiteMapMapLibre({
   const piersRef = useRef(piers);
   useEffect(() => { piersRef.current = piers; }, [piers]);
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
+  const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; strings?: any; optimizers?: any; modules?: any }>>({});
   const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
   // Sampling prefs are read from refs by the map's `moveend`/`zoomend`
   // handlers, which are registered once at mount; without the refs
@@ -289,6 +293,24 @@ export default function SiteMapMapLibre({
     return rowEdges;
   }, [piers, imageWidth]);
 
+  const electricalRowLabelData = useMemo(() => {
+    const out: Record<string, { lng: number; lat: number; zone: string; strings?: any; optimizers?: any; modules?: any }> = {};
+    if (!imageWidth || imageWidth <= 0) return out;
+    for (const row of electricalRows || []) {
+      if (typeof row?.x !== "number" || typeof row?.y !== "number") continue;
+      const [lng, lat] = rotatedToLngLat(row.x, row.y, imageWidth);
+      out[String(row.id || `${row.zone}-${row.row_num}`)] = {
+        lng,
+        lat,
+        zone: String(row.zone ?? ""),
+        strings: row.string_count,
+        optimizers: row.optimizer_count,
+        modules: row.module_count,
+      };
+    }
+    return out;
+  }, [electricalRows, imageWidth]);
+
   // Tracker labels: compute one position per tracker_code, anchored at
   // the centre of the tracker bbox so the label sits over its row.
   // Only rendered when the user is zoomed in enough (see
@@ -352,10 +374,57 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [inverters, imageWidth]);
 
+  const electricalZonesGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (electricalZones || [])
+      .filter((z: any) => {
+        const src = z?.source || {};
+        return typeof src.x === "number" && typeof src.y === "number";
+      })
+      .map((z: any) => {
+        const src = z.source || {};
+        const rows = Array.isArray(z.physical_rows) ? z.physical_rows : [];
+        const firstRow = rows[0];
+        const lastRow = rows[rows.length - 1];
+        return {
+          type: "Feature" as const,
+          id: `zone-${z.zone}`,
+          geometry: {
+            type: "Point" as const,
+            coordinates: rotatedToLngLat(src.x, src.y, imageWidth),
+          },
+          properties: {
+            zone: z.zone,
+            string_count: Number(z.string_count || 0),
+            physical_rows: rows.length ? `${firstRow}-${lastRow}` : "",
+            source_file: src.source_file || "",
+            page: src.page ?? "",
+          },
+        };
+      });
+    return { type: "FeatureCollection" as const, features };
+  }, [electricalZones, imageWidth]);
+
   const bounds = useMemo(() => {
-    if (!piers.length) return null;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const points: Array<{ x: number; y: number }> = [];
     for (const p of piers) {
+      if (typeof p?.x === "number" && typeof p?.y === "number") points.push({ x: p.x, y: p.y });
+    }
+    for (const z of electricalZones || []) {
+      const src = z?.source || {};
+      if (typeof src.x === "number" && typeof src.y === "number") points.push({ x: src.x, y: src.y });
+    }
+    for (const row of electricalRows || []) {
+      if (typeof row?.x === "number" && typeof row?.y === "number") points.push({ x: row.x, y: row.y });
+    }
+    for (const d of [...(dccbs || []), ...(inverters || [])]) {
+      if (typeof d?.x === "number" && typeof d?.y === "number") points.push({ x: d.x, y: d.y });
+    }
+    if (!points.length) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of points) {
       const [rx, ry] = rotate90CCW(p.x, p.y, imageWidth);
       if (rx < minX) minX = rx;
       if (rx > maxX) maxX = rx;
@@ -366,7 +435,7 @@ export default function SiteMapMapLibre({
       [pt2lng(minX), pt2lat(maxY)],
       [pt2lng(maxX), pt2lat(minY)],
     );
-  }, [piers, imageWidth]);
+  }, [piers, electricalZones, electricalRows, dccbs, inverters, imageWidth]);
 
   // ---- Map lifecycle ------------------------------------------------------
 
@@ -405,6 +474,7 @@ export default function SiteMapMapLibre({
       map.addSource("trackers", { type: "geojson", data: trackersGeoJSON });
       map.addSource("piers", { type: "geojson", data: piersGeoJSON });
       map.addSource("pier-statuses", { type: "geojson", data: pierStatusGeoJSON });
+      map.addSource("electrical-zones", { type: "geojson", data: electricalZonesGeoJSON });
       map.addSource("dccb", { type: "geojson", data: dccbGeoJSON });
       map.addSource("inverters", { type: "geojson", data: inverterGeoJSON });
 
@@ -653,6 +723,34 @@ export default function SiteMapMapLibre({
         },
       });
 
+      // --- Electrical string zones --------------------------------------
+      //
+      // Used for electrical-only BHK/EPL uploads before the structural
+      // ramming/pier package exists. These are positioned at the source
+      // "10/11 STRINGS" labels in the electrical cable plan.
+      map.addLayer({
+        id: "electrical-zones-layer",
+        type: "circle",
+        source: "electrical-zones",
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 4,
+            8, 7,
+            14, 11,
+            18, 15,
+          ],
+          "circle-color": [
+            "case",
+            ["==", ["get", "string_count"], 11],
+            "#0ea5e9",
+            "#f59e0b",
+          ],
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      });
+
       // --- Electrical devices -------------------------------------------
       //
       // DCCB  = small red dots with a white stroke (~ one per combiner).
@@ -728,10 +826,33 @@ export default function SiteMapMapLibre({
         const match = blocks.find((b: any) => b.block_code === code);
         if (match) onBlockClick(match);
       });
+      map.on("click", "electrical-zones-layer", (e: MapMouseEvent & { features?: any[] }) => {
+        if (isBoxDraggingRef.current) return;
+        const f = e.features?.[0];
+        if (!f) return;
+        const p = f.properties || {};
+        new maplibregl.Popup({ closeButton: true, closeOnClick: true })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div style="font: 12px Arial, sans-serif; min-width: 150px;">` +
+            `<div style="font-weight:700;margin-bottom:4px;">Zone ${p.zone}</div>` +
+            `<div>${p.string_count || "-"} strings</div>` +
+            `<div>Rows ${p.physical_rows || "-"}</div>` +
+            `<div style="color:#64748b;margin-top:4px;">${p.source_file || ""}</div>` +
+            `</div>`,
+          )
+          .addTo(map);
+      });
       map.on("mouseenter", "piers-layer", () => {
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
       });
       map.on("mouseleave", "piers-layer", () => {
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
+      });
+      map.on("mouseenter", "electrical-zones-layer", () => {
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "electrical-zones-layer", () => {
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
       });
 
@@ -743,6 +864,7 @@ export default function SiteMapMapLibre({
       const refresh = () => {
         refreshPierLabels();
         refreshRowLabels();
+        refreshElectricalRowLabels();
         refreshTrackerLabels();
       };
       map.on("moveend", refresh);
@@ -933,12 +1055,13 @@ export default function SiteMapMapLibre({
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
+      (map.getSource("electrical-zones") as GeoJSONSource | undefined)?.setData(electricalZonesGeoJSON as any);
       (map.getSource("dccb") as GeoJSONSource | undefined)?.setData(dccbGeoJSON as any);
       (map.getSource("inverters") as GeoJSONSource | undefined)?.setData(inverterGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [dccbGeoJSON, inverterGeoJSON]);
+  }, [electricalZonesGeoJSON, dccbGeoJSON, inverterGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1041,6 +1164,7 @@ export default function SiteMapMapLibre({
       show("trackers-casing", trackersOn);
       show("trackers-line", trackersOn);
       show("trackers-selected", trackersOn);
+      show("electrical-zones-layer", layerVisible(layers, "string_zones", true));
       show("dccb-layer", layerVisible(layers, "dccb", false));
       show("inverters-layer", layerVisible(layers, "inverters", false));
       // Block labels: cheap toggle on existing markers (display:
@@ -1067,8 +1191,9 @@ export default function SiteMapMapLibre({
   const rowLabelsOn = layerVisible(layers, "row_labels");
   useEffect(() => {
     refreshRowLabels();
+    refreshElectricalRowLabels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowLabelsOn, rowLabelData, mapLabelStride, mapLabelDenseThreshold]);
+  }, [rowLabelsOn, rowLabelData, electricalRowLabelData, mapLabelStride, mapLabelDenseThreshold]);
 
   // ---- Tracker labels — dedicated effect --------------------------------
   //
@@ -1104,6 +1229,8 @@ export default function SiteMapMapLibre({
     pierLabelMarkersRef.current = [];
     for (const m of rowLabelMarkersRef.current) m.remove();
     rowLabelMarkersRef.current = [];
+    for (const m of electricalRowMarkersRef.current) m.remove();
+    electricalRowMarkersRef.current = [];
     for (const m of trackerLabelMarkersRef.current) m.remove();
     trackerLabelMarkersRef.current = [];
     for (const m of blockMarkersRef.current) m.remove();
@@ -1133,6 +1260,7 @@ export default function SiteMapMapLibre({
 
   // Keep the data ref in sync so the zoom/move handlers always see fresh data.
   useEffect(() => { rowLabelDataRef.current = rowLabelData; }, [rowLabelData]);
+  useEffect(() => { electricalRowLabelDataRef.current = electricalRowLabelData; }, [electricalRowLabelData]);
   useEffect(() => { trackerLabelDataRef.current = trackerLabelData; }, [trackerLabelData]);
 
   function refreshRowLabels() {
@@ -1193,6 +1321,56 @@ export default function SiteMapMapLibre({
   // 1 533 trackers we only render labels above a zoom threshold (the
   // map text would be unreadable below it) and clip to the viewport so
   // the marker count stays bounded as the user pans around.
+  function refreshElectricalRowLabels() {
+    const map = mapRef.current;
+    if (!map) return;
+    for (const m of electricalRowMarkersRef.current) m.remove();
+    electricalRowMarkersRef.current = [];
+    if (!layerVisible(layersRef.current, "row_labels")) return;
+
+    const bounds = map.getBounds();
+    const visible: [string, { lng: number; lat: number; zone: string; strings?: any; optimizers?: any; modules?: any }][] = [];
+    for (const e of Object.entries(electricalRowLabelDataRef.current)) {
+      if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
+    }
+    const stride = visible.length <= mapLabelDenseThresholdRef.current
+      ? 1
+      : Math.max(1, mapLabelStrideRef.current);
+    for (let i = 0; i < visible.length; i += stride) {
+      const [id, pos] = visible[i];
+      const row = id.split("-row-").pop() || id;
+      const el = document.createElement("div");
+      el.textContent = `R-${row}`;
+      el.title = `Zone ${pos.zone}`;
+      el.style.cssText =
+        "font: 700 10px Arial, sans-serif; color: #075985; cursor: pointer; " +
+        "background: rgba(224,242,254,0.94); border: 1px solid #38bdf8; " +
+        "border-radius: 999px; padding: 1px 6px; white-space: nowrap; " +
+        "box-shadow: 0 1px 2px rgba(14,165,233,0.18); user-select: none;";
+      el.addEventListener("mouseenter", () => { el.style.background = "#bae6fd"; });
+      el.addEventListener("mouseleave", () => { el.style.background = "rgba(224,242,254,0.94)"; });
+      el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        new maplibregl.Popup({ closeButton: true, closeOnClick: true })
+          .setLngLat([pos.lng, pos.lat])
+          .setHTML(
+            `<div style="font: 12px Arial, sans-serif; min-width: 150px;">` +
+            `<div style="font-weight:700;margin-bottom:4px;">Physical row ${row}</div>` +
+            `<div>Zone ${pos.zone || "-"}</div>` +
+            `<div>Strings ${pos.strings ?? "-"}</div>` +
+            `<div>Optimizers ${pos.optimizers ?? "-"}</div>` +
+            `<div>Modules ${pos.modules ?? "-"}</div>` +
+            `</div>`,
+          )
+          .addTo(map);
+      });
+      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+        .setLngLat([pos.lng, pos.lat])
+        .addTo(map);
+      electricalRowMarkersRef.current.push(marker);
+    }
+  }
+
   function refreshTrackerLabels() {
     const map = mapRef.current;
     if (!map) return;

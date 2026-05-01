@@ -25,6 +25,29 @@ interface Props {
   onPlantInfoChanged?: (info: any) => void;
 }
 
+type UploadKind = "construction_pdf" | "ramming_pdf" | "overlay_image" | "block_mapping" | "other";
+
+const FILE_ACCEPT = ".pdf,.png,.jpg,.jpeg,.csv,.xlsx,.xls,.dxf,.dwg";
+
+const FILE_KIND_LABELS: Record<string, string> = {
+  construction_pdf: "Construction PDF",
+  ramming_pdf: "Ramming PDF",
+  overlay_image: "Overlay / color map",
+  block_mapping: "Block mapping",
+  other: "Supporting plan",
+};
+
+function guessUploadKind(file: File): UploadKind {
+  const name = file.name.toLowerCase();
+  const isImage = /\.(png|jpe?g)$/i.test(file.name);
+  if (name.includes("block_names") || /block[\s_-]*(mapping|names?|zones?)/.test(name)) return "block_mapping";
+  if (name.includes("ramming") || name.includes("pile plan") || name.includes("pier plan")) return "ramming_pdf";
+  if (name.includes("color map") || name.includes("colour map") || name.includes("overlay")) return "overlay_image";
+  if (name.includes("construction") || /agro[\s_-]*pv/.test(name) || name.includes("agro-pv")) return "construction_pdf";
+  if (isImage && name.includes("block")) return "block_mapping";
+  return "other";
+}
+
 export default function SystemPanel({ projectId, onProjectChanged, section, project: projectProp, plantInfo: plantInfoProp, onPlantInfoChanged }: Props) {
   const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsive();
@@ -93,21 +116,37 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
     }
   }
 
-  async function handleFileUpload(kind: string, file: File) {
-    if (!projectId || !file) return;
+  async function uploadFiles(items: Array<{ kind: UploadKind; file: File }>) {
+    if (!projectId || items.length === 0) return;
     try {
-      setBusy(`Uploading ${file.name}…`);
-      await uploadProjectFile(projectId, kind, file);
-      setBusy(`Refreshing file list…`);
+      setError("");
+      setParseMsg("");
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        const prefix = items.length > 1 ? `${i + 1}/${items.length}: ` : "";
+        setBusy(`Uploading ${prefix}${item.file.name}...`);
+        await uploadProjectFile(projectId, item.kind, item.file);
+      }
+      setBusy("Refreshing file list...");
       const fl = await listProjectFiles(projectId);
       setFiles(fl);
-      setParseMsg(`Uploaded ${file.name}`);
+      setParseMsg(`Uploaded ${items.length} file${items.length === 1 ? "" : "s"}`);
       setTimeout(() => setParseMsg(""), 2000);
     } catch (e: any) {
       setError(String(e.message || e));
     } finally {
       setBusy(null);
     }
+  }
+
+  async function handleFileUpload(kind: UploadKind, file: File) {
+    if (!file) return;
+    await uploadFiles([{ kind, file }]);
+  }
+
+  async function handleBatchUpload(selectedFiles: File[]) {
+    const items = selectedFiles.map((file) => ({ kind: guessUploadKind(file), file }));
+    await uploadFiles(items);
   }
 
   function handleClearFiles() {
@@ -134,9 +173,12 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
 
   function handleParse() {
     if (!projectId) return;
+    const message = hasRammingPdf
+      ? "Parse will clear all existing project data and rebuild from uploaded files. Continue?"
+      : "No ramming PDF is uploaded. Parse will check the electrical/EPL documents only; upload the ramming PDF later to build blocks, trackers, and piers. Continue?";
     setConfirmState({
       title: "Parse project?",
-      message: "Parse will clear all existing project data and rebuild from uploaded files. Continue?",
+      message,
       confirmLabel: "Parse",
       danger: true,
       action: async () => {
@@ -145,7 +187,11 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
           setParsing(true);
           setBusy("Parsing… this may take a minute or two");
           const result = await parseProject(projectId);
-          setParseMsg(`Parsed: ${result.block_count} blocks, ${result.tracker_count} trackers, ${result.pier_count} piers`);
+          if (result.parse_scope === "electrical_only") {
+            setParseMsg(`Electrical check: ${Number(result.string_count || 0).toLocaleString()} strings, ${Number(result.optimizer_count || 0).toLocaleString()} optimizers. Ramming PDF still needed for piers.`);
+          } else {
+            setParseMsg(`Parsed: ${result.block_count} blocks, ${result.tracker_count} trackers, ${result.pier_count} piers`);
+          }
           await refreshFiles();
           // App.tsx owns project + plantInfo; ask it to re-fetch.
           onProjectChanged?.(projectId);
@@ -177,6 +223,10 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
       setError(String(e.message || e));
     }
   }
+
+  const hasConstructionPdf = files.some((f) => f.kind === "construction_pdf");
+  const hasRammingPdf = files.some((f) => f.kind === "ramming_pdf");
+  const parseDisabled = parsing || !hasConstructionPdf || !online;
 
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -235,25 +285,33 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
         )}
         {projectId ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 10 }}>
+            <FileReadinessCheck files={files} />
+            <BatchUploadField onUpload={handleBatchUpload} disabled={!online} />
+            <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "repeat(3, minmax(0, 1fr))", gap: 10, marginBottom: 10 }}>
               <FileUploadField label="Construction PDF" kind="construction_pdf" files={files} onUpload={handleFileUpload} disabled={!online} />
               <FileUploadField label="Ramming PDF" kind="ramming_pdf" files={files} onUpload={handleFileUpload} disabled={!online} />
-              <FileUploadField label="Block Mapping (image)" kind="block_mapping" files={files} onUpload={handleFileUpload} disabled={!online} />
+              <FileUploadField label="Block Mapping" kind="block_mapping" files={files} onUpload={handleFileUpload} disabled={!online} />
             </div>
+            <UploadedFilesList files={files} />
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
               <button
                 onClick={handleParse}
-                disabled={parsing || files.length < 2 || !online}
-                title={online ? "" : "Parsing requires an internet connection"}
+                disabled={parseDisabled}
+                title={!online ? "Parsing requires an internet connection" : !hasConstructionPdf ? "Upload a construction PDF first" : ""}
                 style={{
                   fontSize: 13, padding: "8px 16px", borderRadius: 6, border: "none",
-                  background: parsing || files.length < 2 || !online ? "#cbd5e1" : "#0f172a",
+                  background: parseDisabled ? "#cbd5e1" : "#0f172a",
                   color: "#fff", fontWeight: 600,
-                  cursor: parsing || files.length < 2 || !online ? "not-allowed" : "pointer",
+                  cursor: parseDisabled ? "not-allowed" : "pointer",
                 }}
               >
                 {parsing ? t("sp.parsing") : t("sp.parse")}
               </button>
+              {!hasRammingPdf && hasConstructionPdf && (
+                <span style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
+                  Ramming PDF may be required after site detection.
+                </span>
+              )}
               {files.length > 0 && (
                 <button
                   onClick={handleClearFiles}
@@ -453,7 +511,91 @@ function ValidationField({ label, actual, expected, tolerance }: { label: string
   );
 }
 
-function FileUploadField({ label, kind, files, onUpload, disabled }: { label: string; kind: string; files: any[]; onUpload: (kind: string, file: File) => void; disabled?: boolean }) {
+function fileDisplayName(file: any): string {
+  return file?.original_name || file?.filename || "Unnamed file";
+}
+
+function fileSizeMb(file: any): string {
+  const bytes = Number(file?.size_bytes ?? file?.size ?? 0);
+  return bytes > 0 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : "-";
+}
+
+function FileReadinessCheck({ files }: { files: any[] }) {
+  const countByKind = files.reduce<Record<string, number>>((acc, file) => {
+    const kind = file.kind || "other";
+    acc[kind] = (acc[kind] || 0) + 1;
+    return acc;
+  }, {});
+  const pdfCount = files.filter((file) => fileDisplayName(file).toLowerCase().endsWith(".pdf")).length;
+  const supportingCount = files.filter((file) => !["construction_pdf", "ramming_pdf"].includes(file.kind)).length;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 10, padding: "8px 0 10px", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0", marginBottom: 10 }}>
+      <ReadinessItem label="Construction" value={countByKind.construction_pdf ? "Ready" : "Missing"} tone={countByKind.construction_pdf ? "ok" : "bad"} />
+      <ReadinessItem label="Ramming" value={countByKind.ramming_pdf ? "Ready" : "Conditional"} tone={countByKind.ramming_pdf ? "ok" : "warn"} />
+      <ReadinessItem label="Supporting" value={`${supportingCount} file${supportingCount === 1 ? "" : "s"}`} tone={supportingCount ? "ok" : "muted"} />
+      <ReadinessItem label="PDF scan set" value={`${pdfCount} PDF${pdfCount === 1 ? "" : "s"}`} tone={pdfCount ? "ok" : "muted"} />
+    </div>
+  );
+}
+
+function ReadinessItem({ label, value, tone }: { label: string; value: string; tone: "ok" | "warn" | "bad" | "muted" }) {
+  const color = tone === "ok" ? "#15803d" : tone === "warn" ? "#b45309" : tone === "bad" ? "#dc2626" : "#64748b";
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontSize: 13, color, fontWeight: 700 }}>{value}</div>
+    </div>
+  );
+}
+
+function BatchUploadField({ onUpload, disabled }: { onUpload: (files: File[]) => void; disabled?: boolean }) {
+  return (
+    <div style={{ border: "1px dashed #94a3b8", borderRadius: 8, padding: 10, background: disabled ? "#f1f5f9" : "#f8fafc", opacity: disabled ? 0.6 : 1, marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Batch files</div>
+      <input
+        type="file"
+        accept={FILE_ACCEPT}
+        multiple
+        disabled={disabled}
+        onChange={(e) => {
+          const selected = Array.from(e.target.files || []);
+          if (selected.length > 0) {
+            onUpload(selected);
+            e.target.value = "";
+          }
+        }}
+        style={{ fontSize: 12, width: "100%" }}
+      />
+    </div>
+  );
+}
+
+function UploadedFilesList({ files }: { files: any[] }) {
+  if (files.length === 0) return null;
+  const order = ["construction_pdf", "ramming_pdf", "overlay_image", "block_mapping", "other"];
+  const sorted = [...files].sort((a, b) => {
+    const ak = order.indexOf(a.kind);
+    const bk = order.indexOf(b.kind);
+    if (ak !== bk) return (ak < 0 ? order.length : ak) - (bk < 0 ? order.length : bk);
+    return fileDisplayName(a).localeCompare(fileDisplayName(b));
+  });
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Uploaded files</div>
+      <div style={{ display: "grid", gap: 0, fontSize: 12, color: "#334155" }}>
+        {sorted.map((file) => (
+          <div key={file.id ?? `${file.kind}-${file.filename}`} style={{ display: "grid", gridTemplateColumns: "minmax(130px, 0.8fr) minmax(180px, 2fr) minmax(70px, 0.4fr)", gap: 8, padding: "5px 0", borderTop: "1px solid #e2e8f0", alignItems: "center" }}>
+            <span style={{ fontWeight: 700, color: "#475569" }}>{FILE_KIND_LABELS[file.kind] || file.kind || "File"}</span>
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={fileDisplayName(file)}>{fileDisplayName(file)}</span>
+            <span style={{ color: "#64748b", textAlign: "right" }}>{fileSizeMb(file)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FileUploadField({ label, kind, files, onUpload, disabled }: { label: string; kind: UploadKind; files: any[]; onUpload: (kind: UploadKind, file: File) => void; disabled?: boolean }) {
   const existing = files.filter((f) => f.kind === kind);
   return (
     <div style={{ border: "1px dashed #cbd5e1", borderRadius: 8, padding: 10, background: disabled ? "#f1f5f9" : "#f8fafc", opacity: disabled ? 0.6 : 1 }}>
@@ -467,7 +609,7 @@ function FileUploadField({ label, kind, files, onUpload, disabled }: { label: st
       )}
       <input
         type="file"
-        accept=".pdf,.png,.jpg,.jpeg"
+        accept={FILE_ACCEPT}
         disabled={disabled}
         onChange={(e) => {
           const f = e.target.files?.[0];
