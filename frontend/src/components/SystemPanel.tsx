@@ -11,6 +11,7 @@ import {
 import { useResponsive } from "../hooks/useResponsive";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { BusyOverlay, ConfirmModal } from "./Modals";
+import { CREATE_PROJECT_TYPES, defaultFeatureState, type CreateProjectType } from "../eplFeatures";
 
 interface Props {
   projectId: string;
@@ -21,13 +22,15 @@ interface Props {
   project?: any;
   /** Plant info — passed from App.tsx so we don't re-fetch. */
   plantInfo?: any;
+  /** Derived row/zone/string counts from the current parsed model. */
+  assetSummary?: any;
   /** Called after plant info is updated so App can refresh its own state. */
   onPlantInfoChanged?: (info: any) => void;
 }
 
 type UploadKind = "construction_pdf" | "ramming_pdf" | "overlay_image" | "block_mapping" | "other";
 
-const FILE_ACCEPT = ".pdf,.png,.jpg,.jpeg,.csv,.xlsx,.xls,.dxf,.dwg";
+const FILE_ACCEPT = ".pdf,.zip,.png,.jpg,.jpeg,.csv,.xlsx,.xls,.dxf,.dwg";
 
 const FILE_KIND_LABELS: Record<string, string> = {
   construction_pdf: "Construction PDF",
@@ -48,7 +51,7 @@ function guessUploadKind(file: File): UploadKind {
   return "other";
 }
 
-export default function SystemPanel({ projectId, onProjectChanged, section, project: projectProp, plantInfo: plantInfoProp, onPlantInfoChanged }: Props) {
+export default function SystemPanel({ projectId, onProjectChanged, section, project: projectProp, plantInfo: plantInfoProp, assetSummary, onPlantInfoChanged }: Props) {
   const { t } = useTranslation();
   const { isMobile, isTablet } = useResponsive();
   const compact = isMobile || isTablet;
@@ -69,11 +72,36 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
   const [parseMsg, setParseMsg] = useState("");
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectId, setNewProjectId] = useState("");
+  const [newProjectType, setNewProjectType] = useState<CreateProjectType>("fixed_ground");
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<
     | null
     | { title: string; message: string; confirmLabel: string; danger?: boolean; action: () => void }
   >(null);
+  const projectStringSummary = (project?.strings_optimizers || {}).summary || {};
+  const projectStringMetadata = (project?.strings_optimizers || {}).metadata || {};
+  const zoneCount = firstDefined(assetSummary?.zones, project?.zone_count, projectStringSummary.string_zones);
+  const physicalRowCount = firstDefined(
+    assetSummary?.physicalRows,
+    project?.physical_row_count,
+    project?.row_count,
+    projectStringSummary.physical_rows,
+  );
+  const rowsWithWork = firstDefined(assetSummary?.rowsWithWork, projectStringSummary.rows_with_work);
+  const stringCount = firstDefined(assetSummary?.strings, plantInfo?.total_strings, projectStringSummary.strings);
+  const optimizerCount = firstDefined(
+    assetSummary?.optimizers,
+    projectStringSummary.optimizers,
+    projectStringMetadata.expected_optimizers,
+  );
+  const panelCount = firstDefined(assetSummary?.panels, plantInfo?.total_modules, projectStringSummary.modules);
+  const modulesPerString = firstDefined(
+    assetSummary?.modulesPerString,
+    plantInfo?.modules_per_string,
+    projectStringMetadata.modules_per_string,
+  );
+  const optimizersPerString = firstDefined(assetSummary?.optimizersPerString, projectStringMetadata.optimizers_per_string);
+  const trackerRowCount = Number(project?.tracker_count || 0) > 0 ? project?.row_count : undefined;
 
   // Only fetch files (lightweight); project + plantInfo come from props.
   async function refreshFiles() {
@@ -107,9 +135,10 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
     const id = newProjectId.trim();
     if (!id) return;
     try {
-      await createProject({ project_id: id });
+      await createProject({ project_id: id, project_type: newProjectType, enabled_features: defaultFeatureState(newProjectType) });
       setShowNewProject(false);
       setNewProjectId("");
+      setNewProjectType("fixed_ground");
       onProjectChanged?.(id);
     } catch (e: any) {
       setError(String(e.message || e));
@@ -279,8 +308,16 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
               placeholder={t("project.enterId")}
               style={{ flex: 1, minWidth: 180, padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13 }}
             />
+            <select
+              value={newProjectType}
+              required
+              onChange={(e) => setNewProjectType(e.target.value as CreateProjectType)}
+              style={{ minWidth: 150, padding: "6px 10px", borderRadius: 6, border: "1px solid #d1d5db", fontSize: 13, background: "#fff" }}
+            >
+              {CREATE_PROJECT_TYPES.map((type) => <option key={type} value={type}>{type.replace(/_/g, " ")}</option>)}
+            </select>
             <button onClick={handleCreateProject} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "none", background: "#0f172a", color: "#fff", cursor: "pointer" }}>{t("app.create")}</button>
-            <button onClick={() => { setShowNewProject(false); setNewProjectId(""); }} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}>{t("app.cancel")}</button>
+            <button onClick={() => { setShowNewProject(false); setNewProjectId(""); setNewProjectType("fixed_ground"); }} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 6, border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" }}>{t("app.cancel")}</button>
           </div>
         )}
         {projectId ? (
@@ -361,24 +398,57 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
             <MetaField label={t("field.nextracker")} value={plantInfo?.nextracker_model} />
           </MetaGrid>
 
-          <SectionTitle>{t("sp.structure")}</SectionTitle>
+          <SectionTitle>Zones / Rows</SectionTitle>
           <MetaGrid compact={compact}>
-            <MetaField label={t("field.piers")} value={project.pier_count?.toLocaleString()} />
-            <MetaField label={t("field.trackers")} value={project.tracker_count?.toLocaleString()} />
-            <MetaField label={t("field.blocks")} value={project.block_count} />
-            <MetaField label={t("field.rows")} value={project.row_count} />
+            <MetaField label="Zones / Sections" value={formatMetaValue(zoneCount)} />
+            <MetaField label="Physical Rows" value={formatMetaValue(physicalRowCount)} />
+            <MetaField label="Rows With Work" value={formatMetaValue(rowsWithWork)} />
+            <MetaField label={t("field.blocks")} value={formatMetaValue(project.block_count)} />
           </MetaGrid>
 
-          <SectionTitle>{t("sp.electrical")}</SectionTitle>
+          <SectionTitle>Piers / Trackers</SectionTitle>
           <MetaGrid compact={compact}>
-            <MetaField label={t("field.totalOutput")} value={plantInfo?.total_output_mw} />
+            <MetaField label={t("field.piers")} value={formatMetaValue(project.pier_count)} />
+            <MetaField label={t("field.trackers")} value={formatMetaValue(project.tracker_count)} />
+            <MetaField label="Tracker Rows" value={formatMetaValue(trackerRowCount)} />
+            <MetaField label={t("field.blocks")} value={formatMetaValue(project.block_count)} />
+          </MetaGrid>
+
+          <SectionTitle>DC Zone</SectionTitle>
+          <MetaGrid compact={compact}>
+            <MetaField label="DC Zones" value={formatMetaValue(firstDefined(plantInfo?.dc_zones, zoneCount))} />
+            <MetaField label="String Zones" value={formatMetaValue(zoneCount)} />
+            <MetaField label="Panels / Modules" value={formatMetaValue(panelCount)} />
+            <MetaField label={t("field.totalStrings")} value={formatMetaValue(stringCount)} />
+            <MetaField label="Optimizers" value={formatMetaValue(optimizerCount)} />
+            <MetaField label={t("field.dccb")} value={formatMetaValue(plantInfo?.dccb)} />
+            <MetaField label={t("field.modulesPerString")} value={formatMetaValue(modulesPerString)} />
+            <MetaField label="Optimizers / String" value={formatMetaValue(optimizersPerString)} />
+            <MetaField label={t("field.stringGroups")} value={formatMetaValue(plantInfo?.string_groups)} />
+          </MetaGrid>
+
+          <SectionTitle>AC Zone</SectionTitle>
+          <MetaGrid compact={compact}>
             <MetaField label={t("field.inverters")} value={plantInfo?.inverters} />
-            <MetaField label={t("field.dccb")} value={plantInfo?.dccb?.toLocaleString?.() ?? plantInfo?.dccb} />
-            <MetaField label={t("field.stringGroups")} value={plantInfo?.string_groups} />
-            <MetaField label={t("field.totalStrings")} value={plantInfo?.total_strings?.toLocaleString?.() ?? plantInfo?.total_strings} />
-            <MetaField label={t("field.totalModules")} value={plantInfo?.total_modules?.toLocaleString?.() ?? plantInfo?.total_modules} />
-            <MetaField label={t("field.modulesPerString")} value={plantInfo?.modules_per_string} />
-            <MetaField label={t("field.devices")} value={plantInfo?.devices} />
+            <MetaField label="Transformers" value={formatMetaValue(firstDefined(plantInfo?.transformers, project.transformer_count))} />
+            <MetaField label={t("field.totalOutput")} value={plantInfo?.total_output_mw} />
+            <MetaField label="AC Zones" value={formatMetaValue(firstDefined(plantInfo?.ac_zones, project.ac_zone_count))} />
+          </MetaGrid>
+
+          <SectionTitle>Storage Zone</SectionTitle>
+          <MetaGrid compact={compact}>
+            <MetaField label="Batteries" value={formatMetaValue(firstDefined(plantInfo?.batteries, project.battery_count))} />
+            <MetaField label="Storage Zones" value={formatMetaValue(firstDefined(plantInfo?.storage_zones, project.storage_zone_count))} />
+            <MetaField label="PCS / Inverters" value={formatMetaValue(firstDefined(plantInfo?.pcs, project.pcs_count))} />
+            <MetaField label="Capacity (MWh)" value={formatMetaValue(firstDefined(plantInfo?.storage_capacity_mwh, project.storage_capacity_mwh))} />
+          </MetaGrid>
+
+          <SectionTitle>Cameras / Security</SectionTitle>
+          <MetaGrid compact={compact}>
+            <MetaField label="Cameras" value={formatMetaValue(firstDefined(plantInfo?.cameras, project.camera_count))} />
+            <MetaField label="Camera Zones" value={formatMetaValue(firstDefined(plantInfo?.camera_zones, project.camera_zone_count))} />
+            <MetaField label="Network Devices" value={formatMetaValue(firstDefined(plantInfo?.network_devices, project.network_device_count))} />
+            <MetaField label="Parse Scope" value={project.parse_scope} />
           </MetaGrid>
 
           <SectionTitle>{t("sp.module")}</SectionTitle>
@@ -425,6 +495,16 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
                 <PlantInput label="Inverters" field="inverters" draft={plantDraft} setDraft={setPlantDraft} />
                 <PlantInput label="DCCB" field="dccb" draft={plantDraft} setDraft={setPlantDraft} />
                 <PlantInput label="Devices" field="devices" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="DC Zones" field="dc_zones" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="AC Zones" field="ac_zones" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="Transformers" field="transformers" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="Storage Zones" field="storage_zones" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="Batteries" field="batteries" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="PCS / Inverters" field="pcs" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="Storage Capacity (MWh)" field="storage_capacity_mwh" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="Camera Zones" field="camera_zones" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="Cameras" field="cameras" draft={plantDraft} setDraft={setPlantDraft} />
+                <PlantInput label="Network Devices" field="network_devices" draft={plantDraft} setDraft={setPlantDraft} />
                 <PlantInput label="Tolerance (0-1)" field="tolerance_ratio" draft={plantDraft} setDraft={setPlantDraft} />
                 <div style={{ gridColumn: compact ? undefined : "1 / -1" }}>
                   <PlantInput label="Notes" field="notes" draft={plantDraft} setDraft={setPlantDraft} />
@@ -455,6 +535,16 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
       )}
     </div>
   );
+}
+
+function firstDefined(...values: any[]) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function formatMetaValue(value: any) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value === "number" && Number.isFinite(value)) return value.toLocaleString();
+  return value;
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {

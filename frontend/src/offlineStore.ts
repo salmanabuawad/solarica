@@ -28,6 +28,9 @@ export interface ProjectBundle {
   files: any[];
   electricalDevices?: { dccb: any[]; inverters: any[] };
   stringOptimizerModel?: any;
+  eplModel?: any;
+  eplFeatures?: any;
+  eplMapData?: any;
   fetchedAt: number;            // ms since epoch
 }
 

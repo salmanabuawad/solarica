@@ -7,6 +7,13 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from .optional_assets_parser import (
+    agro_pv_features,
+    build_optional_asset_issues,
+    parse_optional_assets,
+    prepare_optional_asset_map_data,
+)
+
 try:
     import fitz  # PyMuPDF
 except Exception:  # pragma: no cover
@@ -308,15 +315,19 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
       - 288 strings, 6336 optimizers, 12672 modules when metadata matches BHK
     """
     all_text_parts: list[str] = []
+    text_by_file: dict[str, str] = {}
     all_blocks: list[dict[str, Any]] = []
 
     for path in pdf_paths:
         txt, blocks = _read_pdf_blocks(path)
         all_text_parts.append(txt)
+        text_by_file[Path(path).name] = txt
         all_blocks.extend(blocks)
 
     all_text = "\n".join(all_text_parts)
     metadata = _extract_metadata(all_text)
+    features = agro_pv_features()
+    optional_assets = parse_optional_assets(text_by_file, all_blocks)
 
     # Fill BHK defaults when the drawing metadata is incomplete but SolarEdge optimizer pattern exists.
     if metadata.get("modules_per_string") is None:
@@ -451,6 +462,7 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
         issues.append({"severity": "error", "type": "optimizer_count_mismatch", "expected": expected_opts, "actual": actual_opts})
     if expected_modules is not None and actual_modules != int(expected_modules):
         issues.append({"severity": "error", "type": "module_count_mismatch", "expected": expected_modules, "actual": actual_modules})
+    issues.extend(build_optional_asset_issues(optional_assets, features))
 
     # Keep reference labels for audit, especially if panel-plan labels differ.
     all_label_by_file: dict[str, dict[str, Any]] = {}
@@ -477,21 +489,40 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
             "page_height": first.get("page_height"),
         }
 
+    optional_map_data = prepare_optional_asset_map_data(optional_assets, features)
+
     return {
         "project_type": "agro_pv_solar_edge",
         "epl_step": "strings_optimizers_physical_rows",
+        "features": features,
         "pattern": {
             "zone_string": "Z.<zone>.S.<string_in_zone>",
             "physical_string": "R.<physical_row>.Z.<zone>.S.<string_in_zone>",
             "optimizer": "R.<physical_row>.Z.<zone>.S.<string_in_zone>.OP.<optimizer>",
         },
         "metadata": metadata,
+        "assets": {
+            "required": {
+                "physical_rows": len(physical_rows),
+                "string_zones": len(string_zones),
+                "strings": actual_strings,
+                "optimizers": actual_opts,
+                "modules": actual_modules,
+            },
+            "security_devices": optional_assets.get("security_devices", []),
+            "weather_assets": optional_assets.get("weather_assets", []),
+        },
+        "map_data": {
+            "optional_assets": optional_map_data,
+        },
         "summary": {
             "physical_rows": len(physical_rows),
             "string_zones": len(string_zones),
             "strings": actual_strings,
             "optimizers": actual_opts,
             "modules": actual_modules,
+            "security_devices": len(optional_assets.get("security_devices", [])),
+            "weather_assets": len(optional_assets.get("weather_assets", [])),
             "rows_with_work": sum(1 for r in physical_rows if r["string_count"] > 0),
             "empty_physical_rows": sum(1 for r in physical_rows if r["string_count"] == 0),
             "issues": len(issues),

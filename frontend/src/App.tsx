@@ -1,6 +1,6 @@
 import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, type AuthUser } from "./api";
+import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
@@ -15,7 +15,9 @@ import LayerTogglePanel from "./components/LayerTogglePanel";
 import PierModal from "./components/PierModal";
 import TrackerModal from "./components/TrackerModal";
 import SystemPanel from "./components/SystemPanel";
-import { BusyOverlay, ConfirmModal, PromptModal } from "./components/Modals";
+import EplPanel from "./components/EplPanel";
+import NewProjectModal from "./components/NewProjectModal";
+import { BusyOverlay, ConfirmModal } from "./components/Modals";
 import SyncQueuePanel from "./components/SyncQueuePanel";
 import { useResponsive } from "./hooks/useResponsive";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
@@ -190,6 +192,9 @@ const INITIAL_LAYERS = [
   { key: "blocks",      label: "Blocks",      visible: false },
   { key: "inverters", label: "Inverters", visible: true },
   { key: "dccb",      label: "DCCB",      visible: true },
+  { key: "security_cameras", label: "Security cameras", visible: true },
+  { key: "weather_station", label: "Weather station", visible: true },
+  { key: "weather_sensors", label: "Sensors", visible: true },
 ];
 const LAYER_LABEL_KEYS: Record<string, string> = {
   row_labels:  "layers.rowNumbers",
@@ -200,6 +205,9 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   string_zones: "String zones",
   inverters:   "layers.inverters",
   dccb:        "layers.dccb",
+  security_cameras: "Security cameras",
+  weather_station: "Weather station",
+  weather_sensors: "Sensors",
 };
 
 function getInitialProjectId() {
@@ -234,6 +242,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [trackers, setTrackers] = useState<any[]>([]);
   const [piers, setPiers] = useState<any[]>([]);
   const [stringOptimizerModel, setStringOptimizerModel] = useState<any>(null);
+  const [eplModel, setEplModel] = useState<any>(null);
+  const [eplFeaturePayload, setEplFeaturePayload] = useState<any>(null);
+  const [eplMapData, setEplMapData] = useState<any>(null);
+  const [eplLoading, setEplLoading] = useState(false);
   // Electrical devices extracted from the construction PDF (security
   // module). Tied to the Inverters + DCCB layer checkboxes.
   const [inverters, setInverters] = useState<any[]>([]);
@@ -408,6 +420,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setPiers([]);
     setPierStatuses({});
     setStringOptimizerModel(null);
+    setEplModel(null);
+    setEplFeaturePayload(null);
+    setEplMapData(null);
+    setEplLoading(true);
     setInverters([]);
     setDccbs([]);
 
@@ -431,6 +447,19 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     getStringOptimizerModel(projectId, false)
       .then((model) => { if (!ignore) setStringOptimizerModel(model); })
       .catch(() => { if (!ignore) setStringOptimizerModel(null); });
+
+    Promise.all([
+      getEplModel(projectId, false).catch(() => null),
+      getProjectFeatures(projectId).catch(() => null),
+      getEplMapData(projectId).catch(() => null),
+    ])
+      .then(([model, features, mapData]) => {
+        if (ignore) return;
+        setEplModel(model);
+        setEplFeaturePayload(features);
+        setEplMapData(mapData);
+      })
+      .finally(() => { if (!ignore) setEplLoading(false); });
 
     // Electrical devices is the slowest endpoint (4 s+, re-parses
     // the PDF on every call) and the layers it feeds are off by
@@ -517,6 +546,23 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         setRefreshKey((k) => k + 1);
       }
     }).catch(() => {});
+  }, [projectId]);
+
+  const refreshEpl = useCallback(() => {
+    if (!projectId) return;
+    setEplLoading(true);
+    Promise.all([
+      getEplModel(projectId, false).catch(() => null),
+      getProjectFeatures(projectId).catch(() => null),
+      getEplMapData(projectId).catch(() => null),
+    ])
+      .then(([model, features, mapData]) => {
+        setEplModel(model);
+        setEplFeaturePayload(features);
+        setEplMapData(mapData);
+      })
+      .catch((e: any) => setError(String(e.message || e)))
+      .finally(() => setEplLoading(false));
   }, [projectId]);
 
   const handleAreaSelect = useCallback((items: any[]) => {
@@ -638,9 +684,69 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
   const electricalSummary = stringOptimizerModel?.summary || project?.strings_optimizers?.summary || null;
   const electricalMapSource = stringOptimizerModel?.map_source || project?.strings_optimizers?.map_source || {};
+  const eplFeatures = stringOptimizerModel?.features || project?.strings_optimizers?.features || {};
+  const optionalFeatures = eplFeatures?.optional || {};
+  const optionalMapAssets = stringOptimizerModel?.map_data?.optional_assets || project?.strings_optimizers?.map_data?.optional_assets || {};
+  const optionalAssets = stringOptimizerModel?.assets || project?.strings_optimizers?.assets || {};
+  const securityDevicesRaw = optionalMapAssets?.security_devices || optionalAssets?.security_devices || [];
+  const weatherAssetsRaw = optionalMapAssets?.weather_assets || optionalAssets?.weather_assets || [];
+  const securityDevices = Array.isArray(securityDevicesRaw) ? securityDevicesRaw : [];
+  const weatherAssets = Array.isArray(weatherAssetsRaw) ? weatherAssetsRaw : [];
+  const weatherStations = weatherAssets.filter((asset: any) => asset?.type === "weather_station");
+  const weatherSensors = weatherAssets.filter((asset: any) => asset?.type !== "weather_station");
+  const projectInfoAssetSummary = useMemo(() => {
+    const metadata = stringOptimizerModel?.metadata || project?.strings_optimizers?.metadata || {};
+    const summary = electricalSummary || {};
+    return {
+      zones: summary?.string_zones ?? project?.zone_count,
+      physicalRows: summary?.physical_rows ?? project?.physical_row_count ?? project?.row_count,
+      rowsWithWork: summary?.rows_with_work,
+      strings: summary?.strings ?? plantInfo?.total_strings,
+      optimizers: summary?.optimizers ?? metadata?.expected_optimizers,
+      panels: summary?.modules ?? plantInfo?.total_modules,
+      modulesPerString: metadata?.modules_per_string ?? plantInfo?.modules_per_string,
+      optimizersPerString: metadata?.optimizers_per_string,
+    };
+  }, [electricalSummary, plantInfo, project, stringOptimizerModel]);
   const mapImageWidth = project?.base_image?.width || electricalMapSource?.page_width || 1;
   const mapImageHeight = project?.base_image?.height || electricalMapSource?.page_height || 1;
+  const mapImageUrl = electricalMapSource?.image_url || "";
   const electricalDetailsMode = piers.length === 0 && electricalZoneRows.length > 0;
+
+  useEffect(() => {
+    if (!electricalDetailsMode || electricalRowMarkers.length === 0) return;
+    setLayers((prev) => {
+      let changed = false;
+      const next = prev.map((layer) => {
+        if ((layer.key === "row_labels" || layer.key === "string_zones") && !layer.visible) {
+          changed = true;
+          return { ...layer, visible: true };
+        }
+        return layer;
+      });
+      return changed ? next : prev;
+    });
+  }, [electricalDetailsMode, electricalRowMarkers.length]);
+
+  const mapLayerToggles = useMemo(() => {
+    const visibleKeys = new Set<string>(["row_labels"]);
+    if (piers.length > 0) visibleKeys.add("piers");
+    if (trackers.length > 0) visibleKeys.add("trackers");
+    if (blocks.length > 0) visibleKeys.add("blocks");
+    if (electricalZones.length > 0) visibleKeys.add("string_zones");
+    if (electricalZones.length > 0 || inverters.length > 0) visibleKeys.add("inverters");
+    if (electricalZones.length > 0 || dccbs.length > 0) visibleKeys.add("dccb");
+    if ((optionalFeatures?.cameras || optionalFeatures?.security_devices) && securityDevices.length > 0) {
+      visibleKeys.add("security_cameras");
+    }
+    if (optionalFeatures?.weather_station && weatherStations.length > 0) {
+      visibleKeys.add("weather_station");
+    }
+    if (optionalFeatures?.weather_sensors && weatherSensors.length > 0) {
+      visibleKeys.add("weather_sensors");
+    }
+    return layers.filter((layer) => visibleKeys.has(layer.key));
+  }, [blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, piers.length, securityDevices.length, trackers.length, weatherSensors.length, weatherStations.length]);
 
   // Grid rows: apply block/tracker filters, then optionally restrict to
   // whatever piers were visible in the map viewport when the user
@@ -730,6 +836,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const NAV_GROUPS: NavGroup[] = [
     { items: [
       { key: "details", label: t("nav.projectInfo") },
+      { key: "epl", label: "EPL" },
       { key: "mapgrid", label: t("nav.details") },
       { key: "devices", label: t("nav.devices") },
     ]},
@@ -1101,7 +1208,31 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
       {/* ---- TAB: Project Info (metadata only) ---- */}
       <div style={{ display: activeTab === "details" ? "block" : "none" }}>
-        <SystemPanel projectId={projectId} section="info" project={project} plantInfo={plantInfo} onProjectChanged={handleProjectChanged} onPlantInfoChanged={setPlantInfo} />
+        <SystemPanel
+          projectId={projectId}
+          section="info"
+          project={project}
+          plantInfo={plantInfo}
+          assetSummary={projectInfoAssetSummary}
+          onProjectChanged={handleProjectChanged}
+          onPlantInfoChanged={setPlantInfo}
+        />
+      </div>
+
+      {/* ---- TAB: EPL (design extraction only) ---- */}
+      <div style={{ display: activeTab === "epl" ? "block" : "none" }}>
+        <EplPanel
+          projectId={projectId}
+          model={eplModel}
+          features={eplFeaturePayload}
+          mapData={eplMapData}
+          loading={eplLoading}
+          onRefresh={refreshEpl}
+          onDownload={() => {
+            if (!projectId) return;
+            downloadEplExport(projectId).catch((e: any) => setError(String(e.message || e)));
+          }}
+        />
       </div>
 
       {/* ---- TAB: Details (Grid / Map) ---- */}
@@ -1218,7 +1349,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
               <LayerTogglePanel
-                layers={layers.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
+                layers={mapLayerToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
                 onChange={(key: string, visible: boolean) => setLayers((prev) => prev.map((l) => l.key === key ? { ...l, visible } : l))}
                 inline
               />
@@ -1259,6 +1390,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 <SiteMapMapLibre
                   imageWidth={mapImageWidth}
                   imageHeight={mapImageHeight}
+                  mapImageUrl={mapImageUrl}
                   blocks={blocks}
                   trackers={filteredTrackers}
                   piers={filteredPiers}
@@ -1266,6 +1398,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   dccbs={dccbs}
                   electricalZones={electricalZones}
                   electricalRows={electricalRowMarkers}
+                  securityDevices={securityDevices}
+                  weatherAssets={weatherAssets}
                   pierStatuses={pierStatuses}
                   selectedBlock={null}
                   selectedTracker={gridFilterBy === "tracker" && gridFilterSet ? trackers.find((t: any) => gridFilterSet.has(String(t.tracker_code || "").toUpperCase())) : null}
@@ -1389,28 +1523,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <SimpleGrid
               rows={gridRows}
               columns={applyFieldConfigs(compact ? [
-                // Dedicated selection column pinned to the RIGHT side
-                // of the grid (not flush-left under pier_code). The
-                // SimpleGrid wrapper passes `checkboxes: false` to
-                // ag-grid so the v33 auto-placement is suppressed and
-                // the checkbox renders here.
-                {
-                  // Pin the selection column to the row's leading
-                  // edge for the current language: LEFT in English /
-                  // any LTR locale, RIGHT in Hebrew / Arabic. The
-                  // checkbox always sits at the start of the row
-                  // visually, regardless of writing direction.
-                  colId: "__select", headerName: "",
-                  pinned: isRtl ? "right" : "left",
-                  width: 40, minWidth: 40, maxWidth: 40,
-                  sortable: false, filter: false, resizable: false,
-                  suppressMenu: true, suppressMovable: true,
-                  suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: isRtl ? "right" : "left", lockPinned: true,
-                  checkboxSelection: true,
-                  headerCheckboxSelection: true,
-                  headerCheckboxSelectionFilteredOnly: true,
-                },
                 { field: "pier_code", headerName: "Pier", headerTooltip: "Pier code", pinned: "left" },
                 { field: "block_code", headerName: "Block", headerTooltip: "Block code" },
                 { field: "tracker_code", headerName: "Tracker", headerTooltip: "Tracker code" },
@@ -1428,23 +1540,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 // setup as the compact layout above. Sits on the
                 // far right edge of the grid, opposite the
                 // pier_code (pinned left) column.
-                {
-                  // Pin the selection column to the row's leading
-                  // edge for the current language: LEFT in English /
-                  // any LTR locale, RIGHT in Hebrew / Arabic. The
-                  // checkbox always sits at the start of the row
-                  // visually, regardless of writing direction.
-                  colId: "__select", headerName: "",
-                  pinned: isRtl ? "right" : "left",
-                  width: 40, minWidth: 40, maxWidth: 40,
-                  sortable: false, filter: false, resizable: false,
-                  suppressMenu: true, suppressMovable: true,
-                  suppressSizeToFit: true, suppressNavigable: true,
-                  lockPosition: isRtl ? "right" : "left", lockPinned: true,
-                  checkboxSelection: true,
-                  headerCheckboxSelection: true,
-                  headerCheckboxSelectionFilteredOnly: true,
-                },
                 // Widths are content-driven: a one-time DB scan measured
                 // the actual max length of each field across every pier,
                 // and the result was upserted into `field_configurations`
@@ -1623,25 +1718,23 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       </main>
 
       {showNewProjectModal && (
-        <PromptModal
-          title="New Project"
-          message={online ? "Enter a project id (e.g. ashalim4):" : "Creating a project requires an internet connection."}
-          placeholder="project_id"
-          confirmLabel="Create"
+        <NewProjectModal
+          online={online}
           onCancel={() => setShowNewProjectModal(false)}
-          onConfirm={async (id) => {
-            setShowNewProjectModal(false);
+          onCreate={async (payload) => {
             if (!online) {
               setError("Cannot create a project while offline.");
               return;
             }
+            const id = payload.project_id;
             try {
               setBusy(`Creating project ${id}…`);
-              await createProject({ project_id: id });
+              await createProject(payload);
               const items = await getProjects();
               setProjects(items);
               setProjectId(id);
-              setMode("system");
+              setActiveTab("epl");
+              setShowNewProjectModal(false);
             } catch (err: any) {
               setError(String(err.message || err));
             } finally {

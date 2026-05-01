@@ -469,10 +469,11 @@ app.mount("/projects", StaticFiles(directory=str(PROJECTS_ROOT)), name="projects
 # real logic (DCCB + inverter extraction); the others are scaffolded
 # and return a `/status` stub until their phase lands.
 from app.modules.security.routes  import router as security_router   # noqa: E402
-from app.modules.epl.routes       import router as epl_router        # noqa: E402
+from app.modules.epl.routes       import router as epl_router, project_router as epl_project_router  # noqa: E402
 
 app.include_router(security_router,  prefix="/api/security",  tags=["security"])
 app.include_router(epl_router,       prefix="/api/epl",       tags=["epl"])
+app.include_router(epl_project_router, prefix="/api",          tags=["epl"])
 
 
 # --- Constants ------------------------------------------------------------
@@ -492,6 +493,16 @@ PLANT_INFO_DEFAULTS = {
     "dccb": None,
     "string_groups": None,
     "devices": None,
+    "dc_zones": None,
+    "ac_zones": None,
+    "transformers": None,
+    "storage_zones": None,
+    "batteries": None,
+    "pcs": None,
+    "storage_capacity_mwh": None,
+    "camera_zones": None,
+    "cameras": None,
+    "network_devices": None,
     "site_id": None,
     "project_number": None,
     "nextracker_model": None,
@@ -510,6 +521,9 @@ ELECTRICAL_KEYS = (
     "total_output_mw", "total_strings", "total_modules", "modules_per_string",
     "module_capacity_w", "module_length_m", "module_width_m", "pitch_m",
     "inverters", "dccb", "string_groups", "devices",
+    "dc_zones", "ac_zones", "transformers",
+    "storage_zones", "batteries", "pcs", "storage_capacity_mwh",
+    "camera_zones", "cameras", "network_devices",
     "site_id", "project_number", "nextracker_model", "lat_long",
     "snow_load", "wind_load", "issue_date",
     "expected_trackers", "expected_piers", "expected_modules_from_bom",
@@ -615,6 +629,8 @@ def _build_epl_document_summary(files: list[dict], detected_profile: str | None 
         ),
     }
     electrical = {k: v for k, v in electrical.items() if v is not None}
+    physical_row_count = so_summary.get("physical_rows") or so_summary.get("rows_with_work") or 0
+    zone_count = so_summary.get("string_zones") or 0
 
     return {
         "site_profile": detected_profile or "ground_pier",
@@ -625,6 +641,9 @@ def _build_epl_document_summary(files: list[dict], detected_profile: str | None 
         "block_count": 0,
         "tracker_count": 0,
         "pier_count": 0,
+        "row_count": physical_row_count,
+        "physical_row_count": physical_row_count,
+        "zone_count": zone_count,
         "uploaded_pdf_count": len(pdf_paths),
         "structural_parse": {
             "status": "waiting_for_ramming_pdf",
@@ -632,11 +651,15 @@ def _build_epl_document_summary(files: list[dict], detected_profile: str | None 
         },
         "strings_optimizers": {
             "project_type": so_model.get("project_type"),
+            "features": so_model.get("features"),
             "metadata": metadata,
+            "assets": so_model.get("assets"),
+            "map_data": so_model.get("map_data"),
             "summary": so_summary,
             "map_source": so_model.get("map_source"),
             "label_selection": so_model.get("label_selection"),
             "source_label_summaries": so_model.get("source_label_summaries"),
+            "issues": so_model.get("issues"),
         },
         "electrical": electrical,
     }
@@ -646,6 +669,7 @@ def _save_epl_document_parse(project_id: str, project_uuid: str, files: list[dic
     summary = _build_epl_document_summary(files, detected_profile=detected_profile)
     if not summary:
         return None
+    from app.modules.epl.map_source import attach_map_source_image_url
 
     # Preserve any existing structural artifacts. Electrical-only document
     # uploads should not wipe an already-parsed pier map.
@@ -655,6 +679,12 @@ def _save_epl_document_parse(project_id: str, project_uuid: str, files: list[dic
     summary["block_count"] = len(blocks)
     summary["tracker_count"] = len(trackers)
     summary["pier_count"] = len(piers)
+    if isinstance(summary.get("strings_optimizers"), dict):
+        summary["strings_optimizers"] = attach_map_source_image_url(
+            project_id,
+            project_uuid,
+            summary["strings_optimizers"],
+        )
 
     existing = db_store.get_project_metadata(project_uuid).get("summary") or {}
     merged = dict(existing)
@@ -686,6 +716,8 @@ class ProjectCreate(BaseModel):
     project_id: str
     name: Optional[str] = None
     site_profile: Optional[str] = None
+    project_type: Optional[str] = None
+    enabled_features: Optional[dict] = None
 
 
 @app.get("/api/projects")
@@ -700,6 +732,7 @@ def api_list_projects():
             "name": p.get("name"),
             "status": p.get("status"),
             "site_profile": p.get("site_profile"),
+            "project_type": (p.get("summary") or {}).get("project_type") or p.get("site_profile") or "unknown",
             "parsed_at": p.get("parsed_at"),
             "summary": p.get("summary") or {},
         }
@@ -712,10 +745,23 @@ def api_create_project(body: ProjectCreate):
     pid = body.project_id.strip()
     if not pid or not all(c.isalnum() or c in "-_" for c in pid):
         raise HTTPException(status_code=400, detail="Invalid project_id (alphanumeric, '-', '_' only)")
-    uu = db_store.upsert_project(pid, name=body.name or pid, site_profile=body.site_profile, status="draft")
+    from app.epl_engine.features import CREATABLE_PROJECT_TYPES, merge_enabled_features, normalize_project_type
+
+    if not body.project_type and not body.site_profile:
+        raise HTTPException(status_code=400, detail="project_type is required. Choose fixed_ground, floating, tracker, or hybrid.")
+    project_type = normalize_project_type(body.project_type or body.site_profile)
+    if project_type not in CREATABLE_PROJECT_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid project_type. Choose fixed_ground, floating, tracker, or hybrid.")
+    uu = db_store.upsert_project(pid, name=body.name or pid, site_profile=project_type, status="draft")
+    meta = db_store.get_project_metadata(uu)
+    summary = dict(meta.get("summary") or {})
+    summary["project_type"] = project_type
+    summary["site_profile"] = project_type
+    summary["enabled_features"] = merge_enabled_features(project_type, body.enabled_features)
+    db_store.set_project_metadata(uu, summary)
     (PROJECTS_ROOT / pid).mkdir(parents=True, exist_ok=True)
     _project_upload_dir(pid)
-    return {"project_id": pid, "id": uu, "status": "draft"}
+    return {"project_id": pid, "id": uu, "status": "draft", "project_type": project_type, "enabled_features": summary["enabled_features"]}
 
 
 @app.get("/api/projects/{project_id}")
@@ -724,7 +770,8 @@ def api_get_project(project_id: str):
     meta = db_store.get_project_metadata(uu)
     summary = dict(meta.get("summary") or {})
     trackers = db_store.get_trackers(uu)
-    summary.update(_compute_row_stats(trackers))
+    row_stats = _compute_row_stats(trackers)
+    summary.update(row_stats)
     # Ensure counts reflect DB state
     blocks = db_store.get_blocks(uu)
     piers_count = len(db_store.get_piers(uu))
@@ -733,6 +780,19 @@ def api_get_project(project_id: str):
     summary["block_count"] = len(blocks)
     summary["tracker_count"] = len(trackers)
     summary["pier_count"] = piers_count
+    so_summary = (summary.get("strings_optimizers") or {}).get("summary") or {}
+    electrical_row_count = so_summary.get("physical_rows") or so_summary.get("rows_with_work")
+    if electrical_row_count:
+        summary["physical_row_count"] = electrical_row_count
+        if not summary.get("row_count"):
+            summary["row_count"] = electrical_row_count
+    if so_summary.get("string_zones"):
+        summary["zone_count"] = so_summary.get("string_zones")
+    so_payload = summary.get("strings_optimizers")
+    if isinstance(so_payload, dict) and so_payload.get("map_source"):
+        from app.modules.epl.map_source import attach_map_source_image_url
+
+        summary["strings_optimizers"] = attach_map_source_image_url(project_id, uu, so_payload)
     return summary
 
 
@@ -1131,9 +1191,15 @@ def api_parse_project(project_id: str):
                 if so_summary.get("strings") or so_summary.get("optimizers"):
                     summary["strings_optimizers"] = {
                         "project_type": so_model.get("project_type"),
+                        "features": so_model.get("features"),
                         "metadata": so_model.get("metadata"),
+                        "assets": so_model.get("assets"),
+                        "map_data": so_model.get("map_data"),
                         "summary": so_summary,
+                        "map_source": so_model.get("map_source"),
                         "label_selection": so_model.get("label_selection"),
+                        "source_label_summaries": so_model.get("source_label_summaries"),
+                        "issues": so_model.get("issues"),
                     }
         except Exception as exc:
             summary["strings_optimizers_error"] = str(exc)

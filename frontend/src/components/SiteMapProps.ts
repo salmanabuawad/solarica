@@ -1,6 +1,8 @@
 export interface SiteMapProps {
   imageWidth: number;
   imageHeight: number;
+  /** Public PNG render of the source drawing page, used as map substrate. */
+  mapImageUrl?: string;
   blocks: any[];
   trackers: any[];
   piers: any[];
@@ -12,6 +14,10 @@ export interface SiteMapProps {
   electricalZones?: any[];
   /** Physical row-number markers derived from electrical zones. */
   electricalRows?: any[];
+  /** Optional EPL camera/security assets, already filtered by enabled features. */
+  securityDevices?: any[];
+  /** Optional EPL weather stations and sensor assets, already filtered by enabled features. */
+  weatherAssets?: any[];
   pierStatuses?: Record<string, string>;
   selectedBlock: any;
   selectedTracker: any;

@@ -36,6 +36,7 @@ export default function SimpleGrid({
 }: any) {
   const { isMobile, isTablet } = useResponsive();
   const compact = isMobile || isTablet;
+  const isRtl = typeof document !== "undefined" && document.documentElement.dir === "rtl";
   const gridApiRef = useRef<any>(null);
   const [q, setQ] = useState("");
   const applyingExternalSelection = useRef(false);
@@ -107,17 +108,33 @@ export default function SimpleGrid({
           columnDefs={columns}
           defaultColDef={defaultColDef}
           animateRows
-          enableRtl={typeof document !== "undefined" && document.documentElement.dir === "rtl"}
+          enableRtl={isRtl}
           rowSelection={{
             mode: rowSelection === "multiple" ? "multiRow" : "singleRow",
             // checkboxes/headerCheckbox are disabled here on purpose —
             // the consumer (App.tsx) decides where the checkbox lives
-            // by adding a column with `checkboxSelection: true` to the
+            // by adding a custom checkbox column to the
             // column defs. That lets us pin the checkbox to either
             // side of the grid (left vs right edge).
-            checkboxes: false,
-            headerCheckbox: false,
+            checkboxes: rowSelection === "multiple",
+            headerCheckbox: rowSelection === "multiple",
+            selectAll: "filtered",
+            checkboxLocation: "selectionColumn",
             enableClickSelection: false,
+          }}
+          selectionColumnDef={{
+            pinned: isRtl ? "right" : "left",
+            width: 40,
+            minWidth: 40,
+            maxWidth: 40,
+            sortable: false,
+            resizable: false,
+            suppressHeaderMenuButton: true,
+            suppressMovable: true,
+            suppressSizeToFit: true,
+            suppressNavigable: true,
+            lockPosition: isRtl ? "right" : "left",
+            lockPinned: true,
           }}
           pagination={pagination}
           paginationPageSize={pageSize}

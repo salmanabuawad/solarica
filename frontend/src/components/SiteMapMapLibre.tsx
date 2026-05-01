@@ -36,6 +36,8 @@ import {
 const DEG_PER_PT = 0.001;
 const pt2lng = (pt: number) => pt * DEG_PER_PT;
 const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
+const EMPTY_IMAGE_URL =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 
 function rotatedToLngLat(
   x: number,
@@ -48,6 +50,8 @@ function rotatedToLngLat(
 
 export default function SiteMapMapLibre({
   imageWidth,
+  imageHeight,
+  mapImageUrl,
   blocks,
   trackers,
   piers,
@@ -55,6 +59,8 @@ export default function SiteMapMapLibre({
   inverters = [],
   electricalZones = [],
   electricalRows = [],
+  securityDevices = [],
+  weatherAssets = [],
   pierStatuses,
   selectedBlock,
   selectedTracker,
@@ -106,6 +112,23 @@ export default function SiteMapMapLibre({
   useEffect(() => { mapLabelDenseThresholdRef.current = mapLabelDenseThreshold; }, [mapLabelDenseThreshold]);
 
   // ---- GeoJSON sources (memoized by dataset) ------------------------------
+
+  const mapImageCoordinates = useMemo(() => {
+    if (!imageWidth || !imageHeight || imageWidth <= 0 || imageHeight <= 0) {
+      return [
+        [0, 0],
+        [0.001, 0],
+        [0.001, -0.001],
+        [0, -0.001],
+      ] as [number, number][];
+    }
+    return [
+      rotatedToLngLat(0, 0, imageWidth),
+      rotatedToLngLat(imageWidth, 0, imageWidth),
+      rotatedToLngLat(imageWidth, imageHeight, imageWidth),
+      rotatedToLngLat(0, imageHeight, imageWidth),
+    ];
+  }, [imageWidth, imageHeight]);
 
   // Two-source strategy:
   // - `piers` (this) carries all 24 k positions but NO status. It only
@@ -273,6 +296,41 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [trackers, piers, imageWidth]);
 
+  const structuralRowGuideGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features };
+    }
+    const byRow: Record<string, any[]> = {};
+    for (const p of piers || []) {
+      const row = String(p?.row_num || "");
+      if (!row || typeof p?.x !== "number" || typeof p?.y !== "number") continue;
+      (byRow[row] ??= []).push(p);
+    }
+    for (const [row, pts] of Object.entries(byRow)) {
+      if (pts.length < 2) continue;
+      const xs = pts.map((p) => Number(p.x));
+      const ys = pts.map((p) => Number(p.y));
+      const xRange = Math.max(...xs) - Math.min(...xs);
+      const yRange = Math.max(...ys) - Math.min(...ys);
+      const sorted = [...pts].sort((a, b) =>
+        xRange >= yRange ? Number(a.x) - Number(b.x) : Number(a.y) - Number(b.y),
+      );
+      features.push({
+        type: "Feature" as const,
+        geometry: {
+          type: "LineString" as const,
+          coordinates: [
+            rotatedToLngLat(sorted[0].x, sorted[0].y, imageWidth),
+            rotatedToLngLat(sorted[sorted.length - 1].x, sorted[sorted.length - 1].y, imageWidth),
+          ],
+        },
+        properties: { row },
+      });
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [piers, imageWidth]);
+
   // Row labels: compute the topmost pier position per row number so we can
   // place a label above each row on the map.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -310,6 +368,50 @@ export default function SiteMapMapLibre({
     }
     return out;
   }, [electricalRows, imageWidth]);
+
+  const electricalRowGuideGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features };
+    }
+    const xs = [
+      ...(electricalZones || [])
+        .map((zone: any) => zone?.source?.x)
+        .filter((x: any) => typeof x === "number"),
+      ...(electricalRows || [])
+        .map((row: any) => row?.x)
+        .filter((x: any) => typeof x === "number"),
+    ];
+    if (!xs.length) return { type: "FeatureCollection" as const, features };
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const span = Math.max(120, maxX - minX);
+    const stringPitch = Math.max(32, Math.min(72, span / 20));
+    for (const row of electricalRows || []) {
+      if (typeof row?.x !== "number" || typeof row?.y !== "number") continue;
+      const rowNo = row.row_num ?? "";
+      const stringCount = Number(row.string_count || 0);
+      const rowLength = Math.max(70, stringPitch * Math.max(1, stringCount || 2));
+      const halfLength = rowLength / 2;
+      const centerX = Number(row.x);
+      features.push({
+        type: "Feature" as const,
+        geometry: {
+          type: "LineString" as const,
+          coordinates: [
+            rotatedToLngLat(centerX - halfLength, Number(row.y), imageWidth),
+            rotatedToLngLat(centerX + halfLength, Number(row.y), imageWidth),
+          ],
+        },
+        properties: {
+          row: String(rowNo),
+          zone: String(row.zone ?? ""),
+          strings: stringCount || null,
+        },
+      });
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [electricalRows, electricalZones, imageWidth]);
 
   // Tracker labels: compute one position per tracker_code, anchored at
   // the centre of the tracker bbox so the label sits over its row.
@@ -407,8 +509,100 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [electricalZones, imageWidth]);
 
+  const securityDevicesGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (securityDevices || [])
+      .filter((asset: any) => typeof asset?.x === "number" && typeof asset?.y === "number")
+      .map((asset: any) => ({
+        type: "Feature" as const,
+        id: asset.id,
+        geometry: {
+          type: "Point" as const,
+          coordinates: rotatedToLngLat(asset.x, asset.y, imageWidth),
+        },
+        properties: {
+          id: asset.id || "",
+          type: asset.type || "security_camera",
+          raw_label: asset.raw_label || asset.id || "",
+          confidence: asset.confidence || "",
+          color: asset.type === "ptz_camera"
+            ? "#7c3aed"
+            : asset.type === "fixed_camera"
+              ? "#0891b2"
+              : asset.type === "radar_camera"
+                ? "#ea580c"
+                : "#475569",
+        },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [securityDevices, imageWidth]);
+
+  const weatherStationsGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (weatherAssets || [])
+      .filter((asset: any) => asset?.type === "weather_station" && typeof asset?.x === "number" && typeof asset?.y === "number")
+      .map((asset: any) => ({
+        type: "Feature" as const,
+        id: asset.id,
+        geometry: {
+          type: "Point" as const,
+          coordinates: rotatedToLngLat(asset.x, asset.y, imageWidth),
+        },
+        properties: {
+          id: asset.id || "",
+          type: asset.type || "weather_station",
+          raw_label: asset.raw_label || asset.id || "",
+          confidence: asset.confidence || "",
+          sensors: Array.isArray(asset.sensors) ? asset.sensors.join(", ") : "",
+        },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [weatherAssets, imageWidth]);
+
+  const weatherSensorsGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (weatherAssets || [])
+      .filter((asset: any) => asset?.type !== "weather_station" && typeof asset?.x === "number" && typeof asset?.y === "number")
+      .map((asset: any) => ({
+        type: "Feature" as const,
+        id: asset.id,
+        geometry: {
+          type: "Point" as const,
+          coordinates: rotatedToLngLat(asset.x, asset.y, imageWidth),
+        },
+        properties: {
+          id: asset.id || "",
+          type: asset.type || "",
+          raw_label: asset.raw_label || asset.id || "",
+          confidence: asset.confidence || "",
+          color: asset.type === "pyranometer"
+            ? "#eab308"
+            : asset.type === "wind_sensor"
+              ? "#22c55e"
+              : asset.type === "ambient_temperature_sensor"
+                ? "#06b6d4"
+                : "#f97316",
+        },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [weatherAssets, imageWidth]);
+
   const bounds = useMemo(() => {
     const points: Array<{ x: number; y: number }> = [];
+    if (mapImageUrl && imageWidth > 0 && imageHeight > 0) {
+      points.push(
+        { x: 0, y: 0 },
+        { x: imageWidth, y: 0 },
+        { x: imageWidth, y: imageHeight },
+        { x: 0, y: imageHeight },
+      );
+    }
     for (const p of piers) {
       if (typeof p?.x === "number" && typeof p?.y === "number") points.push({ x: p.x, y: p.y });
     }
@@ -421,6 +615,9 @@ export default function SiteMapMapLibre({
     }
     for (const d of [...(dccbs || []), ...(inverters || [])]) {
       if (typeof d?.x === "number" && typeof d?.y === "number") points.push({ x: d.x, y: d.y });
+    }
+    for (const asset of [...(securityDevices || []), ...(weatherAssets || [])]) {
+      if (typeof asset?.x === "number" && typeof asset?.y === "number") points.push({ x: asset.x, y: asset.y });
     }
     if (!points.length) return null;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -435,7 +632,7 @@ export default function SiteMapMapLibre({
       [pt2lng(minX), pt2lat(maxY)],
       [pt2lng(maxX), pt2lat(minY)],
     );
-  }, [piers, electricalZones, electricalRows, dccbs, inverters, imageWidth]);
+  }, [piers, electricalZones, electricalRows, dccbs, inverters, securityDevices, weatherAssets, imageWidth, imageHeight, mapImageUrl]);
 
   // ---- Map lifecycle ------------------------------------------------------
 
@@ -470,13 +667,33 @@ export default function SiteMapMapLibre({
 
     map.on("load", () => {
       // --- Sources -------------------------------------------------------
+      map.addSource("map-background", {
+        type: "image",
+        url: mapImageUrl || EMPTY_IMAGE_URL,
+        coordinates: mapImageCoordinates as any,
+      });
       map.addSource("blocks", { type: "geojson", data: blocksGeoJSON });
+      map.addSource("structural-row-guides", { type: "geojson", data: structuralRowGuideGeoJSON });
       map.addSource("trackers", { type: "geojson", data: trackersGeoJSON });
       map.addSource("piers", { type: "geojson", data: piersGeoJSON });
       map.addSource("pier-statuses", { type: "geojson", data: pierStatusGeoJSON });
       map.addSource("electrical-zones", { type: "geojson", data: electricalZonesGeoJSON });
+      map.addSource("electrical-row-guides", { type: "geojson", data: electricalRowGuideGeoJSON });
       map.addSource("dccb", { type: "geojson", data: dccbGeoJSON });
       map.addSource("inverters", { type: "geojson", data: inverterGeoJSON });
+      map.addSource("security-devices", { type: "geojson", data: securityDevicesGeoJSON });
+      map.addSource("weather-stations", { type: "geojson", data: weatherStationsGeoJSON });
+      map.addSource("weather-sensors", { type: "geojson", data: weatherSensorsGeoJSON });
+
+      map.addLayer({
+        id: "map-background-layer",
+        type: "raster",
+        source: "map-background",
+        paint: {
+          "raster-opacity": mapImageUrl ? 0.92 : 0,
+          "raster-fade-duration": 0,
+        },
+      });
 
       // --- Block fill + outline -----------------------------------------
       //
@@ -514,6 +731,45 @@ export default function SiteMapMapLibre({
         paint: {
           "line-color": "#f97316",
           "line-width": 2.5,
+        },
+      });
+
+      // --- Always-on row guides -----------------------------------------
+      //
+      // Rows are the operator's main spatial reference. Keep their guide
+      // lines visible even when labels / piers / trackers are toggled.
+      map.addLayer({
+        id: "structural-row-guides-layer",
+        type: "line",
+        source: "structural-row-guides",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#94a3b8",
+          "line-opacity": 0.42,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 0.6,
+            8, 0.9,
+            14, 1.4,
+            18, 2,
+          ],
+        },
+      });
+      map.addLayer({
+        id: "electrical-row-guides-layer",
+        type: "line",
+        source: "electrical-row-guides",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#38bdf8",
+          "line-opacity": 0.42,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 0.7,
+            8, 1,
+            14, 1.6,
+            18, 2.3,
+          ],
         },
       });
 
@@ -750,6 +1006,38 @@ export default function SiteMapMapLibre({
           "circle-stroke-width": 2,
         },
       });
+      map.addLayer({
+        id: "electrical-zones-labels",
+        type: "symbol",
+        source: "electrical-zones",
+        layout: {
+          "text-field": [
+            "concat",
+            "Z",
+            ["to-string", ["get", "zone"]],
+            "\n",
+            ["to-string", ["get", "string_count"]],
+            " strings",
+          ],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 9,
+            8, 10,
+            14, 12,
+            18, 14,
+          ],
+          "text-anchor": "top",
+          "text-offset": [0, 1.15],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#0f172a",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2,
+          "text-halo-blur": 0.5,
+        },
+      });
 
       // --- Electrical devices -------------------------------------------
       //
@@ -785,6 +1073,123 @@ export default function SiteMapMapLibre({
           "circle-color": "#2563eb",
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 2,
+        },
+      });
+
+      // --- Optional EPL assets -----------------------------------------
+      //
+      // Cameras, weather stations, and weather sensors are optional EPL
+      // detections. They start hidden and are only exposed in the checkbox
+      // list when the EPL feature flags are enabled and assets exist.
+      map.addLayer({
+        id: "security-devices-layer",
+        type: "circle",
+        source: "security-devices",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 3, 8, 5, 14, 8, 18, 12,
+          ],
+          "circle-color": ["get", "color"],
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      });
+      map.addLayer({
+        id: "security-devices-labels",
+        type: "symbol",
+        source: "security-devices",
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "raw_label"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 8, 10, 10, 16, 12,
+          ],
+          "text-anchor": "top",
+          "text-offset": [0, 1.1],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#111827",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2,
+        },
+      });
+      map.addLayer({
+        id: "weather-stations-layer",
+        type: "circle",
+        source: "weather-stations",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 4, 8, 7, 14, 11, 18, 15,
+          ],
+          "circle-color": "#16a34a",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2,
+        },
+      });
+      map.addLayer({
+        id: "weather-stations-labels",
+        type: "symbol",
+        source: "weather-stations",
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "raw_label"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 8, 10, 10, 16, 12,
+          ],
+          "text-anchor": "top",
+          "text-offset": [0, 1.15],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#14532d",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2,
+        },
+      });
+      map.addLayer({
+        id: "weather-sensors-layer",
+        type: "circle",
+        source: "weather-sensors",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 2.5, 8, 4.5, 14, 7, 18, 10,
+          ],
+          "circle-color": ["get", "color"],
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.5,
+        },
+      });
+      map.addLayer({
+        id: "weather-sensors-labels",
+        type: "symbol",
+        source: "weather-sensors",
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "raw_label"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 8, 10, 10, 16, 12,
+          ],
+          "text-anchor": "top",
+          "text-offset": [0, 1.05],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#713f12",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2,
         },
       });
 
@@ -924,6 +1329,23 @@ export default function SiteMapMapLibre({
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
+      const src = map.getSource("map-background") as any;
+      if (!src) { setTimeout(apply, 50); return; }
+      const url = mapImageUrl || EMPTY_IMAGE_URL;
+      if (typeof src.updateImage === "function") {
+        src.updateImage({ url, coordinates: mapImageCoordinates });
+      }
+      if (map.getLayer("map-background-layer")) {
+        map.setPaintProperty("map-background-layer", "raster-opacity", mapImageUrl ? 0.92 : 0);
+      }
+    };
+    apply();
+  }, [mapImageUrl, mapImageCoordinates]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => {
       const src = map.getSource("piers") as GeoJSONSource | undefined;
       if (!src) { setTimeout(apply, 50); return; }
       src.setData(piersGeoJSON as any);
@@ -936,6 +1358,17 @@ export default function SiteMapMapLibre({
     };
     apply();
   }, [piersGeoJSON]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const apply = () => {
+      const src = map.getSource("structural-row-guides") as GeoJSONSource | undefined;
+      if (!src) { setTimeout(apply, 50); return; }
+      src.setData(structuralRowGuideGeoJSON as any);
+    };
+    apply();
+  }, [structuralRowGuideGeoJSON]);
 
   // Status updates touch two map structures:
   //   1. feature-state on the `piers` source — drives the circle
@@ -1056,12 +1489,16 @@ export default function SiteMapMapLibre({
     if (!map) return;
     const apply = () => {
       (map.getSource("electrical-zones") as GeoJSONSource | undefined)?.setData(electricalZonesGeoJSON as any);
+      (map.getSource("electrical-row-guides") as GeoJSONSource | undefined)?.setData(electricalRowGuideGeoJSON as any);
       (map.getSource("dccb") as GeoJSONSource | undefined)?.setData(dccbGeoJSON as any);
       (map.getSource("inverters") as GeoJSONSource | undefined)?.setData(inverterGeoJSON as any);
+      (map.getSource("security-devices") as GeoJSONSource | undefined)?.setData(securityDevicesGeoJSON as any);
+      (map.getSource("weather-stations") as GeoJSONSource | undefined)?.setData(weatherStationsGeoJSON as any);
+      (map.getSource("weather-sensors") as GeoJSONSource | undefined)?.setData(weatherSensorsGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, dccbGeoJSON, inverterGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1165,8 +1602,15 @@ export default function SiteMapMapLibre({
       show("trackers-line", trackersOn);
       show("trackers-selected", trackersOn);
       show("electrical-zones-layer", layerVisible(layers, "string_zones", true));
+      show("electrical-zones-labels", layerVisible(layers, "string_zones", true));
       show("dccb-layer", layerVisible(layers, "dccb", false));
       show("inverters-layer", layerVisible(layers, "inverters", false));
+      show("security-devices-layer", layerVisible(layers, "security_cameras", false));
+      show("security-devices-labels", layerVisible(layers, "security_cameras", false));
+      show("weather-stations-layer", layerVisible(layers, "weather_station", false));
+      show("weather-stations-labels", layerVisible(layers, "weather_station", false));
+      show("weather-sensors-layer", layerVisible(layers, "weather_sensors", false));
+      show("weather-sensors-labels", layerVisible(layers, "weather_sensors", false));
       // Block labels: cheap toggle on existing markers (display:
       // none/""), no destroy-and-rebuild.  A separate effect below
       // owns the actual marker creation when the checkbox flips on

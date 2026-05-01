@@ -237,6 +237,51 @@ export const getStringOptimizerModel = async (id: string, includeOptimizers = fa
 export const getStringOptimizerExportUrl = (id: string) =>
   `${API}/api/epl/projects/${id}/string-optimizer-export`;
 
+export const getProjectFeatures = async (id: string) =>
+  networkFirst<any>(
+    () => jDeduped<any>(`${API}/api/projects/${id}/features`),
+    async () => (await loadProjectBundle(id))?.eplFeatures ?? null,
+    async (v) => { await patchProjectBundle(id, { eplFeatures: v }); },
+  );
+
+export const getEplModel = async (id: string, includeRawText = false) =>
+  networkFirst<any>(
+    () => jDeduped<any>(
+      `${API}/api/projects/${id}/epl/model?include_raw_text=${includeRawText ? "true" : "false"}`,
+    ),
+    async () => (await loadProjectBundle(id))?.eplModel ?? null,
+    async (v) => {
+      if (!includeRawText) await patchProjectBundle(id, { eplModel: v });
+    },
+  );
+
+export const getEplMapData = async (id: string, projectFolder?: string) => {
+  const qs = projectFolder ? `?project_folder=${encodeURIComponent(projectFolder)}` : "";
+  return networkFirst<any>(
+    () => jDeduped<any>(`${API}/api/projects/${id}/epl/map-data${qs}`),
+    async () => (await loadProjectBundle(id))?.eplMapData ?? null,
+    async (v) => { await patchProjectBundle(id, { eplMapData: v }); },
+  );
+};
+
+export const getEplExportUrl = (id: string) =>
+  `${API}/api/projects/${id}/epl/export`;
+
+export async function downloadEplExport(id: string): Promise<void> {
+  if (!isOnline()) throw new OfflineError("Export download needs a connection.");
+  const r = await fetch(getEplExportUrl(id), { headers: authHeaders() });
+  if (!r.ok) throw new Error(await r.text());
+  const blob = await r.blob();
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = href;
+  a.download = `${id}_epl_deepsearch.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(href);
+}
+
 /**
  * getPierStatuses merges server statuses with any locally-queued mutations
  * so the UI never loses in-flight edits.
@@ -453,7 +498,7 @@ export const parseProject = async (pid: string) => {
   return j<any>(`${API}/api/projects/${pid}/parse`, { method: "POST" });
 };
 
-export const createProject = async (body: { project_id: string; name?: string; site_profile?: string }) => {
+export const createProject = async (body: { project_id: string; name?: string; site_profile?: string; project_type?: string; enabled_features?: Record<string, string> }) => {
   if (!isOnline()) throw new OfflineError("Creating a project needs a connection.");
   return j<any>(`${API}/api/projects`, {
     method: "POST",
