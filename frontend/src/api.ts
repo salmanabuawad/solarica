@@ -215,6 +215,28 @@ export const getElectricalDevices = async (id: string) =>
     async (v) => { await patchProjectBundle(id, { electricalDevices: v }); },
   );
 
+
+/**
+ * EPL string/optimizer model for BHK/SolarEdge/agro-PV style projects.
+ *
+ * Returns the physical-row reconstruction:
+ *   physical rows → electrical zones → strings → optimizers → modules
+ *
+ * By default the backend omits the full optimizer list to keep the response
+ * light. Pass includeOptimizers=true when you need all optimizer records.
+ */
+export const getStringOptimizerModel = async (id: string, includeOptimizers = false) =>
+  networkFirst<any>(
+    () => jDeduped<any>(
+      `${API}/api/epl/projects/${id}/string-optimizer-model?include_optimizers=${includeOptimizers ? "true" : "false"}`,
+    ),
+    async () => (await loadProjectBundle(id))?.stringOptimizerModel ?? null,
+    async (v) => { await patchProjectBundle(id, { stringOptimizerModel: v }); },
+  );
+
+export const getStringOptimizerExportUrl = (id: string) =>
+  `${API}/api/epl/projects/${id}/string-optimizer-export`;
+
 /**
  * getPierStatuses merges server statuses with any locally-queued mutations
  * so the UI never loses in-flight edits.
@@ -513,4 +535,14 @@ export async function updateUser(
 
 export async function deleteUser(id: number): Promise<{ deleted: number }> {
   return j(`${API}/api/users/${id}`, { method: "DELETE" });
+}
+
+
+export async function downloadStringOptimizerExport(id: string): Promise<Blob> {
+  if (!isOnline()) throw new OfflineError("Export requires a connection.");
+  const r = await fetch(`${API}/api/epl/projects/${id}/string-optimizer-export`, {
+    headers: authHeaders(),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.blob();
 }

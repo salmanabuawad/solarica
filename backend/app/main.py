@@ -469,8 +469,10 @@ app.mount("/projects", StaticFiles(directory=str(PROJECTS_ROOT)), name="projects
 # real logic (DCCB + inverter extraction); the others are scaffolded
 # and return a `/status` stub until their phase lands.
 from app.modules.security.routes  import router as security_router   # noqa: E402
+from app.modules.epl.routes       import router as epl_router        # noqa: E402
 
 app.include_router(security_router,  prefix="/api/security",  tags=["security"])
+app.include_router(epl_router,       prefix="/api/epl",       tags=["epl"])
 
 
 # --- Constants ------------------------------------------------------------
@@ -990,6 +992,34 @@ def api_parse_project(project_id: str):
                 summary["electrical"] = {k: v for k, v in elec.items() if not k.startswith("_")}
         except Exception:
             pass
+
+        # EPL strings/optimizers reconstruction for BHK/SolarEdge/agro-PV style
+        # projects.  This is intentionally non-blocking: if a project does not
+        # contain 10/11 STRINGS labels or SolarEdge optimizer metadata, the
+        # normal pier/tracker parser still completes.
+        try:
+            from app.modules.epl.string_optimizer_parser import build_string_optimizer_model_from_pdfs
+
+            pdf_paths = [
+                f["storage_path"]
+                for f in files
+                if str(f.get("storage_path", "")).lower().endswith(".pdf")
+            ]
+            if pdf_paths:
+                so_model = build_string_optimizer_model_from_pdfs(pdf_paths)
+                so_summary = so_model.get("summary") or {}
+                # Save only the light summary in project metadata; the full
+                # model/CSV are available through /api/epl/... endpoints.
+                if so_summary.get("strings") or so_summary.get("optimizers"):
+                    summary["strings_optimizers"] = {
+                        "project_type": so_model.get("project_type"),
+                        "metadata": so_model.get("metadata"),
+                        "summary": so_summary,
+                        "label_selection": so_model.get("label_selection"),
+                    }
+        except Exception as exc:
+            summary["strings_optimizers_error"] = str(exc)
+
         db_store.set_project_metadata(uu, summary)
         db_store.upsert_project(project_id, status="ready")
 

@@ -26,6 +26,8 @@ export interface ProjectBundle {
   pierStatuses: Record<string, string>;
   plantInfo: any | null;
   files: any[];
+  electricalDevices?: { dccb: any[]; inverters: any[] };
+  stringOptimizerModel?: any;
   fetchedAt: number;            // ms since epoch
 }
 
