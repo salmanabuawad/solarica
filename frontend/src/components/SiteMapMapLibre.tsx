@@ -555,7 +555,7 @@ export default function SiteMapMapLibre({
         const dx = end[0] - start[0];
         const dy = end[1] - start[1];
         const len = Math.hypot(dx, dy) || 1;
-        const gapT = Math.min(0.08, Math.max(0.018, 38 / len));
+        const gapT = Math.min(0.04, Math.max(0.008, 16 / len));
         const clampedLabelT = (startT + endT) / 2;
         const gapLow = pointAt(panelRow, Math.max(Math.min(startT, endT), clampedLabelT - gapT));
         const gapHigh = pointAt(panelRow, Math.min(Math.max(startT, endT), clampedLabelT + gapT));
