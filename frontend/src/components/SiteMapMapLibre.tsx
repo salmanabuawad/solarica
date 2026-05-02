@@ -2131,7 +2131,7 @@ export default function SiteMapMapLibre({
       show("electrical-string-lines", stringsOn);
       show("electrical-string-starts", stringsOn);
       show("electrical-string-ends", stringsOn);
-      show("electrical-string-labels", stringsOn);
+      show("electrical-string-labels", false);
       show("electrical-string-point-labels", stringsOn);
       show("electrical-string-start-panel-labels", stringsOn);
       show("electrical-string-end-panel-labels", stringsOn);
