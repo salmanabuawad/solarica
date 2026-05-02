@@ -449,6 +449,43 @@ export async function ignorePendingMutation(id: number): Promise<void> {
   await removePendingMutation(id);
 }
 
+/* ---------------- Electrical string records (server-backed) ------------ */
+
+export async function getStringRecords(pid: string): Promise<any> {
+  return j<any>(`${API}/api/projects/${pid}/strings/records`);
+}
+
+export async function updateStringStatus(pid: string, stringId: string, status: string): Promise<any> {
+  if (!isOnline()) throw new OfflineError("String status updates need a connection.");
+  return j<any>(`${API}/api/projects/${pid}/strings/${encodeURIComponent(stringId)}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function updateStringComment(pid: string, stringId: string, comment: string): Promise<any> {
+  if (!isOnline()) throw new OfflineError("String comments need a connection.");
+  return j<any>(`${API}/api/projects/${pid}/strings/${encodeURIComponent(stringId)}/comment`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ comment }),
+  });
+}
+
+export async function addStringImage(pid: string, stringId: string, file: File): Promise<any> {
+  if (!isOnline()) throw new OfflineError("String images need a connection.");
+  const body = new FormData();
+  body.append("file", file);
+  const r = await fetch(`${API}/api/projects/${pid}/strings/${encodeURIComponent(stringId)}/images`, {
+    method: "POST",
+    headers: authHeaders(),
+    body,
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
 export async function pendingCount(): Promise<number> {
   return countPendingMutations();
 }

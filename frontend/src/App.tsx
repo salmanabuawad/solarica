@@ -1,6 +1,6 @@
 import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, type AuthUser } from "./api";
+import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, getStringRecords, updateStringStatus, updateStringComment, addStringImage, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
@@ -353,57 +353,62 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       setStringComments({});
       return;
     }
-    try {
-      const raw = window.localStorage.getItem(`solarica.stringStatuses.${projectId}`);
-      setStringStatuses(raw ? JSON.parse(raw) : {});
-    } catch {
-      setStringStatuses({});
-    }
-    try {
-      const rawImages = window.localStorage.getItem(`solarica.stringImages.${projectId}`);
-      setStringImages(rawImages ? JSON.parse(rawImages) : {});
-    } catch {
-      setStringImages({});
-    }
-    try {
-      const rawComments = window.localStorage.getItem(`solarica.stringComments.${projectId}`);
-      setStringComments(rawComments ? JSON.parse(rawComments) : {});
-    } catch {
-      setStringComments({});
-    }
+    let ignore = false;
+    getStringRecords(projectId)
+      .then((payload: any) => {
+        if (ignore) return;
+        const records = payload?.strings || {};
+        const statuses: Record<string, string> = {};
+        const images: Record<string, string[]> = {};
+        const comments: Record<string, string> = {};
+        for (const [stringId, record] of Object.entries(records) as any) {
+          statuses[stringId] = String(record?.status || "new");
+          images[stringId] = Array.isArray(record?.images)
+            ? record.images.map((img: any) => typeof img === "string" ? img : img?.url).filter(Boolean)
+            : [];
+          comments[stringId] = String(record?.comment || "");
+        }
+        setStringStatuses(statuses);
+        setStringImages(images);
+        setStringComments(comments);
+      })
+      .catch(() => {
+        if (!ignore) {
+          setStringStatuses({});
+          setStringImages({});
+          setStringComments({});
+        }
+      });
+    return () => { ignore = true; };
   }, [projectId]);
 
   const handleStringStatusChange = useCallback((stringId: string, status: string) => {
     if (!stringId || !projectId) return;
     setStringStatuses((prev) => {
       const next = { ...prev, [stringId]: status };
-      try {
-        window.localStorage.setItem(`solarica.stringStatuses.${projectId}`, JSON.stringify(next));
-      } catch { /* ignore storage quota/privacy failures */ }
       return next;
     });
+    updateStringStatus(projectId, stringId, status).catch((e: any) => setError(String(e?.message || e)));
   }, [projectId]);
 
-  const handleStringImageAdd = useCallback((stringId: string, dataUrl: string) => {
-    if (!stringId || !projectId || !dataUrl) return;
-    setStringImages((prev) => {
-      const next = { ...prev, [stringId]: [...(prev[stringId] || []), dataUrl] };
-      try {
-        window.localStorage.setItem(`solarica.stringImages.${projectId}`, JSON.stringify(next));
-      } catch { /* ignore storage quota/privacy failures */ }
-      return next;
-    });
+  const handleStringImageAdd = useCallback((stringId: string, file: File) => {
+    if (!stringId || !projectId || !file) return;
+    addStringImage(projectId, stringId, file)
+      .then((res: any) => {
+        const url = res?.image?.url;
+        if (!url) return;
+        setStringImages((prev) => ({ ...prev, [stringId]: [...(prev[stringId] || []), url] }));
+      })
+      .catch((e: any) => setError(String(e?.message || e)));
   }, [projectId]);
 
   const handleStringCommentChange = useCallback((stringId: string, comment: string) => {
     if (!stringId || !projectId) return;
     setStringComments((prev) => {
       const next = { ...prev, [stringId]: comment };
-      try {
-        window.localStorage.setItem(`solarica.stringComments.${projectId}`, JSON.stringify(next));
-      } catch { /* ignore storage quota/privacy failures */ }
       return next;
     });
+    updateStringComment(projectId, stringId, comment).catch((e: any) => setError(String(e?.message || e)));
   }, [projectId]);
 
   useEffect(() => {

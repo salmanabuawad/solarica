@@ -939,6 +939,147 @@ def _startup_pier_status_events() -> None:
 
 ATTACHMENT_MAX_SIZE_MB = 25
 ATTACHMENT_MIME_PREFIXES = ("image/", "video/")
+STRING_IMAGE_MAX_SIZE_MB = 12
+STRING_STATUS_VALUES = {"new", "completed", "verified"}
+STRING_RECORDS_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS string_records (
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  string_id  TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'new',
+  comment    TEXT NOT NULL DEFAULT '',
+  images     JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (project_id, string_id)
+);
+"""
+
+
+def _ensure_string_records_schema() -> None:
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(STRING_RECORDS_SCHEMA_SQL)
+        conn.commit()
+
+
+@app.on_event("startup")
+def _startup_string_records() -> None:
+    try:
+        _ensure_string_records_schema()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[string_records] schema ensure failed: {exc}")
+
+
+def _safe_string_id(value: str) -> str:
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(value or "").strip())
+    return safe[:120] or "string"
+
+
+def _string_records_dir(project_id: str) -> Path:
+    d = PROJECTS_ROOT / project_id / "string_records"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _normalize_string_record(row: dict) -> dict:
+    return {
+        "status": row.get("status") or "new",
+        "comment": row.get("comment") or "",
+        "images": row.get("images") or [],
+        "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
+    }
+
+
+@app.get("/api/projects/{project_id}/strings/records")
+def api_get_string_records(project_id: str):
+    uu = _require_project_uuid(project_id)
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT string_id, status, comment, images, updated_at FROM string_records WHERE project_id = %s ORDER BY string_id",
+            (uu,),
+        )
+        rows = cur.fetchall()
+    return {"strings": {r["string_id"]: _normalize_string_record(r) for r in rows}}
+
+
+@app.put("/api/projects/{project_id}/strings/{string_id}/status")
+def api_update_string_status(project_id: str, string_id: str, body: dict = Body(...)):
+    uu = _require_project_uuid(project_id)
+    status = str(body.get("status") or "new").lower()
+    if status not in STRING_STATUS_VALUES:
+        raise HTTPException(400, f"Invalid string status. Must be one of: {sorted(STRING_STATUS_VALUES)}")
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO string_records (project_id, string_id, status)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (project_id, string_id) DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
+            RETURNING status, comment, images, updated_at
+            """,
+            (uu, string_id, status),
+        )
+        row = cur.fetchone()
+        conn.commit()
+    return {"string_id": string_id, **_normalize_string_record(row)}
+
+
+@app.put("/api/projects/{project_id}/strings/{string_id}/comment")
+def api_update_string_comment(project_id: str, string_id: str, body: dict = Body(...)):
+    uu = _require_project_uuid(project_id)
+    comment = str(body.get("comment") or "")
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO string_records (project_id, string_id, comment)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (project_id, string_id) DO UPDATE SET comment = EXCLUDED.comment, updated_at = NOW()
+            RETURNING status, comment, images, updated_at
+            """,
+            (uu, string_id, comment),
+        )
+        row = cur.fetchone()
+        conn.commit()
+    return {"string_id": string_id, **_normalize_string_record(row)}
+
+
+@app.post("/api/projects/{project_id}/strings/{string_id}/images")
+async def api_add_string_image(project_id: str, string_id: str, file: UploadFile = File(...)):
+    uu = _require_project_uuid(project_id)
+    mime = file.content_type or "application/octet-stream"
+    if not mime.startswith("image/"):
+        raise HTTPException(400, f"Unsupported image type: {mime}")
+    content = await file.read()
+    if len(content) / (1024 * 1024) > STRING_IMAGE_MAX_SIZE_MB:
+        raise HTTPException(413, f"File '{file.filename}' exceeds the {STRING_IMAGE_MAX_SIZE_MB} MB limit.")
+    safe_string = _safe_string_id(string_id)
+    images_dir = _string_records_dir(project_id) / "images" / safe_string
+    images_dir.mkdir(parents=True, exist_ok=True)
+    ext = Path(file.filename or "").suffix.lower()
+    if not ext:
+        ext = ".jpg" if mime in {"image/jpeg", "image/jpg"} else ".png"
+    file_id = str(uuid.uuid4())
+    save_name = f"{file_id}{ext}"
+    (images_dir / save_name).write_bytes(content)
+    image = {
+        "file_id": file_id,
+        "original_name": file.filename,
+        "mime_type": mime,
+        "size": len(content),
+        "url": f"/projects/{project_id}/string_records/images/{safe_string}/{save_name}",
+    }
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO string_records (project_id, string_id, images)
+            VALUES (%s, %s, %s::jsonb)
+            ON CONFLICT (project_id, string_id) DO UPDATE SET
+              images = string_records.images || EXCLUDED.images,
+              updated_at = NOW()
+            RETURNING status, comment, images, updated_at
+            """,
+            (uu, string_id, json.dumps([image])),
+        )
+        row = cur.fetchone()
+        conn.commit()
+    return {"string_id": string_id, "image": image, "record": _normalize_string_record(row)}
 
 
 @app.post("/api/projects/{project_id}/pier/{pier_code}/status-event")

@@ -606,13 +606,13 @@ export default function SiteMapMapLibre({
           type: "Feature" as const,
           id: `${id}-line-a`,
           geometry: { type: "LineString" as const, coordinates: [rotatedToLngLat(start[0], start[1], imageWidth), rotatedToLngLat(gapLow[0], gapLow[1], imageWidth)] },
-          properties: { id, row: String(rowNo || ""), kind: "line" },
+          properties: { id, row: String(rowNo || ""), kind: "line", status, status_color: statusColor },
         });
         features.push({
           type: "Feature" as const,
           id: `${id}-line-b`,
           geometry: { type: "LineString" as const, coordinates: [rotatedToLngLat(gapHigh[0], gapHigh[1], imageWidth), rotatedToLngLat(end[0], end[1], imageWidth)] },
-          properties: { id, row: String(rowNo || ""), kind: "line" },
+          properties: { id, row: String(rowNo || ""), kind: "line", status, status_color: statusColor },
         });
         features.push({
           type: "Feature" as const,
@@ -1473,8 +1473,8 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "kind"], "line"],
         layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#374151",
-          "line-opacity": 0.68,
+          "line-color": ["get", "status_color"],
+          "line-opacity": 0.74,
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
             0, 1.1,
@@ -1510,7 +1510,7 @@ export default function SiteMapMapLibre({
           "symbol-sort-key": 3,
         },
         paint: {
-          "text-color": "#1e3a8a",
+          "text-color": ["get", "status_color"],
           "text-halo-color": "rgba(255,255,255,0.94)",
           "text-halo-width": 1.2,
         },
@@ -1535,7 +1535,7 @@ export default function SiteMapMapLibre({
           "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-rotate": ["get", "angle"],
           "text-rotation-alignment": "viewport",
-          "text-offset": [1.25, 0],
+          "text-offset": [0, -1.25],
           "text-allow-overlap": true,
           "text-ignore-placement": true,
           "text-anchor": "center",
@@ -2875,7 +2875,7 @@ export default function SiteMapMapLibre({
             onStringStatusChange?.(selectedString.id, status);
             setSelectedString((prev: any) => prev ? { ...prev, status } : prev);
           }}
-          onImageAdd={(dataUrl) => onStringImageAdd?.(selectedString.id, dataUrl)}
+          onImageAdd={(file) => onStringImageAdd?.(selectedString.id, file)}
           onCommentChange={(comment) => onStringCommentChange?.(selectedString.id, comment)}
           onClose={() => setSelectedString(null)}
         />
@@ -2893,7 +2893,7 @@ function StringStatusModal({
 }: {
   stringInfo: any;
   onStatusChange: (status: string) => void;
-  onImageAdd: (dataUrl: string) => void;
+  onImageAdd: (file: File) => void;
   onCommentChange: (comment: string) => void;
   onClose: () => void;
 }) {
@@ -2905,8 +2905,7 @@ function StringStatusModal({
   }, [stringInfo?.id, stringInfo?.comment]);
   const handleImageFile = async (file?: File) => {
     if (!file) return;
-    const dataUrl = await imageFileToDataUrl(file);
-    onImageAdd(dataUrl);
+    onImageAdd(file);
   };
   return (
     <div
@@ -3057,35 +3056,4 @@ function StringStatusModal({
       </div>
     </div>
   );
-}
-
-function imageFileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => resolve(String(reader.result || ""));
-      img.onload = () => {
-        const maxSide = 1280;
-        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-        if (scale >= 1) {
-          resolve(String(reader.result || ""));
-          return;
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(img.width * scale));
-        canvas.height = Math.max(1, Math.round(img.height * scale));
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(String(reader.result || ""));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      img.src = String(reader.result || "");
-    };
-    reader.readAsDataURL(file);
-  });
 }

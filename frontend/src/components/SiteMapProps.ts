@@ -39,7 +39,7 @@ export interface SiteMapProps {
   onTrackerClick: (t: any) => void;
   onPierClick: (p: any) => void;
   onStringStatusChange?: (stringId: string, status: string) => void;
-  onStringImageAdd?: (stringId: string, dataUrl: string) => void;
+  onStringImageAdd?: (stringId: string, file: File) => void;
   onStringCommentChange?: (stringId: string, comment: string) => void;
   /** Called when the user finishes a box/touch area selection. */
   onAreaSelect?: (piers: any[]) => void;
