@@ -29,6 +29,8 @@ export interface SiteMapProps {
   stringStatuses?: Record<string, string>;
   /** Per-electrical-string image attachments as data URLs. */
   stringImages?: Record<string, string[]>;
+  /** Per-electrical-string inspector comment. */
+  stringComments?: Record<string, string>;
   selectedBlock: any;
   selectedTracker: any;
   selectedPier: any;
@@ -38,6 +40,7 @@ export interface SiteMapProps {
   onPierClick: (p: any) => void;
   onStringStatusChange?: (stringId: string, status: string) => void;
   onStringImageAdd?: (stringId: string, dataUrl: string) => void;
+  onStringCommentChange?: (stringId: string, comment: string) => void;
   /** Called when the user finishes a box/touch area selection. */
   onAreaSelect?: (piers: any[]) => void;
   /** Shared bulk selection — pier codes currently selected in either view. */

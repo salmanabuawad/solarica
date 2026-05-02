@@ -88,6 +88,7 @@ export default function SiteMapMapLibre({
   pierStatuses,
   stringStatuses = {},
   stringImages = {},
+  stringComments = {},
   selectedBlock,
   selectedTracker,
   selectedPier,
@@ -97,6 +98,7 @@ export default function SiteMapMapLibre({
   onPierClick,
   onStringStatusChange,
   onStringImageAdd,
+  onStringCommentChange,
   onAreaSelect,
   bulkSelectedPierCodes,
   pierLabelThreshold = 25,
@@ -2867,12 +2869,14 @@ export default function SiteMapMapLibre({
             ...selectedString,
             status: normalizeStringStatus(stringStatuses[selectedString.id] || selectedString.status),
             images: stringImages[selectedString.id] || [],
+            comment: stringComments[selectedString.id] || "",
           }}
           onStatusChange={(status) => {
             onStringStatusChange?.(selectedString.id, status);
             setSelectedString((prev: any) => prev ? { ...prev, status } : prev);
           }}
           onImageAdd={(dataUrl) => onStringImageAdd?.(selectedString.id, dataUrl)}
+          onCommentChange={(comment) => onStringCommentChange?.(selectedString.id, comment)}
           onClose={() => setSelectedString(null)}
         />
       )}
@@ -2884,15 +2888,21 @@ function StringStatusModal({
   stringInfo,
   onStatusChange,
   onImageAdd,
+  onCommentChange,
   onClose,
 }: {
   stringInfo: any;
   onStatusChange: (status: string) => void;
   onImageAdd: (dataUrl: string) => void;
+  onCommentChange: (comment: string) => void;
   onClose: () => void;
 }) {
   const currentStatus = normalizeStringStatus(stringInfo?.status);
   const images = Array.isArray(stringInfo?.images) ? stringInfo.images : [];
+  const [comment, setComment] = useState(String(stringInfo?.comment || ""));
+  useEffect(() => {
+    setComment(String(stringInfo?.comment || ""));
+  }, [stringInfo?.id, stringInfo?.comment]);
   const handleImageFile = async (file?: File) => {
     if (!file) return;
     const dataUrl = await imageFileToDataUrl(file);
@@ -2979,6 +2989,31 @@ function StringStatusModal({
               </button>
             );
           })}
+        </div>
+        <div style={{ marginTop: 14, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>
+            Comment
+          </label>
+          <textarea
+            value={comment}
+            placeholder="Add comment..."
+            onChange={(e) => {
+              setComment(e.target.value);
+              onCommentChange(e.target.value);
+            }}
+            style={{
+              width: "100%",
+              minHeight: 84,
+              resize: "vertical",
+              boxSizing: "border-box",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1",
+              padding: "9px 10px",
+              font: "13px Arial, sans-serif",
+              color: "#0f172a",
+              outline: "none",
+            }}
+          />
         </div>
         <div style={{ marginTop: 14, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
           <label

@@ -269,6 +269,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [pierStatuses, setPierStatuses] = useState<Record<string, string>>({});
   const [stringStatuses, setStringStatuses] = useState<Record<string, string>>({});
   const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
+  const [stringComments, setStringComments] = useState<Record<string, string>>({});
   const [layers, setLayers] = useState(() => {
     // Restore per-layer visibility from localStorage so the user's
     // checkbox toggles survive refreshes. Falls back to INITIAL_LAYERS
@@ -349,6 +350,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     if (!projectId) {
       setStringStatuses({});
       setStringImages({});
+      setStringComments({});
       return;
     }
     try {
@@ -362,6 +364,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       setStringImages(rawImages ? JSON.parse(rawImages) : {});
     } catch {
       setStringImages({});
+    }
+    try {
+      const rawComments = window.localStorage.getItem(`solarica.stringComments.${projectId}`);
+      setStringComments(rawComments ? JSON.parse(rawComments) : {});
+    } catch {
+      setStringComments({});
     }
   }, [projectId]);
 
@@ -382,6 +390,17 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       const next = { ...prev, [stringId]: [...(prev[stringId] || []), dataUrl] };
       try {
         window.localStorage.setItem(`solarica.stringImages.${projectId}`, JSON.stringify(next));
+      } catch { /* ignore storage quota/privacy failures */ }
+      return next;
+    });
+  }, [projectId]);
+
+  const handleStringCommentChange = useCallback((stringId: string, comment: string) => {
+    if (!stringId || !projectId) return;
+    setStringComments((prev) => {
+      const next = { ...prev, [stringId]: comment };
+      try {
+        window.localStorage.setItem(`solarica.stringComments.${projectId}`, JSON.stringify(next));
       } catch { /* ignore storage quota/privacy failures */ }
       return next;
     });
@@ -1690,6 +1709,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   pierStatuses={pierStatuses}
                   stringStatuses={stringStatuses}
                   stringImages={stringImages}
+                  stringComments={stringComments}
                   selectedBlock={null}
                   selectedTracker={gridFilterBy === "tracker" && gridFilterSet ? trackers.find((t: any) => gridFilterSet.has(String(t.tracker_code || "").toUpperCase())) : null}
                   selectedPier={selectedPier}
@@ -1720,6 +1740,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   onPierClick={handlePierClick}
                   onStringStatusChange={handleStringStatusChange}
                   onStringImageAdd={handleStringImageAdd}
+                  onStringCommentChange={handleStringCommentChange}
                   onAreaSelect={handleAreaSelect}
                   bulkSelectedPierCodes={selectedPierCodes}
                   pierLabelThreshold={pierLabelThreshold}
