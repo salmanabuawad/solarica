@@ -243,6 +243,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [showSyncQueue, setShowSyncQueue] = useState(false);
   const [mode, setMode] = useState<"grid" | "map">("map");
   const [activeTab, setActiveTab] = useState<string>("details");
+  const mobileHomeAppliedRef = useRef(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [projectId, setProjectId] = useState(getInitialProjectId);
   const [project, setProject] = useState<any>(null);
@@ -339,6 +340,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   useEffect(() => { userPrefs.setPierStatusDisplay(pierStatusDisplay); }, [pierStatusDisplay]);
   useEffect(() => { userPrefs.setMapLabelStride(mapLabelStride); }, [mapLabelStride]);
   useEffect(() => { userPrefs.setMapLabelDenseThreshold(mapLabelDenseThreshold); }, [mapLabelDenseThreshold]);
+
+  useEffect(() => {
+    if (!compact || mobileHomeAppliedRef.current) return;
+    mobileHomeAppliedRef.current = true;
+    setActiveTab("mapgrid");
+  }, [compact]);
 
   // Clear selection whenever the active project changes so we don't carry
   // stale pier codes between datasets.

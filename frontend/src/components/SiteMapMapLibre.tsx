@@ -594,6 +594,8 @@ export default function SiteMapMapLibre({
         const clampedLabelT = (visualStartT + visualEndT) / 2;
         const gapLow = pointAt(panelRow, Math.max(Math.min(visualStartT, visualEndT), clampedLabelT - gapT));
         const gapHigh = pointAt(panelRow, Math.min(Math.max(visualStartT, visualEndT), clampedLabelT + gapT));
+        const statusT = Math.max(Math.min(visualStartT, visualEndT), clampedLabelT - gapT * 1.9);
+        const statusPoint = pointAt(panelRow, statusT);
         const startPanelLabel = `${startPanelNo}/${Math.min(endPanelNo, startPanelNo + 1)}`;
         const endPanelLabel = `${Math.max(startPanelNo, endPanelNo - 1)}/${endPanelNo}`;
         const labelPoint = pointAt(panelRow, clampedLabelT);
@@ -623,7 +625,7 @@ export default function SiteMapMapLibre({
         features.push({
           type: "Feature" as const,
           id: `${id}-status`,
-          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(labelPoint[0], labelPoint[1], imageWidth) },
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(statusPoint[0], statusPoint[1], imageWidth) },
           properties: { id, row: String(rowNo || ""), kind: "status-icon", angle: mapAngle, status, status_label: statusLabel, status_icon: statusIcon, status_color: statusColor, start_panel_label: startPanelLabel, end_panel_label: endPanelLabel },
         });
         features.push({
@@ -1535,7 +1537,7 @@ export default function SiteMapMapLibre({
           "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-rotate": ["get", "angle"],
           "text-rotation-alignment": "viewport",
-          "text-offset": [0, -1.25],
+          "text-offset": [0, 0],
           "text-allow-overlap": true,
           "text-ignore-placement": true,
           "text-anchor": "center",
