@@ -516,16 +516,31 @@ export default function SiteMapMapLibre({
       if (!panelRow) continue;
       const panels = rowPanels(panelRow);
       const panelCount = panels.length || Number(panelRow?.panel_count) || panelsPerString;
-      for (const stringPoint of row?.string_points || []) {
+      const stringPoints = [...(row?.string_points || [])]
+        .map((stringPoint: any) => {
+          const xValues = [Number(stringPoint?.x), Number(stringPoint?.x1)].filter(Number.isFinite);
+          const yValues = [Number(stringPoint?.y), Number(stringPoint?.y1)].filter(Number.isFinite);
+          const cx = xValues.length ? xValues.reduce((sum, v) => sum + v, 0) / xValues.length : NaN;
+          const cy = yValues.length ? yValues.reduce((sum, v) => sum + v, 0) / yValues.length : NaN;
+          return {
+            stringPoint,
+            xValues,
+            yValues,
+            cx,
+            cy,
+            labelT: Number.isFinite(cx) && Number.isFinite(cy) ? projectT(panelRow, cx, cy) : 0,
+          };
+        })
+        .sort((a: any, b: any) => a.labelT - b.labelT);
+      for (const [stringIndex, positioned] of stringPoints.entries()) {
+        const stringPoint = positioned.stringPoint;
         const id = String(stringPoint?.id || "").trim();
-        const xValues = [Number(stringPoint?.x), Number(stringPoint?.x1)].filter(Number.isFinite);
-        const yValues = [Number(stringPoint?.y), Number(stringPoint?.y1)].filter(Number.isFinite);
+        const xValues = positioned.xValues;
+        const yValues = positioned.yValues;
         if (!id || !xValues.length || !yValues.length) continue;
-        const cx = xValues.reduce((sum, v) => sum + v, 0) / xValues.length;
-        const cy = yValues.reduce((sum, v) => sum + v, 0) / yValues.length;
-        const labelT = projectT(panelRow, cx, cy);
+        const labelT = positioned.labelT;
         const segmentPanelCount = Math.min(panelsPerString, Math.max(2, panelCount));
-        const startPanelNo = 1;
+        const startPanelNo = Math.min(panelCount, stringIndex * segmentPanelCount + 1);
         const endPanelNo = Math.min(panelCount, startPanelNo + segmentPanelCount - 1);
         const startPanel = panels[startPanelNo - 1];
         const endPanel = panels[endPanelNo - 1];
