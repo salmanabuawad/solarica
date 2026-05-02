@@ -1364,6 +1364,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               ☰
             </button>
           )}
+          {compact && activeTab === "mapgrid" && (
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
+              <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
+            </div>
+          )}
           {!compact && <select
             autoComplete="off"
             value={projectId}
@@ -1642,10 +1648,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
         {compact && (
           <div style={{ display: "grid", gap: 8, marginBottom: 8 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
-              <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
-            </div>
             <LayerTogglePanel
               layers={mobileMainMapToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
               onChange={(key: string, visible: boolean) => setLayers((prev) => prev.map((l) => l.key === key ? { ...l, visible } : l))}
