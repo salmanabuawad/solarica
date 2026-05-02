@@ -1428,14 +1428,14 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "kind"], "line"],
         layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#111827",
-          "line-opacity": 0.9,
+          "line-color": "#374151",
+          "line-opacity": 0.68,
           "line-width": [
             "interpolate", ["linear"], ["zoom"],
-            0, 1.4,
-            8, 2,
-            14, 3,
-            18, 4,
+            0, 1.1,
+            8, 1.6,
+            14, 2.4,
+            18, 3.2,
           ],
         },
       });
