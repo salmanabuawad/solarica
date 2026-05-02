@@ -506,6 +506,7 @@ export default function SiteMapMapLibre({
       if (panelNo <= 1) return pointAt(panelRow, 0);
       return pointForPanel(panelRow, panels[panelNo - 1] || { t: 0 });
     };
+    const shiftedPointAt = (panelRow: any, t: number, delta: number) => pointAt(panelRow, Math.max(0, Math.min(1, t + delta)));
     const labelAngleFromMapLine = (start: number[], end: number[]) => {
       const [lng0, lat0] = rotatedToLngLat(start[0], start[1], imageWidth);
       const [lng1, lat1] = rotatedToLngLat(end[0], end[1], imageWidth);
@@ -548,17 +549,20 @@ export default function SiteMapMapLibre({
         const endPanelNo = Math.min(panelCount, startPanelNo + segmentPanelCount - 1);
         const startPanel = panels[startPanelNo - 1];
         const endPanel = panels[endPanelNo - 1];
-        const start = pointForStringStart(panelRow, panels, startPanelNo);
-        const end = pointForPanel(panelRow, endPanel || { t: 1 });
         const startT = startPanelNo <= 1 ? 0 : Number(startPanel?.t ?? 0);
         const endT = Number(endPanel?.t ?? 1);
+        const boundaryGapT = Math.min(0.012, Math.max(0.004, 7 / Math.max(1, Number(panelRow?.length) || 1)));
+        const visualStartT = startPanelNo <= 1 ? startT : startT + boundaryGapT;
+        const visualEndT = endPanelNo >= panelCount ? endT : endT - boundaryGapT;
+        const start = startPanelNo <= 1 ? pointForStringStart(panelRow, panels, startPanelNo) : shiftedPointAt(panelRow, startT, boundaryGapT);
+        const end = shiftedPointAt(panelRow, endT, endPanelNo >= panelCount ? 0 : -boundaryGapT);
         const dx = end[0] - start[0];
         const dy = end[1] - start[1];
         const len = Math.hypot(dx, dy) || 1;
         const gapT = Math.min(0.04, Math.max(0.008, 16 / len));
-        const clampedLabelT = (startT + endT) / 2;
-        const gapLow = pointAt(panelRow, Math.max(Math.min(startT, endT), clampedLabelT - gapT));
-        const gapHigh = pointAt(panelRow, Math.min(Math.max(startT, endT), clampedLabelT + gapT));
+        const clampedLabelT = (visualStartT + visualEndT) / 2;
+        const gapLow = pointAt(panelRow, Math.max(Math.min(visualStartT, visualEndT), clampedLabelT - gapT));
+        const gapHigh = pointAt(panelRow, Math.min(Math.max(visualStartT, visualEndT), clampedLabelT + gapT));
         const startPanelLabel = `${startPanelNo}/${Math.min(endPanelNo, startPanelNo + 1)}`;
         const endPanelLabel = `${Math.max(startPanelNo, endPanelNo - 1)}/${endPanelNo}`;
         const labelPoint = pointAt(panelRow, clampedLabelT);
