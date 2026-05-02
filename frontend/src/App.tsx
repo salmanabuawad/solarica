@@ -267,6 +267,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [gridFilterBy, setGridFilterBy] = useState<"row" | "tracker">("row");
   const [gridFilterValue, setGridFilterValue] = useState("");
   const [pierStatuses, setPierStatuses] = useState<Record<string, string>>({});
+  const [stringStatuses, setStringStatuses] = useState<Record<string, string>>({});
+  const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
   const [layers, setLayers] = useState(() => {
     // Restore per-layer visibility from localStorage so the user's
     // checkbox toggles survive refreshes. Falls back to INITIAL_LAYERS
@@ -341,6 +343,48 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   // stale pier codes between datasets.
   useEffect(() => {
     setSelectedPierCodes(new Set());
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId) {
+      setStringStatuses({});
+      setStringImages({});
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(`solarica.stringStatuses.${projectId}`);
+      setStringStatuses(raw ? JSON.parse(raw) : {});
+    } catch {
+      setStringStatuses({});
+    }
+    try {
+      const rawImages = window.localStorage.getItem(`solarica.stringImages.${projectId}`);
+      setStringImages(rawImages ? JSON.parse(rawImages) : {});
+    } catch {
+      setStringImages({});
+    }
+  }, [projectId]);
+
+  const handleStringStatusChange = useCallback((stringId: string, status: string) => {
+    if (!stringId || !projectId) return;
+    setStringStatuses((prev) => {
+      const next = { ...prev, [stringId]: status };
+      try {
+        window.localStorage.setItem(`solarica.stringStatuses.${projectId}`, JSON.stringify(next));
+      } catch { /* ignore storage quota/privacy failures */ }
+      return next;
+    });
+  }, [projectId]);
+
+  const handleStringImageAdd = useCallback((stringId: string, dataUrl: string) => {
+    if (!stringId || !projectId || !dataUrl) return;
+    setStringImages((prev) => {
+      const next = { ...prev, [stringId]: [...(prev[stringId] || []), dataUrl] };
+      try {
+        window.localStorage.setItem(`solarica.stringImages.${projectId}`, JSON.stringify(next));
+      } catch { /* ignore storage quota/privacy failures */ }
+      return next;
+    });
   }, [projectId]);
 
   useEffect(() => {
@@ -1644,6 +1688,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   securityDevices={securityDevices}
                   weatherAssets={weatherAssets}
                   pierStatuses={pierStatuses}
+                  stringStatuses={stringStatuses}
+                  stringImages={stringImages}
                   selectedBlock={null}
                   selectedTracker={gridFilterBy === "tracker" && gridFilterSet ? trackers.find((t: any) => gridFilterSet.has(String(t.tracker_code || "").toUpperCase())) : null}
                   selectedPier={selectedPier}
@@ -1672,6 +1718,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     setSelectedTracker(full || t || null);
                   }}
                   onPierClick={handlePierClick}
+                  onStringStatusChange={handleStringStatusChange}
+                  onStringImageAdd={handleStringImageAdd}
                   onAreaSelect={handleAreaSelect}
                   bulkSelectedPierCodes={selectedPierCodes}
                   pierLabelThreshold={pierLabelThreshold}

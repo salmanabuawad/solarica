@@ -38,6 +38,27 @@ const pt2lng = (pt: number) => pt * DEG_PER_PT;
 const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
 const EMPTY_IMAGE_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
+const STRING_STATUSES = ["new", "completed", "verified"] as const;
+const STRING_STATUS_LABELS: Record<string, string> = {
+  new: "New",
+  completed: "Completed",
+  verified: "Verified",
+};
+const STRING_STATUS_ICONS: Record<string, string> = {
+  new: "○",
+  completed: "✓",
+  verified: "★",
+};
+const STRING_STATUS_COLORS: Record<string, string> = {
+  new: "#64748b",
+  completed: "#16a34a",
+  verified: "#2563eb",
+};
+
+function normalizeStringStatus(status: any) {
+  const s = String(status || "new").toLowerCase();
+  return STRING_STATUSES.includes(s as any) ? s : "new";
+}
 
 function rotatedToLngLat(
   x: number,
@@ -65,6 +86,8 @@ export default function SiteMapMapLibre({
   securityDevices = [],
   weatherAssets = [],
   pierStatuses,
+  stringStatuses = {},
+  stringImages = {},
   selectedBlock,
   selectedTracker,
   selectedPier,
@@ -72,6 +95,8 @@ export default function SiteMapMapLibre({
   onBlockClick,
   onTrackerClick,
   onPierClick,
+  onStringStatusChange,
+  onStringImageAdd,
   onAreaSelect,
   bulkSelectedPierCodes,
   pierLabelThreshold = 25,
@@ -106,6 +131,7 @@ export default function SiteMapMapLibre({
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
   const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }>>({});
   const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
+  const [selectedString, setSelectedString] = useState<any>(null);
   // Sampling prefs are read from refs by the map's `moveend`/`zoomend`
   // handlers, which are registered once at mount; without the refs
   // those handlers would see the first-render values forever.
@@ -570,6 +596,10 @@ export default function SiteMapMapLibre({
         const endPanelLabel = `${Math.max(startPanelNo, endPanelNo - 1)}/${endPanelNo}`;
         const labelPoint = pointAt(panelRow, clampedLabelT);
         const mapAngle = labelAngleFromMapLine(start, end);
+        const status = normalizeStringStatus(stringStatuses[id]);
+        const statusLabel = STRING_STATUS_LABELS[status];
+        const statusIcon = STRING_STATUS_ICONS[status];
+        const statusColor = STRING_STATUS_COLORS[status];
         features.push({
           type: "Feature" as const,
           id: `${id}-line-a`,
@@ -586,7 +616,13 @@ export default function SiteMapMapLibre({
           type: "Feature" as const,
           id: `${id}-label`,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(labelPoint[0], labelPoint[1], imageWidth) },
-          properties: { id, row: String(rowNo || ""), kind: "label", angle: mapAngle },
+          properties: { id, row: String(rowNo || ""), kind: "label", angle: mapAngle, status, status_label: statusLabel, status_icon: statusIcon, status_color: statusColor, start_panel_label: startPanelLabel, end_panel_label: endPanelLabel },
+        });
+        features.push({
+          type: "Feature" as const,
+          id: `${id}-status`,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(labelPoint[0], labelPoint[1], imageWidth) },
+          properties: { id, row: String(rowNo || ""), kind: "status-icon", angle: mapAngle, status, status_label: statusLabel, status_icon: statusIcon, status_color: statusColor, start_panel_label: startPanelLabel, end_panel_label: endPanelLabel },
         });
         features.push({
           type: "Feature" as const,
@@ -603,7 +639,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [electricalRows, panelBaseRows, imageWidth, stringDetail]);
+  }, [electricalRows, panelBaseRows, imageWidth, stringDetail, stringStatuses]);
 
   const electricalRowGuideGeoJSON = useMemo(() => {
     const features: any[] = [];
@@ -1478,6 +1514,38 @@ export default function SiteMapMapLibre({
         },
       });
       map.addLayer({
+        id: "electrical-string-status-icons",
+        type: "symbol",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "status-icon"],
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "status_icon"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 8,
+            6, 9,
+            10, 12,
+            14, 17,
+            18, 25,
+            20, 31,
+          ],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-rotate": ["get", "angle"],
+          "text-rotation-alignment": "viewport",
+          "text-offset": [1.25, 0],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-anchor": "center",
+          "symbol-sort-key": 4,
+        },
+        paint: {
+          "text-color": ["get", "status_color"],
+          "text-halo-color": "rgba(255,255,255,0.96)",
+          "text-halo-width": 1.4,
+        },
+      });
+      map.addLayer({
         id: "electrical-string-starts",
         type: "symbol",
         source: "electrical-string-segments",
@@ -1762,6 +1830,22 @@ export default function SiteMapMapLibre({
         const match = blocks.find((b: any) => b.block_code === code);
         if (match) onBlockClick(match);
       });
+      const openStringStatus = (e: MapMouseEvent & { features?: any[] }) => {
+        if (isBoxDraggingRef.current) return;
+        const f = e.features?.[0];
+        if (!f) return;
+        const p = f.properties || {};
+        setSelectedString({
+          id: p.id,
+          row: p.row,
+          status: normalizeStringStatus(p.status),
+          statusLabel: p.status_label,
+          startPanelLabel: p.start_panel_label,
+          endPanelLabel: p.end_panel_label,
+        });
+      };
+      map.on("click", "electrical-string-point-labels", openStringStatus);
+      map.on("click", "electrical-string-status-icons", openStringStatus);
       map.on("click", "electrical-zones-layer", (e: MapMouseEvent & { features?: any[] }) => {
         if (isBoxDraggingRef.current) return;
         const f = e.features?.[0];
@@ -1789,6 +1873,18 @@ export default function SiteMapMapLibre({
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
       });
       map.on("mouseleave", "electrical-zones-layer", () => {
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
+      });
+      map.on("mouseenter", "electrical-string-point-labels", () => {
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "electrical-string-point-labels", () => {
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
+      });
+      map.on("mouseenter", "electrical-string-status-icons", () => {
+        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "electrical-string-status-icons", () => {
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
       });
 
@@ -2145,6 +2241,7 @@ export default function SiteMapMapLibre({
       show("electrical-string-ends", stringsOn);
       show("electrical-string-labels", false);
       show("electrical-string-point-labels", stringsOn);
+      show("electrical-string-status-icons", stringsOn);
       show("electrical-string-start-panel-labels", stringsOn);
       show("electrical-string-end-panel-labels", stringsOn);
       const hasPanelBase = (panelBaseRows || []).length > 0;
@@ -2360,7 +2457,12 @@ export default function SiteMapMapLibre({
           )
           .addTo(map);
       });
-      const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+      const isSouthLabel = pos.side === "south";
+      const marker = new maplibregl.Marker({
+        element: el,
+        anchor: isSouthLabel ? "top" : "center",
+        offset: isSouthLabel ? [0, 18] : [0, 0],
+      })
         .setLngLat([pos.lng, pos.lat])
         .addTo(map);
       electricalRowMarkersRef.current.push(marker);
@@ -2759,6 +2861,196 @@ export default function SiteMapMapLibre({
         minHeight: 300,
       }}
     >
+      {selectedString && (
+        <StringStatusModal
+          stringInfo={{
+            ...selectedString,
+            status: normalizeStringStatus(stringStatuses[selectedString.id] || selectedString.status),
+            images: stringImages[selectedString.id] || [],
+          }}
+          onStatusChange={(status) => {
+            onStringStatusChange?.(selectedString.id, status);
+            setSelectedString((prev: any) => prev ? { ...prev, status } : prev);
+          }}
+          onImageAdd={(dataUrl) => onStringImageAdd?.(selectedString.id, dataUrl)}
+          onClose={() => setSelectedString(null)}
+        />
+      )}
     </div>
   );
+}
+
+function StringStatusModal({
+  stringInfo,
+  onStatusChange,
+  onImageAdd,
+  onClose,
+}: {
+  stringInfo: any;
+  onStatusChange: (status: string) => void;
+  onImageAdd: (dataUrl: string) => void;
+  onClose: () => void;
+}) {
+  const currentStatus = normalizeStringStatus(stringInfo?.status);
+  const images = Array.isArray(stringInfo?.images) ? stringInfo.images : [];
+  const handleImageFile = async (file?: File) => {
+    if (!file) return;
+    const dataUrl = await imageFileToDataUrl(file);
+    onImageAdd(dataUrl);
+  };
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(15,23,42,0.46)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 2500,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff",
+          borderRadius: 12,
+          padding: "18px 20px",
+          width: "min(420px, 94vw)",
+          boxShadow: "0 16px 42px rgba(15,23,42,0.26)",
+          position: "relative",
+        }}
+      >
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 10,
+            width: 34,
+            height: 34,
+            border: "none",
+            background: "transparent",
+            color: "#64748b",
+            fontSize: 22,
+            cursor: "pointer",
+          }}
+        >
+          x
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 32, marginBottom: 12 }}>
+          <span style={{ color: STRING_STATUS_COLORS[currentStatus], fontSize: 22, lineHeight: 1 }}>
+            {STRING_STATUS_ICONS[currentStatus]}
+          </span>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{stringInfo.id}</div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>
+              Row {stringInfo.row || "-"} · Panels {stringInfo.startPanelLabel || "-"} to {stringInfo.endPanelLabel || "-"}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "grid", gap: 8 }}>
+          {STRING_STATUSES.map((status) => {
+            const active = status === currentStatus;
+            return (
+              <button
+                key={status}
+                onClick={() => onStatusChange(status)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: active ? `2px solid ${STRING_STATUS_COLORS[status]}` : "1px solid #dbe4ee",
+                  background: active ? "#f8fafc" : "#fff",
+                  color: active ? "#0f172a" : "#334155",
+                  fontWeight: active ? 800 : 600,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <span style={{ color: STRING_STATUS_COLORS[status], fontSize: 17, width: 20 }}>
+                  {STRING_STATUS_ICONS[status]}
+                </span>
+                <span>{STRING_STATUS_LABELS[status]}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 14, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "9px 12px",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1",
+              background: "#f8fafc",
+              color: "#0f172a",
+              fontWeight: 700,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            <span aria-hidden>▣</span>
+            Add image
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={(e) => handleImageFile(e.target.files?.[0])}
+              style={{ display: "none" }}
+            />
+          </label>
+          {images.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+              {images.map((src: string, idx: number) => (
+                <img
+                  key={`${idx}-${src.slice(0, 24)}`}
+                  src={src}
+                  alt={`String ${stringInfo.id} attachment ${idx + 1}`}
+                  style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #cbd5e1" }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function imageFileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => resolve(String(reader.result || ""));
+      img.onload = () => {
+        const maxSide = 1280;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        if (scale >= 1) {
+          resolve(String(reader.result || ""));
+          return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(String(reader.result || ""));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
 }

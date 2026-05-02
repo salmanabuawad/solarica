@@ -25,6 +25,10 @@ export interface SiteMapProps {
   /** Optional EPL weather stations and sensor assets, already filtered by enabled features. */
   weatherAssets?: any[];
   pierStatuses?: Record<string, string>;
+  /** Per-electrical-string status keyed by full string id. */
+  stringStatuses?: Record<string, string>;
+  /** Per-electrical-string image attachments as data URLs. */
+  stringImages?: Record<string, string[]>;
   selectedBlock: any;
   selectedTracker: any;
   selectedPier: any;
@@ -32,6 +36,8 @@ export interface SiteMapProps {
   onBlockClick: (b: any) => void;
   onTrackerClick: (t: any) => void;
   onPierClick: (p: any) => void;
+  onStringStatusChange?: (stringId: string, status: string) => void;
+  onStringImageAdd?: (stringId: string, dataUrl: string) => void;
   /** Called when the user finishes a box/touch area selection. */
   onAreaSelect?: (piers: any[]) => void;
   /** Shared bulk selection — pier codes currently selected in either view. */
