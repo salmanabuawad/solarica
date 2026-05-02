@@ -14,6 +14,12 @@ export interface SiteMapProps {
   electricalZones?: any[];
   /** Physical row-number markers derived from electrical zones. */
   electricalRows?: any[];
+  /** Panel-plan vector base rows extracted from BHK E_41 gray linework. */
+  panelBaseRows?: any[];
+  /** Canonical string endpoint/panel-pair detail from the electrical PDF. */
+  stringDetail?: any;
+  /** Site border sketched from panel row endpoints. */
+  siteBorder?: any[];
   /** Optional EPL camera/security assets, already filtered by enabled features. */
   securityDevices?: any[];
   /** Optional EPL weather stations and sensor assets, already filtered by enabled features. */

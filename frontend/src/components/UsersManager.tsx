@@ -9,7 +9,7 @@ import {
   type UserRow,
 } from "../api";
 
-type Role = "admin" | "editor" | "viewer";
+type Role = "admin" | "editor" | "viewer" | "electric";
 
 export default function UsersManager() {
   const { t } = useTranslation();
@@ -104,6 +104,7 @@ export default function UsersManager() {
             <Labeled label={t("users.role", "Role")}>
               <select style={inp} value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value as Role })}>
                 <option value="viewer">viewer</option>
+                <option value="electric">electric</option>
                 <option value="editor">editor</option>
                 <option value="admin">admin</option>
               </select>
@@ -141,6 +142,7 @@ export default function UsersManager() {
                   <td style={td}>
                     <select style={{ ...inp, width: 110 }} value={u.role} onChange={(e) => onChangeRole(u, e.target.value as Role)} disabled={busy || isMe}>
                       <option value="viewer">viewer</option>
+                      <option value="electric">electric</option>
                       <option value="editor">editor</option>
                       <option value="admin">admin</option>
                     </select>

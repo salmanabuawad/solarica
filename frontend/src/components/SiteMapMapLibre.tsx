@@ -59,6 +59,9 @@ export default function SiteMapMapLibre({
   inverters = [],
   electricalZones = [],
   electricalRows = [],
+  panelBaseRows = [],
+  stringDetail = null,
+  siteBorder = [],
   securityDevices = [],
   weatherAssets = [],
   pierStatuses,
@@ -101,7 +104,7 @@ export default function SiteMapMapLibre({
   const piersRef = useRef(piers);
   useEffect(() => { piersRef.current = piers; }, [piers]);
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
-  const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }>>({});
+  const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }>>({});
   const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
   // Sampling prefs are read from refs by the map's `moveend`/`zoomend`
   // handlers, which are registered once at mount; without the refs
@@ -352,25 +355,232 @@ export default function SiteMapMapLibre({
   }, [piers, imageWidth]);
 
   const electricalRowLabelData = useMemo(() => {
-    const out: Record<string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }> = {};
+    const out: Record<string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }> = {};
     if (!imageWidth || imageWidth <= 0) return out;
     for (const row of electricalRows || []) {
       if (typeof row?.x !== "number" || typeof row?.y !== "number") continue;
-      const [lng, lat] = rotatedToLngLat(row.x, row.y, imageWidth);
-      out[String(row.id || `${row.zone}-${row.row_num}`)] = {
-        lng,
-        lat,
+      const basePayload = {
+        rowNum: row.row_num,
         zone: String(row.zone ?? ""),
         strings: row.string_count,
         stringNumbers: Array.isArray(row.string_numbers) ? row.string_numbers : [],
+        stringLabels: Array.isArray(row.string_labels) ? row.string_labels : [],
         optimizerPattern: row.optimizer_pattern || "",
         splitStrings: Array.isArray(row.split_strings) ? row.split_strings : [],
         optimizers: row.optimizer_count,
         modules: row.module_count,
       };
+      const [lng, lat] = rotatedToLngLat(row.x, row.y, imageWidth);
+      out[`${String(row.id || `${row.zone}-${row.row_num}`)}-north`] = {
+        lng,
+        lat,
+        side: "north",
+        ...basePayload,
+      };
+      if (typeof row?.south_x === "number" && typeof row?.south_y === "number") {
+        const [southLng, southLat] = rotatedToLngLat(row.south_x, row.south_y, imageWidth);
+        out[`${String(row.id || `${row.zone}-${row.row_num}`)}-south`] = {
+          lng: southLng,
+          lat: southLat,
+          side: "south",
+          ...basePayload,
+        };
+      }
     }
     return out;
   }, [electricalRows, imageWidth]);
+
+  const panelBaseRowsGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
+    for (const row of panelBaseRows || []) {
+      if (!["x0", "y0", "x1", "y1"].every((key) => Number.isFinite(Number(row?.[key])))) continue;
+      features.push({
+        type: "Feature" as const,
+        id: row.id || `panel-row-${features.length + 1}`,
+        geometry: {
+          type: "LineString" as const,
+          coordinates: [
+            rotatedToLngLat(Number(row.x0), Number(row.y0), imageWidth),
+            rotatedToLngLat(Number(row.x1), Number(row.y1), imageWidth),
+          ],
+        },
+        properties: { id: row.id || "", source_file: row.source_file || "" },
+      });
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [panelBaseRows, imageWidth]);
+
+  const electricalStringLabelLinesGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
+    const panelRowsSorted = [...(panelBaseRows || [])]
+      .filter((row: any) => ["x0", "y0", "x1", "y1"].every((key) => Number.isFinite(Number(row?.[key]))))
+      .sort((a: any, b: any) => Number(a.north_y ?? a.y0) - Number(b.north_y ?? b.y0));
+    const projectToRow = (panelRow: any, x: number, y: number) => {
+      if (!panelRow) return { x, y };
+      const x0 = Number(panelRow.x0);
+      const y0 = Number(panelRow.y0);
+      const x1 = Number(panelRow.x1);
+      const y1 = Number(panelRow.y1);
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const denom = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / denom));
+      return { x: x0 + dx * t, y: y0 + dy * t };
+    };
+    for (const row of electricalRows || []) {
+      const rowNo = Number(row?.row_num);
+      const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
+      const dx = panelRow ? Number(panelRow.x1) - Number(panelRow.x0) : 1;
+      const dy = panelRow ? Number(panelRow.y1) - Number(panelRow.y0) : 0;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      for (const stringPoint of row?.string_points || []) {
+        const id = String(stringPoint?.id || "").trim();
+        const xValues = [Number(stringPoint?.x), Number(stringPoint?.x1)].filter(Number.isFinite);
+        const yValues = [Number(stringPoint?.y), Number(stringPoint?.y1)].filter(Number.isFinite);
+        if (!id || !xValues.length || !yValues.length) continue;
+        const cx = xValues.reduce((sum, v) => sum + v, 0) / xValues.length;
+        const cy = yValues.reduce((sum, v) => sum + v, 0) / yValues.length;
+        const projected = projectToRow(panelRow, cx, cy);
+        const halfLen = Math.max(22, Math.min(58, id.length * 3.8));
+        features.push({
+          type: "Feature" as const,
+          id,
+          geometry: {
+            type: "LineString" as const,
+            coordinates: [
+              rotatedToLngLat(projected.x - ux * halfLen, projected.y - uy * halfLen, imageWidth),
+              rotatedToLngLat(projected.x + ux * halfLen, projected.y + uy * halfLen, imageWidth),
+            ],
+          },
+          properties: { id, row: String(rowNo || "") },
+        });
+      }
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [electricalRows, panelBaseRows, imageWidth]);
+
+  const electricalStringSegmentsGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
+    const panelsPerString = Math.max(2, Number(stringDetail?.panel_pair_count || 22) * 2);
+    const panelRowsSorted = [...(panelBaseRows || [])]
+      .filter((row: any) => ["x0", "y0", "x1", "y1"].every((key) => Number.isFinite(Number(row?.[key]))))
+      .sort((a: any, b: any) => Number(a.north_y ?? a.y0) - Number(b.north_y ?? b.y0));
+    const pointAt = (panelRow: any, t: number) => {
+      const x0 = Number.isFinite(Number(panelRow?.south_x)) ? Number(panelRow.south_x) : Number(panelRow?.x0);
+      const y0 = Number.isFinite(Number(panelRow?.south_y)) ? Number(panelRow.south_y) : Number(panelRow?.y0);
+      const x1 = Number.isFinite(Number(panelRow?.north_x)) ? Number(panelRow.north_x) : Number(panelRow?.x1);
+      const y1 = Number.isFinite(Number(panelRow?.north_y)) ? Number(panelRow.north_y) : Number(panelRow?.y1);
+      return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
+    };
+    const projectT = (panelRow: any, x: number, y: number) => {
+      const x0 = Number.isFinite(Number(panelRow?.south_x)) ? Number(panelRow.south_x) : Number(panelRow?.x0);
+      const y0 = Number.isFinite(Number(panelRow?.south_y)) ? Number(panelRow.south_y) : Number(panelRow?.y0);
+      const x1 = Number.isFinite(Number(panelRow?.north_x)) ? Number(panelRow.north_x) : Number(panelRow?.x1);
+      const y1 = Number.isFinite(Number(panelRow?.north_y)) ? Number(panelRow.north_y) : Number(panelRow?.y1);
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const denom = dx * dx + dy * dy || 1;
+      return Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / denom));
+    };
+    const rowPanels = (panelRow: any) => Array.isArray(panelRow?.panels)
+      ? panelRow.panels
+          .map((panel: any) => ({
+            panel: Number(panel?.panel),
+            t: Number(panel?.t),
+            cx: Number(panel?.cx),
+            cy: Number(panel?.cy),
+          }))
+          .filter((panel: any) => Number.isFinite(panel.panel) && Number.isFinite(panel.t) && Number.isFinite(panel.cx) && Number.isFinite(panel.cy))
+          .sort((a: any, b: any) => a.panel - b.panel)
+      : [];
+    const pointForPanel = (panelRow: any, panel: any) => {
+      if (panel && Number.isFinite(panel.cx) && Number.isFinite(panel.cy)) return [panel.cx, panel.cy];
+      return pointAt(panelRow, Number(panel?.t) || 0);
+    };
+    const nearestPanelNumber = (panels: any[], t: number) => {
+      if (!panels.length) return 1;
+      let best = panels[0];
+      for (const panel of panels) {
+        if (Math.abs(panel.t - t) < Math.abs(best.t - t)) best = panel;
+      }
+      return Number(best.panel) || 1;
+    };
+    for (const row of electricalRows || []) {
+      const rowNo = Number(row?.row_num);
+      const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
+      if (!panelRow) continue;
+      const panels = rowPanels(panelRow);
+      const panelCount = panels.length || Number(panelRow?.panel_count) || panelsPerString;
+      for (const stringPoint of row?.string_points || []) {
+        const id = String(stringPoint?.id || "").trim();
+        const xValues = [Number(stringPoint?.x), Number(stringPoint?.x1)].filter(Number.isFinite);
+        const yValues = [Number(stringPoint?.y), Number(stringPoint?.y1)].filter(Number.isFinite);
+        if (!id || !xValues.length || !yValues.length) continue;
+        const cx = xValues.reduce((sum, v) => sum + v, 0) / xValues.length;
+        const cy = yValues.reduce((sum, v) => sum + v, 0) / yValues.length;
+        const labelT = projectT(panelRow, cx, cy);
+        const centerPanel = nearestPanelNumber(panels, labelT);
+        const segmentPanelCount = Math.min(panelsPerString, Math.max(2, panelCount));
+        let startPanelNo = Math.round(centerPanel - (segmentPanelCount - 1) / 2);
+        startPanelNo = Math.max(1, Math.min(startPanelNo, Math.max(1, panelCount - segmentPanelCount + 1)));
+        const endPanelNo = Math.min(panelCount, startPanelNo + segmentPanelCount - 1);
+        const startPanel = panels[startPanelNo - 1];
+        const endPanel = panels[endPanelNo - 1];
+        const start = pointForPanel(panelRow, startPanel || { t: 0 });
+        const end = pointForPanel(panelRow, endPanel || { t: 1 });
+        const startT = Number(startPanel?.t ?? 0);
+        const endT = Number(endPanel?.t ?? 1);
+        const dx = end[0] - start[0];
+        const dy = end[1] - start[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const gapT = Math.min(0.08, Math.max(0.018, 38 / len));
+        const clampedLabelT = Math.max(Math.min(startT, endT), Math.min(Math.max(startT, endT), labelT));
+        const gapLow = pointAt(panelRow, Math.max(Math.min(startT, endT), clampedLabelT - gapT));
+        const gapHigh = pointAt(panelRow, Math.min(Math.max(startT, endT), clampedLabelT + gapT));
+        const startPanelLabel = `${startPanelNo}/${Math.min(endPanelNo, startPanelNo + 1)}`;
+        const endPanelLabel = `${Math.max(startPanelNo, endPanelNo - 1)}/${endPanelNo}`;
+        const labelPoint = pointAt(panelRow, clampedLabelT);
+        const rowAngle = Math.atan2(dy, dx) * 180 / Math.PI;
+        const mapAngle = 90 - rowAngle;
+        features.push({
+          type: "Feature" as const,
+          id: `${id}-line-a`,
+          geometry: { type: "LineString" as const, coordinates: [rotatedToLngLat(start[0], start[1], imageWidth), rotatedToLngLat(gapLow[0], gapLow[1], imageWidth)] },
+          properties: { id, row: String(rowNo || ""), kind: "line" },
+        });
+        features.push({
+          type: "Feature" as const,
+          id: `${id}-line-b`,
+          geometry: { type: "LineString" as const, coordinates: [rotatedToLngLat(gapHigh[0], gapHigh[1], imageWidth), rotatedToLngLat(end[0], end[1], imageWidth)] },
+          properties: { id, row: String(rowNo || ""), kind: "line" },
+        });
+        features.push({
+          type: "Feature" as const,
+          id: `${id}-label`,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(labelPoint[0], labelPoint[1], imageWidth) },
+          properties: { id, row: String(rowNo || ""), kind: "label", angle: mapAngle },
+        });
+        features.push({
+          type: "Feature" as const,
+          id: `${id}-start`,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(start[0], start[1], imageWidth) },
+          properties: { id, row: String(rowNo || ""), kind: "start", panel_label: startPanelLabel },
+        });
+        features.push({
+          type: "Feature" as const,
+          id: `${id}-end`,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(end[0], end[1], imageWidth) },
+          properties: { id, row: String(rowNo || ""), kind: "end", panel_label: endPanelLabel },
+        });
+      }
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [electricalRows, panelBaseRows, imageWidth, stringDetail]);
 
   const electricalRowGuideGeoJSON = useMemo(() => {
     const features: any[] = [];
@@ -673,6 +883,11 @@ export default function SiteMapMapLibre({
     }
     for (const row of electricalRows || []) {
       if (typeof row?.x === "number" && typeof row?.y === "number") points.push({ x: row.x, y: row.y });
+      if (typeof row?.south_x === "number" && typeof row?.south_y === "number") points.push({ x: row.south_x, y: row.south_y });
+    }
+    for (const row of panelBaseRows || []) {
+      if (typeof row?.x0 === "number" && typeof row?.y0 === "number") points.push({ x: row.x0, y: row.y0 });
+      if (typeof row?.x1 === "number" && typeof row?.y1 === "number") points.push({ x: row.x1, y: row.y1 });
     }
     for (const d of [...(dccbs || []), ...(inverters || [])]) {
       if (typeof d?.x === "number" && typeof d?.y === "number") points.push({ x: d.x, y: d.y });
@@ -693,7 +908,7 @@ export default function SiteMapMapLibre({
       [pt2lng(minX), pt2lat(maxY)],
       [pt2lng(maxX), pt2lat(minY)],
     );
-  }, [piers, electricalZones, electricalRows, dccbs, inverters, securityDevices, weatherAssets, imageWidth, imageHeight, mapImageUrl]);
+  }, [piers, electricalZones, electricalRows, panelBaseRows, dccbs, inverters, securityDevices, weatherAssets, imageWidth, imageHeight, mapImageUrl]);
 
   // ---- Map lifecycle ------------------------------------------------------
 
@@ -740,6 +955,9 @@ export default function SiteMapMapLibre({
       map.addSource("pier-statuses", { type: "geojson", data: pierStatusGeoJSON });
       map.addSource("electrical-zones", { type: "geojson", data: electricalZonesGeoJSON });
       map.addSource("electrical-row-guides", { type: "geojson", data: electricalRowGuideGeoJSON });
+      map.addSource("panel-base-rows", { type: "geojson", data: panelBaseRowsGeoJSON });
+      map.addSource("electrical-string-label-lines", { type: "geojson", data: electricalStringLabelLinesGeoJSON });
+      map.addSource("electrical-string-segments", { type: "geojson", data: electricalStringSegmentsGeoJSON });
       map.addSource("electrical-zone-bands", { type: "geojson", data: electricalZoneBandGeoJSON });
       map.addSource("dccb", { type: "geojson", data: dccbGeoJSON });
       map.addSource("inverters", { type: "geojson", data: inverterGeoJSON });
@@ -850,6 +1068,23 @@ export default function SiteMapMapLibre({
             8, 1,
             14, 1.6,
             18, 2.2,
+          ],
+        },
+      });
+      map.addLayer({
+        id: "panel-base-rows-layer",
+        type: "line",
+        source: "panel-base-rows",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#cbd5e1",
+          "line-opacity": 0.64,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 0.7,
+            8, 1,
+            14, 1.5,
+            18, 2,
           ],
         },
       });
@@ -1010,6 +1245,11 @@ export default function SiteMapMapLibre({
         img.onload = () => { if (!map.hasImage(it.id)) map.addImage(it.id, img); };
         img.src = "data:image/svg+xml;utf8," + encodeURIComponent(it.svg);
       }
+      const stringStart = new Image(24, 18);
+      stringStart.onload = () => { if (!map.hasImage("string-start-rect")) map.addImage("string-start-rect", stringStart); };
+      stringStart.src = "data:image/svg+xml;utf8," + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="22" viewBox="0 0 24 22"><path d="M12 3L22 19H2Z" fill="#22c55e" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>`,
+      );
 
       map.addLayer({
         id: "pier-status-icons",
@@ -1134,6 +1374,175 @@ export default function SiteMapMapLibre({
           "text-halo-color": "#ffffff",
           "text-halo-width": 2,
           "text-halo-blur": 0.5,
+        },
+      });
+      map.addLayer({
+        id: "electrical-string-labels",
+        type: "symbol",
+        source: "electrical-string-label-lines",
+        layout: {
+          visibility: "none",
+          "symbol-placement": "line",
+          "text-field": ["get", "id"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 8,
+            8, 10,
+            12, 13,
+            16, 17,
+            20, 22,
+          ],
+          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+          "text-offset": [0, -0.9],
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-keep-upright": true,
+          "symbol-sort-key": 2,
+        },
+        paint: {
+          "text-color": "#1e3a8a",
+          "text-halo-color": "rgba(255,255,255,0.92)",
+          "text-halo-width": 1.4,
+        },
+      });
+      map.addLayer({
+        id: "electrical-string-lines",
+        type: "line",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "line"],
+        layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#111827",
+          "line-opacity": 0.9,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 1.4,
+            8, 2,
+            14, 3,
+            18, 4,
+          ],
+        },
+      });
+      map.addLayer({
+        id: "electrical-string-point-labels",
+        type: "symbol",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "label"],
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "id"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 7,
+            6, 8,
+            10, 10,
+            14, 14,
+            18, 19,
+          ],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-rotate": ["get", "angle"],
+          "text-rotation-alignment": "map",
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+          "text-anchor": "center",
+          "symbol-sort-key": 3,
+        },
+        paint: {
+          "text-color": "#1e3a8a",
+          "text-halo-color": "rgba(255,255,255,0.94)",
+          "text-halo-width": 1.2,
+        },
+      });
+      map.addLayer({
+        id: "electrical-string-starts",
+        type: "symbol",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "start"],
+        layout: {
+          visibility: "none",
+          "icon-image": "string-start-rect",
+          "icon-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 0.38,
+            8, 0.5,
+            14, 0.75,
+            18, 1,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+      map.addLayer({
+        id: "electrical-string-start-panel-labels",
+        type: "symbol",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "start"],
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "panel_label"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 7,
+            8, 9,
+            14, 12,
+            18, 15,
+          ],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-anchor": "top",
+          "text-offset": [0, 0.85],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#111827",
+          "text-halo-color": "rgba(255,255,255,0.95)",
+          "text-halo-width": 1.4,
+        },
+      });
+      map.addLayer({
+        id: "electrical-string-ends",
+        type: "circle",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "end"],
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 2.4,
+            8, 3.2,
+            14, 4.8,
+            18, 6.5,
+          ],
+          "circle-color": "#ef4444",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.2,
+        },
+      });
+      map.addLayer({
+        id: "electrical-string-end-panel-labels",
+        type: "symbol",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "end"],
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "panel_label"],
+          "text-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 7,
+            8, 9,
+            14, 12,
+            18, 15,
+          ],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-anchor": "bottom",
+          "text-offset": [0, -0.65],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#111827",
+          "text-halo-color": "rgba(255,255,255,0.95)",
+          "text-halo-width": 1.4,
         },
       });
 
@@ -1585,9 +1994,12 @@ export default function SiteMapMapLibre({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const apply = () => {
+      const apply = () => {
       (map.getSource("electrical-zones") as GeoJSONSource | undefined)?.setData(electricalZonesGeoJSON as any);
       (map.getSource("electrical-row-guides") as GeoJSONSource | undefined)?.setData(electricalRowGuideGeoJSON as any);
+      (map.getSource("panel-base-rows") as GeoJSONSource | undefined)?.setData(panelBaseRowsGeoJSON as any);
+      (map.getSource("electrical-string-label-lines") as GeoJSONSource | undefined)?.setData(electricalStringLabelLinesGeoJSON as any);
+      (map.getSource("electrical-string-segments") as GeoJSONSource | undefined)?.setData(electricalStringSegmentsGeoJSON as any);
       (map.getSource("electrical-zone-bands") as GeoJSONSource | undefined)?.setData(electricalZoneBandGeoJSON as any);
       (map.getSource("dccb") as GeoJSONSource | undefined)?.setData(dccbGeoJSON as any);
       (map.getSource("inverters") as GeoJSONSource | undefined)?.setData(inverterGeoJSON as any);
@@ -1597,7 +2009,7 @@ export default function SiteMapMapLibre({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1700,11 +2112,22 @@ export default function SiteMapMapLibre({
       show("trackers-casing", trackersOn);
       show("trackers-line", trackersOn);
       show("trackers-selected", trackersOn);
-      show("electrical-zone-bands-fill", layerVisible(layers, "string_zones", true));
-      show("electrical-zone-bands-outline", layerVisible(layers, "string_zones", true));
-      show("electrical-row-guides-layer", true);
-      show("electrical-zones-layer", layerVisible(layers, "string_zones", true));
-      show("electrical-zones-labels", layerVisible(layers, "string_zones", true));
+      const stringsOn = layerVisible(layers, "string_zones", true);
+        const zonesOn = layerVisible(layers, "zones", false);
+        show("electrical-zone-bands-fill", zonesOn);
+        show("electrical-zone-bands-outline", zonesOn);
+      show("electrical-string-lines", stringsOn);
+      show("electrical-string-starts", stringsOn);
+      show("electrical-string-ends", stringsOn);
+      show("electrical-string-labels", stringsOn);
+      show("electrical-string-point-labels", stringsOn);
+      show("electrical-string-start-panel-labels", stringsOn);
+      show("electrical-string-end-panel-labels", stringsOn);
+      const hasPanelBase = (panelBaseRows || []).length > 0;
+      show("panel-base-rows-layer", hasPanelBase);
+      show("electrical-row-guides-layer", !hasPanelBase);
+      show("electrical-zones-layer", layerVisible(layers, "zones", false));
+      show("electrical-zones-labels", layerVisible(layers, "zones", false));
       show("dccb-layer", layerVisible(layers, "dccb", false));
       show("inverters-layer", layerVisible(layers, "inverters", false));
       show("security-devices-layer", layerVisible(layers, "security_cameras", false));
@@ -1875,23 +2298,19 @@ export default function SiteMapMapLibre({
     if (!layerVisible(layersRef.current, "row_labels")) return;
 
     const bounds = map.getBounds();
-    const visible: [string, { lng: number; lat: number; zone: string; strings?: any; stringNumbers?: number[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }][] = [];
+    const visible: [string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }][] = [];
     for (const e of Object.entries(electricalRowLabelDataRef.current)) {
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
-    const stride = visible.length <= mapLabelDenseThresholdRef.current
-      ? 1
-      : Math.max(1, mapLabelStrideRef.current);
+    const stride = 1;
     for (let i = 0; i < visible.length; i += stride) {
       const [id, pos] = visible[i];
-      const row = id.split("-row-").pop() || id;
-      const stringLabel = formatStringNumbers(pos.stringNumbers || []);
+      const row = String(pos.rowNum ?? id.split("-row-").pop()?.replace(/^row-/, "").replace(/-(north|south)$/, "") ?? id.replace(/^row-/, "").replace(/-(north|south)$/, ""));
+      const stringLabel = (pos.stringLabels || []).join(", ") || formatStringNumbers(pos.stringNumbers || []);
       const splitLabel = (pos.splitStrings || []).join(", ");
       const el = document.createElement("div");
-      el.textContent = stringLabel
-        ? `Z${pos.zone} ${stringLabel} OP.${pos.optimizers ?? ""}${splitLabel ? " split" : ""}`
-        : `R-${row}`;
-      el.title = `Zone ${pos.zone}`;
+      el.textContent = `R-${row}`;
+      el.title = stringLabel ? `Row ${row} ${pos.side || ""}: ${stringLabel}` : `Row ${row} ${pos.side || ""}`;
       el.style.cssText =
         "font: 700 10px Arial, sans-serif; color: #075985; cursor: pointer; " +
         "background: rgba(224,242,254,0.94); border: 1px solid #38bdf8; " +
@@ -1907,7 +2326,7 @@ export default function SiteMapMapLibre({
             `<div style="font: 12px Arial, sans-serif; min-width: 150px;">` +
             `<div style="font-weight:700;margin-bottom:4px;">Physical row ${row}</div>` +
             `<div>Zone ${pos.zone || "-"}</div>` +
-            `<div>String numbers ${stringLabel || "-"}</div>` +
+            `<div>Strings ${stringLabel || "-"}</div>` +
             `<div>String count ${pos.strings ?? "-"}</div>` +
             `<div>Optimizers ${pos.optimizers ?? "-"}</div>` +
             `<div>Optimizer pattern ${pos.optimizerPattern || "-"}</div>` +

@@ -12,12 +12,14 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import shutil
 import time
 import uuid
 from pathlib import Path
 from typing import Optional
+from urllib.parse import unquote
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -72,6 +74,8 @@ def _verify_pw(plain: str, stored: str) -> bool:
 
 # --- Users table ------------------------------------------------------
 
+ACTIVE_USER_ROLES = {"admin", "editor", "viewer", "electric"}
+
 USERS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS users (
   id            SERIAL PRIMARY KEY,
@@ -85,10 +89,20 @@ CREATE TABLE IF NOT EXISTS users (
 );
 """
 
+USER_PROJECT_ACCESS_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS user_project_access (
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, project_id)
+);
+"""
+
 
 def _ensure_users_schema() -> None:
     with db_store.get_conn() as conn, conn.cursor() as cur:
         cur.execute(USERS_SCHEMA_SQL)
+        cur.execute(USER_PROJECT_ACCESS_SCHEMA_SQL)
         # Seed the configured admin if no user exists (first-boot bootstrap).
         cur.execute("SELECT COUNT(*) AS n FROM users")
         row = cur.fetchone()
@@ -116,6 +130,27 @@ def _db_user_row(username: str) -> Optional[dict]:
             (username,),
         )
         return cur.fetchone()
+
+
+def _project_access_ids(username: str) -> set[str]:
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT p.project_id
+            FROM user_project_access upa
+            JOIN users u ON u.id = upa.user_id
+            JOIN projects p ON p.id = upa.project_id
+            WHERE u.username = %s
+            """,
+            (username,),
+        )
+        return {str(r["project_id"]) for r in cur.fetchall()}
+
+
+def _can_access_project(auth_data: dict, project_id: str) -> bool:
+    if auth_data.get("role") == "admin":
+        return True
+    return project_id in _project_access_ids(str(auth_data.get("username") or ""))
 
 
 def _sign_token(user: str, role: str = "viewer") -> str:
@@ -157,8 +192,14 @@ async def _auth_middleware(request: Request, call_next):
     path = request.url.path
     if path.startswith("/api/") and path not in _PUBLIC_API_PATHS:
         auth = request.headers.get("authorization", "")
-        if not auth.startswith("Bearer ") or not _verify_token(auth[7:]):
+        data = _verify_token(auth[7:]) if auth.startswith("Bearer ") else None
+        if not data:
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+        project_match = re.match(r"^/api/(?:epl/|security/)?projects/([^/]+)", path)
+        if project_match:
+            project_id = unquote(project_match.group(1))
+            if not _can_access_project(data, project_id):
+                return JSONResponse({"detail": "Project access denied"}, status_code=403)
     return await call_next(request)
 
 
@@ -232,8 +273,8 @@ def api_create_user(request: Request, body: dict = Body(...)):
     role = str(body.get("role") or "viewer")
     if not username or not password:
         raise HTTPException(400, "username and password are required")
-    if role not in {"admin", "editor", "viewer"}:
-        raise HTTPException(400, "role must be admin, editor, or viewer")
+    if role not in ACTIVE_USER_ROLES:
+        raise HTTPException(400, "role must be admin, editor, viewer, or electric")
     with db_store.get_conn() as conn, conn.cursor() as cur:
         try:
             cur.execute(
@@ -258,8 +299,8 @@ def api_update_user(user_id: int, request: Request, body: dict = Body(...)):
         fields.append("display_name = %s"); params.append(body.get("display_name"))
     if "role" in body:
         role = str(body.get("role") or "")
-        if role not in {"admin", "editor", "viewer"}:
-            raise HTTPException(400, "role must be admin, editor, or viewer")
+        if role not in ACTIVE_USER_ROLES:
+            raise HTTPException(400, "role must be admin, editor, viewer, or electric")
         fields.append("role = %s"); params.append(role)
     if "is_active" in body:
         fields.append("is_active = %s"); params.append(bool(body.get("is_active")))
@@ -721,8 +762,13 @@ class ProjectCreate(BaseModel):
 
 
 @app.get("/api/projects")
-def api_list_projects():
+def api_list_projects(request: Request):
+    auth = request.headers.get("authorization", "")
+    data = _verify_token(auth[7:]) if auth.startswith("Bearer ") else None
     projects = db_store.list_projects()
+    if data and data.get("role") != "admin":
+        allowed = _project_access_ids(str(data.get("username") or ""))
+        projects = [p for p in projects if str(p.get("project_id")) in allowed]
     # Include the full project row so the frontend can branch on
     # site_profile (ground_pier / floating_string / rooftop) and show
     # lifecycle status.  `summary` stays last for backwards compat.
@@ -741,7 +787,8 @@ def api_list_projects():
 
 
 @app.post("/api/projects")
-def api_create_project(body: ProjectCreate):
+def api_create_project(request: Request, body: ProjectCreate):
+    _require_admin(request)
     pid = body.project_id.strip()
     if not pid or not all(c.isalnum() or c in "-_" for c in pid):
         raise HTTPException(status_code=400, detail="Invalid project_id (alphanumeric, '-', '_' only)")

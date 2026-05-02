@@ -183,6 +183,7 @@ const INITIAL_LAYERS = [
   { key: "row_labels",  label: "Row numbers", visible: true },
   { key: "piers",       label: "Piers",       visible: true },
   { key: "string_zones", label: "String zones", visible: true },
+  { key: "zones",       label: "Zones",       visible: false },
   { key: "trackers",    label: "Trackers",    visible: false },
   // Single "Blocks" checkbox drives BOTH the block fill/outline AND
   // the block-number HTML markers — keeps the checkbox row to four
@@ -203,6 +204,7 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   blocks:      "layers.blocks",
   blockLabels: "layers.blockLabels",  // unused in the toolbar; kept for compat
   string_zones: "Strings",
+  zones: "Zones",
   inverters:   "layers.inverters",
   dccb:        "layers.dccb",
   security_cameras: "Security cameras",
@@ -620,6 +622,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       ? stringOptimizerModel.string_zones
       : [];
   }, [stringOptimizerModel]);
+  const eplMapLayers = stringOptimizerModel?.map_data?.layers || project?.strings_optimizers?.map_data?.layers || {};
+  const panelBaseRows = Array.isArray(eplMapLayers?.panel_rows) ? eplMapLayers.panel_rows : [];
 
   const electricalZoneRows = useMemo(() => {
     const metadata = stringOptimizerModel?.metadata || {};
@@ -695,77 +699,86 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     const physicalRows = Array.isArray(stringOptimizerModel?.physical_rows)
       ? stringOptimizerModel.physical_rows
       : [];
-    const rowStats = new Map<number, any>();
-    const stringRows = new Map<string, Set<number>>();
-    for (const row of physicalRows) {
-      const rowNo = Number(row?.physical_row);
-      for (const s of row?.strings || []) {
-        const zone = Number(s?.zone);
-        const stringNo = Number(s?.string_in_zone);
-        if (!rowNo || !zone || !stringNo) continue;
-        const key = `${zone}.${stringNo}`;
-        if (!stringRows.has(key)) stringRows.set(key, new Set());
-        stringRows.get(key)!.add(rowNo);
-      }
-    }
-    for (const row of physicalRows) {
-      const rowNo = Number(row?.physical_row);
-      if (rowNo) rowStats.set(rowNo, row);
-    }
-    const zonesWithCoords = electricalZones
-      .filter((zone: any) => typeof zone?.source?.x === "number" && typeof zone?.source?.y === "number")
-      .sort((a: any, b: any) => Number(a.source.y) - Number(b.source.y));
-
+    const panelRowsSorted = [...panelBaseRows]
+      .filter((panelRow: any) => typeof panelRow?.north_x === "number" && typeof panelRow?.north_y === "number")
+      .sort((a: any, b: any) => Number(a.north_y) - Number(b.north_y));
     const markers: any[] = [];
-    for (let zi = 0; zi < zonesWithCoords.length; zi += 1) {
-      const zone = zonesWithCoords[zi];
-      const rows = Array.isArray(zone.physical_rows) ? zone.physical_rows.map((r: any) => Number(r)).filter(Boolean) : [];
-      if (!rows.length) continue;
-      const src = zone.source;
-      const prevY = zi > 0 ? Number(zonesWithCoords[zi - 1].source.y) : null;
-      const nextY = zi + 1 < zonesWithCoords.length ? Number(zonesWithCoords[zi + 1].source.y) : null;
-      const spanBefore = prevY == null ? 52 : Math.max(20, (Number(src.y) - prevY) / 2);
-      const spanAfter = nextY == null ? 52 : Math.max(20, (nextY - Number(src.y)) / 2);
-      const startY = Number(src.y) - spanBefore;
-      const endY = Number(src.y) + spanAfter;
-      rows.forEach((rowNo: number, idx: number) => {
-        const stat = rowStats.get(rowNo) || {};
-        const tRow = (idx + 0.5) / rows.length;
-        markers.push({
-          id: `zone-${zone.zone}-row-${rowNo}`,
-          row_num: rowNo,
-          zone: zone.zone,
-          x: Number(src.x),
-          y: startY + (endY - startY) * tRow,
-          string_count: stat.string_count ?? null,
-          optimizer_count: stat.optimizer_count ?? null,
-          module_count: stat.module_count ?? null,
-          string_numbers: Array.isArray(stat.strings)
-            ? stat.strings
-                .map((s: any) => Number(s?.string_in_zone))
-                .filter((n: number) => Number.isFinite(n))
-                .sort((a: number, b: number) => a - b)
-            : [],
-          optimizer_pattern: Array.isArray(stat.strings)
-            ? stat.strings
-                .map((s: any) => `S.${Number(s?.string_in_zone)} OP.1-${Number(s?.optimizer_count || 0)}`)
-                .join("; ")
-            : "",
-          split_strings: Array.isArray(stat.strings)
-            ? stat.strings
-                .filter((s: any) => (stringRows.get(`${Number(s?.zone)}.${Number(s?.string_in_zone)}`)?.size || 0) > 1)
-                .map((s: any) => `S.${Number(s?.string_in_zone)}`)
-            : [],
-        });
+    const markedRows = new Set<number>();
+    for (const row of physicalRows) {
+      const rowNo = Number(row?.physical_row);
+      if (!rowNo) continue;
+      const panelRow = panelRowsSorted[Math.min(rowNo - 1, panelRowsSorted.length - 1)];
+      const strings = Array.isArray(row?.strings) ? row.strings : [];
+      const zones = [...new Set(strings.map((s: any) => Number(s?.zone)).filter(Boolean))].sort((a, b) => a - b);
+      const stringIds = strings.map((s: any) => String(s?.raw_label || s?.id || "").trim()).filter(Boolean);
+      markers.push({
+        id: `row-${rowNo}`,
+        row_num: rowNo,
+        zone: zones.map((z) => `Z${z}`).join(", "),
+        x: panelRow ? Number(panelRow.north_x) : Number(row.x),
+        y: panelRow ? Number(panelRow.north_y) : Number(row.y),
+        south_x: panelRow ? Number(panelRow.south_x) : undefined,
+        south_y: panelRow ? Number(panelRow.south_y) : undefined,
+        string_points: strings
+          .map((s: any) => ({
+            id: String(s?.raw_label || s?.id || "").trim(),
+            x: Number(s?.x),
+            y: Number(s?.y),
+            x1: Number(s?.x1),
+            y1: Number(s?.y1),
+          }))
+          .filter((s: any) => s.id && Number.isFinite(s.x) && Number.isFinite(s.y)),
+        string_count: row.string_count ?? strings.length,
+        optimizer_count: row.optimizer_count ?? strings.reduce((sum: number, s: any) => sum + Number(s?.optimizer_count || 0), 0),
+        module_count: row.module_count ?? strings.reduce((sum: number, s: any) => sum + Number(s?.module_count || 0), 0),
+        string_numbers: strings
+          .map((s: any) => Number(s?.string_in_zone))
+          .filter((n: number) => Number.isFinite(n))
+          .sort((a: number, b: number) => a - b),
+        string_labels: stringIds,
+        optimizer_pattern: strings
+          .map((s: any) => `${String(s?.raw_label || s?.id || `S${Number(s?.string_in_zone)}`)} OP.1-${Number(s?.optimizer_count || 0)}`)
+          .join("; "),
+        split_strings: [],
       });
+      markedRows.add(rowNo);
     }
+    panelRowsSorted.forEach((panelRow: any, idx: number) => {
+      const rowNo = idx + 1;
+      if (markedRows.has(rowNo)) return;
+      const common = {
+        row_num: rowNo,
+        zone: "",
+        string_count: null,
+        optimizer_count: null,
+        module_count: null,
+        string_numbers: [],
+        optimizer_pattern: "",
+        split_strings: [],
+      };
+      markers.push({
+        ...common,
+        id: `panel-north-row-${rowNo}`,
+        x: Number(panelRow.north_x),
+        y: Number(panelRow.north_y),
+      });
+      if (typeof panelRow?.south_x === "number" && typeof panelRow?.south_y === "number") {
+        markers.push({
+          ...common,
+          id: `panel-south-row-${rowNo}`,
+          x: Number(panelRow.south_x),
+          y: Number(panelRow.south_y),
+        });
+      }
+    });
     return markers;
-  }, [electricalZones, stringOptimizerModel]);
+  }, [electricalZones, panelBaseRows, stringOptimizerModel]);
 
   const electricalSummary = stringOptimizerModel?.summary || project?.strings_optimizers?.summary || null;
   const electricalMapSource = stringOptimizerModel?.map_source || project?.strings_optimizers?.map_source || {};
   const eplFeatures = stringOptimizerModel?.features || project?.strings_optimizers?.features || {};
   const optionalFeatures = eplFeatures?.optional || {};
+  const stringDetail = stringOptimizerModel?.metadata?.string_detail || project?.strings_optimizers?.metadata?.string_detail || null;
   const optionalMapAssets = stringOptimizerModel?.map_data?.optional_assets || project?.strings_optimizers?.map_data?.optional_assets || {};
   const optionalAssets = stringOptimizerModel?.assets || project?.strings_optimizers?.assets || {};
   const securityDevicesRaw = optionalMapAssets?.security_devices || optionalAssets?.security_devices || [];
@@ -814,6 +827,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     if (trackers.length > 0) visibleKeys.add("trackers");
     if (blocks.length > 0) visibleKeys.add("blocks");
     if (electricalZones.length > 0) visibleKeys.add("string_zones");
+    if (electricalZones.length > 0) visibleKeys.add("zones");
     if (electricalZones.length > 0 || inverters.length > 0) visibleKeys.add("inverters");
     if (electricalZones.length > 0 || dccbs.length > 0) visibleKeys.add("dccb");
     if ((optionalFeatures?.cameras || optionalFeatures?.security_devices) && securityDevices.length > 0) {
@@ -1478,6 +1492,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   dccbs={dccbs}
                   electricalZones={electricalZones}
                   electricalRows={electricalRowMarkers}
+                  panelBaseRows={panelBaseRows}
+                  stringDetail={stringDetail}
                   securityDevices={securityDevices}
                   weatherAssets={weatherAssets}
                   pierStatuses={pierStatuses}
