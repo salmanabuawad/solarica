@@ -841,6 +841,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     }
     return layers.filter((layer) => visibleKeys.has(layer.key));
   }, [blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, piers.length, securityDevices.length, trackers.length, weatherSensors.length, weatherStations.length]);
+  const mobileMainMapToggles = useMemo(() => {
+    const keys = new Set(["row_labels", "string_zones", "zones"]);
+    return mapLayerToggles.filter((layer) => keys.has(layer.key));
+  }, [mapLayerToggles]);
 
   // Grid rows: apply block/tracker filters, then optionally restrict to
   // whatever piers were visible in the map viewport when the user
@@ -1114,7 +1118,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
           {activeTab === "mapgrid" && (
             <>
-              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {!compact && <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <Pill active={mode === "grid"} onClick={() => { setMode("grid"); closeMobileSidebar(); }}>{t("details.grid")}</Pill>
                 <Pill active={mode === "map"} onClick={() => { setMode("map"); closeMobileSidebar(); }}>{t("details.map")}</Pill>
                 <button
@@ -1141,9 +1145,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   </svg>
                   Export
                 </button>
-              </div>
+              </div>}
 
-              {mode === "map" && (
+              {!compact && mode === "map" && (
                 <div style={{ display: "grid", gap: 8, padding: 10, borderRadius: 10, background: "rgba(15,23,42,0.35)", border: "1px solid rgba(148,163,184,0.22)" }}>
                   <LayerTogglePanel
                     layers={mapLayerToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
@@ -1568,9 +1572,23 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           </div>
         )}
 
+        {compact && (
+          <div style={{ display: "grid", gap: 8, marginBottom: 8 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
+              <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
+            </div>
+            <LayerTogglePanel
+              layers={mobileMainMapToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
+              onChange={(key: string, visible: boolean) => setLayers((prev) => prev.map((l) => l.key === key ? { ...l, visible } : l))}
+              inline
+            />
+          </div>
+        )}
+
         {mode === "map" ? (
           <div>
-              {!compact && <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {!compact && <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
               <LayerTogglePanel
                 layers={mapLayerToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
                 onChange={(key: string, visible: boolean) => setLayers((prev) => prev.map((l) => l.key === key ? { ...l, visible } : l))}
@@ -1594,7 +1612,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               // bulk toolbar above the map).  Fallback to 100vh for
               // browsers that don't speak svh.
               height: compact
-                ? "calc(100svh - 118px)"
+                ? "calc(100svh - 178px)"
                 : "calc(100dvh - 200px)",
               minHeight: compact ? 240 : 380,
               maxHeight: "calc(100vh - 120px)",

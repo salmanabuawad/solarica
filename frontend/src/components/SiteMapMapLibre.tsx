@@ -502,14 +502,6 @@ export default function SiteMapMapLibre({
       if (panel && Number.isFinite(panel.cx) && Number.isFinite(panel.cy)) return [panel.cx, panel.cy];
       return pointAt(panelRow, Number(panel?.t) || 0);
     };
-    const nearestPanelNumber = (panels: any[], t: number) => {
-      if (!panels.length) return 1;
-      let best = panels[0];
-      for (const panel of panels) {
-        if (Math.abs(panel.t - t) < Math.abs(best.t - t)) best = panel;
-      }
-      return Number(best.panel) || 1;
-    };
     const labelAngleFromMapLine = (start: number[], end: number[]) => {
       const [lng0, lat0] = rotatedToLngLat(start[0], start[1], imageWidth);
       const [lng1, lat1] = rotatedToLngLat(end[0], end[1], imageWidth);
@@ -532,10 +524,8 @@ export default function SiteMapMapLibre({
         const cx = xValues.reduce((sum, v) => sum + v, 0) / xValues.length;
         const cy = yValues.reduce((sum, v) => sum + v, 0) / yValues.length;
         const labelT = projectT(panelRow, cx, cy);
-        const centerPanel = nearestPanelNumber(panels, labelT);
         const segmentPanelCount = Math.min(panelsPerString, Math.max(2, panelCount));
-        let startPanelNo = Math.round(centerPanel - (segmentPanelCount - 1) / 2);
-        startPanelNo = Math.max(1, Math.min(startPanelNo, Math.max(1, panelCount - segmentPanelCount + 1)));
+        const startPanelNo = 1;
         const endPanelNo = Math.min(panelCount, startPanelNo + segmentPanelCount - 1);
         const startPanel = panels[startPanelNo - 1];
         const endPanel = panels[endPanelNo - 1];
