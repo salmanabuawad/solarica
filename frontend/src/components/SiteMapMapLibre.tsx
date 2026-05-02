@@ -2902,6 +2902,7 @@ function StringStatusModal({
   const currentStatus = normalizeStringStatus(stringInfo?.status);
   const images = Array.isArray(stringInfo?.images) ? stringInfo.images : [];
   const [comment, setComment] = useState(String(stringInfo?.comment || ""));
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   useEffect(() => {
     setComment(String(stringInfo?.comment || ""));
   }, [stringInfo?.id, stringInfo?.comment]);
@@ -3049,13 +3050,65 @@ function StringStatusModal({
                   key={`${idx}-${src.slice(0, 24)}`}
                   src={src}
                   alt={`String ${stringInfo.id} attachment ${idx + 1}`}
-                  style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #cbd5e1" }}
+                  onClick={() => setPreviewImage(src)}
+                  style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 8, border: "1px solid #cbd5e1", cursor: "zoom-in" }}
                 />
               ))}
             </div>
           )}
         </div>
       </div>
+      {previewImage && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            setPreviewImage(null);
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 2600,
+            background: "rgba(2,6,23,0.86)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 14,
+          }}
+        >
+          <button
+            onClick={() => setPreviewImage(null)}
+            aria-label="Close image"
+            style={{
+              position: "fixed",
+              top: 12,
+              right: 12,
+              width: 42,
+              height: 42,
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.32)",
+              background: "rgba(15,23,42,0.72)",
+              color: "#fff",
+              fontSize: 24,
+              cursor: "pointer",
+              zIndex: 2601,
+            }}
+          >
+            x
+          </button>
+          <img
+            src={previewImage}
+            alt={`String ${stringInfo.id} attachment preview`}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "96vw",
+              maxHeight: "92vh",
+              objectFit: "contain",
+              borderRadius: 10,
+              boxShadow: "0 18px 60px rgba(0,0,0,0.45)",
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
