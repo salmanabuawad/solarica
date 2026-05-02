@@ -975,11 +975,20 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   );
 
   const closeMobileSidebar = () => setSidebarOpen(false);
+  const exportCurrentGrid = () => {
+    const api = pierGridApiRef.current;
+    if (!api || typeof api.exportDataAsCsv !== "function") return;
+    const today = new Date().toISOString().slice(0, 10);
+    api.exportDataAsCsv({
+      fileName: `${electricalDetailsMode ? "string-zones" : "piers"}-${projectId || "export"}-${today}.csv`,
+      onlySelectedAllPages: false,
+    });
+  };
 
   const sidebar = (
     <aside
       style={{
-        width: compact ? "min(220px, 78vw)" : 200,
+        width: compact ? "min(320px, 86vw)" : 200,
         flexShrink: 0,
         background: "linear-gradient(180deg,#0f172a 0%,#1e293b 100%)",
         color: "#e2e8f0",
@@ -1025,6 +1034,136 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           }}
         />
       </div>
+      {compact && (
+        <div style={{ padding: "10px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "grid", gap: 10 }}>
+          <select
+            autoComplete="off"
+            value={projectId}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "__new__") { setShowNewProjectModal(true); return; }
+              setProjectId(val);
+              closeMobileSidebar();
+            }}
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              borderRadius: 8,
+              border: "1px solid rgba(148,163,184,0.55)",
+              background: "#ffffff",
+              color: "#0f172a",
+              fontSize: 15,
+              fontWeight: 600,
+            }}
+          >
+            <optgroup label="Existing Projects">
+              {!projects.length && <option value="">No projects</option>}
+              {projects.map((item: any) => (
+                <option key={item.project_id} value={item.project_id}>{item.project_id}</option>
+              ))}
+            </optgroup>
+            <optgroup label="New">
+              <option value="__new__">+ New Project...</option>
+            </optgroup>
+          </select>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => setShowSyncQueue(true)}
+              style={{
+                flex: 1,
+                height: 34,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                borderRadius: 8,
+                border: `1px solid ${online ? "#bbf7d0" : "#fecaca"}`,
+                background: online ? "#f0fdf4" : "#fef2f2",
+                color: online ? "#166534" : "#991b1b",
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: online ? "#16a34a" : "#dc2626" }} />
+              {syncing ? t("app.syncing") : online ? t("app.online") : t("app.offline")}
+            </button>
+            <button onClick={() => setSettingsOpen(true)} title={`${authUser.username} · ${authUser.role}`} aria-label={t("settings.title", "Settings")} style={{ ...iconBtn, width: 34, height: 34 }}>
+              <SlidersIcon />
+            </button>
+            <button onClick={logout} title={t("app.signOut")} aria-label={t("app.signOut")} style={{ ...iconBtn, width: 34, height: 34 }}>
+              <LogoutIcon />
+            </button>
+          </div>
+
+          {activeTab === "mapgrid" && electricalDetailsMode && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: 10, borderRadius: 10, background: "rgba(15,23,42,0.45)", border: "1px solid rgba(148,163,184,0.25)" }}>
+              {[
+                ["String Zones", electricalSummary?.string_zones],
+                ["Strings", electricalSummary?.strings],
+                ["Optimizers", electricalSummary?.optimizers],
+                ["Modules", electricalSummary?.modules],
+              ].map(([label, value]) => (
+                <div key={String(label)}>
+                  <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 2 }}>{label}</div>
+                  <div style={{ color: "#fff", fontSize: 14, fontWeight: 800 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeTab === "mapgrid" && (
+            <>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <Pill active={mode === "grid"} onClick={() => { setMode("grid"); closeMobileSidebar(); }}>{t("details.grid")}</Pill>
+                <Pill active={mode === "map"} onClick={() => { setMode("map"); closeMobileSidebar(); }}>{t("details.map")}</Pill>
+                <button
+                  type="button"
+                  onClick={exportCurrentGrid}
+                  style={{
+                    marginLeft: "auto",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: "6px 9px",
+                    borderRadius: 8,
+                    border: "1px solid #16a34a",
+                    background: "#16a34a",
+                    color: "#fff",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M12 4v12" />
+                    <polyline points="6 10 12 16 18 10" />
+                    <path d="M5 20h14" />
+                  </svg>
+                  Export
+                </button>
+              </div>
+
+              {mode === "map" && (
+                <div style={{ display: "grid", gap: 8, padding: 10, borderRadius: 10, background: "rgba(15,23,42,0.35)", border: "1px solid rgba(148,163,184,0.22)" }}>
+                  <LayerTogglePanel
+                    layers={mapLayerToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
+                    onChange={(key: string, visible: boolean) => setLayers((prev) => prev.map((l) => l.key === key ? { ...l, visible } : l))}
+                    inline
+                  />
+                  {gridFilterValue && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#bfdbfe", fontSize: 12, fontWeight: 700 }}>
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {gridFilterBy === "row" ? "Rows" : "Trackers"}: {gridFilterValue}
+                      </span>
+                      <button onClick={() => setGridFilterValue("")} style={{ marginLeft: "auto", fontSize: 12, background: "transparent", border: "none", color: "#e2e8f0", cursor: "pointer" }}>Clear</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
       <nav style={{ padding: "10px 8px", display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto" }}>
         {NAV_GROUPS.map((group, gi) => {
           const open = isGroupOpen(group);
@@ -1153,7 +1292,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               ☰
             </button>
           )}
-          <select
+          {!compact && <select
             autoComplete="off"
             value={projectId}
             onChange={(e) => {
@@ -1163,10 +1302,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             }}
             style={{
               minWidth: 0, flex: 1,
-              // On phones let the project picker stretch as wide as
-              // the row allows (the picker is the most-tapped
-              // control); cap it at 320 px on desktop where the
-              // header bar carries other widgets.
+              // The mobile project picker lives in the drawer; desktop
+              // keeps it in the header bar.
               maxWidth: compact ? "100%" : 320,
               padding: compact ? "8px 12px" : "8px 10px",
               borderRadius: 8,
@@ -1186,11 +1323,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <optgroup label="New">
               <option value="__new__">+ New Project…</option>
             </optgroup>
-          </select>
+          </select>}
           <div style={{ flex: 1 }} />
 
           {/* Online / offline pill — click opens sync queue */}
-          <button
+          {!compact && <button
             onClick={() => setShowSyncQueue(true)}
             title={pending > 0 ? `${pending} pending sync` : online ? t("app.online") : t("app.offline")}
             aria-label={online ? t("app.online") : t("app.offline")}
@@ -1217,27 +1354,27 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 marginInlineStart: 2,
               }}>{pending}</span>
             )}
-          </button>
+          </button>}
 
           {/* Settings / preferences — also shows current user + sign-out inside */}
-          <button
+          {!compact && <button
             onClick={() => setSettingsOpen(true)}
             title={`${authUser.username} · ${authUser.role}`}
             aria-label={t("settings.title", "Settings")}
             style={iconBtn}
           >
             <SlidersIcon />
-          </button>
+          </button>}
 
           {/* Sign out */}
-          <button
+          {!compact && <button
             onClick={logout}
             title={t("app.signOut")}
             aria-label={t("app.signOut")}
             style={iconBtn}
           >
             <LogoutIcon />
-          </button>
+          </button>}
         </div>
 
         <div style={{ padding: compact ? "12px 14px 24px" : "16px 24px 32px", flex: 1, minWidth: 0, boxSizing: "border-box", maxWidth: "100%" }}>
@@ -1334,7 +1471,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         {/* Status dashboard — total piers + breakdown by status. Lives
             above the Grid/Map toggle so the operator sees the rollout
             at a glance regardless of which view they're in. */}
-        {electricalDetailsMode ? (
+        {!compact && (electricalDetailsMode ? (
           <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "repeat(4, 1fr)", gap: "8px 20px", marginBottom: 10, padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc", fontSize: 13 }}>
             {[
               ["String Zones", electricalSummary?.string_zones],
@@ -1350,27 +1487,19 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           </div>
         ) : (
           <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
-        )}
+        ))}
 
         {/* Grid/Map toggle + Export-to-Excel on the same row. The
             export button sits flush to the right edge so it's always
             visible regardless of which view (grid/map) is active. */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
+        {!compact && <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
           <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
           <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
           <span style={{ flex: 1 }} />
           <button
             type="button"
             title={t("details.exportTooltip", "Export the current view to a CSV file Excel can open")}
-            onClick={() => {
-              const api = pierGridApiRef.current;
-              if (!api || typeof api.exportDataAsCsv !== "function") return;
-              const today = new Date().toISOString().slice(0, 10);
-              api.exportDataAsCsv({
-                fileName: `${electricalDetailsMode ? "string-zones" : "piers"}-${projectId || "export"}-${today}.csv`,
-                onlySelectedAllPages: false,
-              });
-            }}
+            onClick={exportCurrentGrid}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1394,7 +1523,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             </svg>
             {t("details.exportExcel", "Export to Excel")}
           </button>
-        </div>
+        </div>}
 
         {/* Bulk status toolbar — visible when piers are selected. One
             row even on phones: "N piers" abbreviation, smaller font,
@@ -1441,7 +1570,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
         {mode === "map" ? (
           <div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
+              {!compact && <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap", alignItems: "center" }}>
               <LayerTogglePanel
                 layers={mapLayerToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
                 onChange={(key: string, visible: boolean) => setLayers((prev) => prev.map((l) => l.key === key ? { ...l, visible } : l))}
@@ -1455,7 +1584,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               {gridFilterValue && (
                 <button onClick={() => setGridFilterValue("")} style={{ fontSize: 12, background: "none", border: "none", cursor: "pointer", color: "#64748b" }}>Clear filter</button>
               )}
-            </div>
+            </div>}
             <div style={{
               // 100svh = "small" viewport height — the smallest the
               // viewport can be with ALL browser chrome visible.  Using
@@ -1465,7 +1594,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               // bulk toolbar above the map).  Fallback to 100vh for
               // browsers that don't speak svh.
               height: compact
-                ? "calc(100svh - 290px)"
+                ? "calc(100svh - 118px)"
                 : "calc(100dvh - 200px)",
               minHeight: compact ? 240 : 380,
               maxHeight: "calc(100vh - 120px)",

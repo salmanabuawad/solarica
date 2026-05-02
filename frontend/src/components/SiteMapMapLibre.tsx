@@ -510,6 +510,14 @@ export default function SiteMapMapLibre({
       }
       return Number(best.panel) || 1;
     };
+    const labelAngleFromMapLine = (start: number[], end: number[]) => {
+      const [lng0, lat0] = rotatedToLngLat(start[0], start[1], imageWidth);
+      const [lng1, lat1] = rotatedToLngLat(end[0], end[1], imageWidth);
+      let angle = Math.atan2(-(lat1 - lat0), lng1 - lng0) * 180 / Math.PI;
+      while (angle > 90) angle -= 180;
+      while (angle < -90) angle += 180;
+      return angle;
+    };
     for (const row of electricalRows || []) {
       const rowNo = Number(row?.row_num);
       const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
@@ -545,8 +553,7 @@ export default function SiteMapMapLibre({
         const startPanelLabel = `${startPanelNo}/${Math.min(endPanelNo, startPanelNo + 1)}`;
         const endPanelLabel = `${Math.max(startPanelNo, endPanelNo - 1)}/${endPanelNo}`;
         const labelPoint = pointAt(panelRow, clampedLabelT);
-        const rowAngle = Math.atan2(dy, dx) * 180 / Math.PI;
-        const mapAngle = 90 - rowAngle;
+        const mapAngle = labelAngleFromMapLine(start, end);
         features.push({
           type: "Feature" as const,
           id: `${id}-line-a`,
@@ -1441,7 +1448,7 @@ export default function SiteMapMapLibre({
           ],
           "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-rotate": ["get", "angle"],
-          "text-rotation-alignment": "map",
+          "text-rotation-alignment": "viewport",
           "text-allow-overlap": true,
           "text-ignore-placement": true,
           "text-anchor": "center",
