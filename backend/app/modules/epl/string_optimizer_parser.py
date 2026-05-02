@@ -696,7 +696,12 @@ def _extract_typical_string_detail(pdf_paths: list[str | Path]) -> dict[str, Any
         if 1950 <= x <= 2250 and 350 <= y <= 2700:
             detail_words.append({"text": str(text), "x": x, "y": y, "x1": float(x1), "y1": float(y1)})
     h_entries = []
+    visible_panel_numbers: list[int] = []
     for word in detail_words:
+        if re.fullmatch(r"\d{1,2}", word["text"]):
+            number = int(word["text"])
+            if 1 <= number <= 60:
+                visible_panel_numbers.append(number)
         m = re.fullmatch(r"H1300-(\d+)", word["text"], re.IGNORECASE)
         if not m:
             continue
@@ -713,6 +718,8 @@ def _extract_typical_string_detail(pdf_paths: list[str | Path]) -> dict[str, Any
         return {"status": "not_detected", "reason": "typical_detail_pairs_not_found"}
     by_index = {int(e["pair_index"]): e for e in h_entries}
     pair_count = max(by_index)
+    max_visible_panel = max(visible_panel_numbers, default=0)
+    panel_count = max(pair_count * 2, max_visible_panel if max_visible_panel % 2 == 0 else max_visible_panel - 1)
     start_words = [w for w in detail_words if str(w["text"]).lower() == "start"]
     start_index = pair_count
     if start_words:
@@ -725,6 +732,8 @@ def _extract_typical_string_detail(pdf_paths: list[str | Path]) -> dict[str, Any
         "source": "typical_strings_wires_detail",
         "source_file": electrical_paths[0].name,
         "panel_pair_count": pair_count,
+        "panel_count": panel_count,
+        "visible_panel_numbers": sorted(set(visible_panel_numbers)),
         "panel_count_origin": "south",
         "panel_count_axis": "south_to_north",
         "start_pair_index": start_index,

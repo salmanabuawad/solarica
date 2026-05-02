@@ -466,7 +466,10 @@ export default function SiteMapMapLibre({
   const electricalStringSegmentsGeoJSON = useMemo(() => {
     const features: any[] = [];
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
-    const panelsPerString = Math.max(2, Number(stringDetail?.panel_pair_count || 22) * 2);
+    const detailPanelCount = Number(stringDetail?.panel_count);
+    const panelsPerString = Math.max(2, Number.isFinite(detailPanelCount) && detailPanelCount > 0
+      ? detailPanelCount
+      : Number(stringDetail?.panel_pair_count || 22) * 2);
     const panelRowsSorted = [...(panelBaseRows || [])]
       .filter((row: any) => ["x0", "y0", "x1", "y1"].every((key) => Number.isFinite(Number(row?.[key]))))
       .sort((a: any, b: any) => Number(a.north_y ?? a.y0) - Number(b.north_y ?? b.y0));
