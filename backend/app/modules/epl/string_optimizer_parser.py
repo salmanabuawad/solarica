@@ -744,8 +744,82 @@ def _extract_typical_string_detail(pdf_paths: list[str | Path]) -> dict[str, Any
     }
 
 
-def _prepare_bhk_vector_map_layers(physical_rows: list[dict[str, Any]], string_zones: list[dict[str, Any]], strings_flat: list[dict[str, Any]], optional_map_data: dict[str, Any], panel_geometry: dict[str, Any]) -> dict[str, Any]:
+def _extract_bhk_string_markers(pdf_paths: list[str | Path]) -> dict[str, Any]:
+    """Extract per-string start/end glyphs from the BHK electrical PDF.
+
+    The BHK_E_20 PDF marks every string with a small green-stroke triangle
+    (start) and a small red-stroke circle (end). Counts match the string
+    label count exactly (288 of each for the sample plant). We return the
+    raw pixel positions; downstream code is responsible for matching them
+    to specific string IDs.
+    """
+    if fitz is None:
+        return {"status": "unavailable", "reason": "pymupdf_not_available", "starts": [], "ends": []}
+    electrical_paths = [Path(p) for p in pdf_paths if _is_bhk_electrical_plan(p)]
+    if not electrical_paths:
+        return {"status": "not_detected", "reason": "electrical_file_not_found", "starts": [], "ends": []}
+    try:
+        doc = fitz.open(str(electrical_paths[0]))
+        page = doc[0]
+        # Use unrotated coords so positions match the rest of the BHK parser.
+        try:
+            page.set_rotation(0)
+        except Exception:
+            pass
+        drawings = page.get_drawings()
+    except Exception as exc:
+        return {"status": "error", "reason": str(exc), "starts": [], "ends": []}
+
+    starts: list[dict[str, Any]] = []
+    ends: list[dict[str, Any]] = []
+    for d in drawings:
+        rect = d.get("rect")
+        if not rect:
+            continue
+        w = rect.x1 - rect.x0
+        h = rect.y1 - rect.y0
+        items = d.get("items") or []
+        color = d.get("color")
+        if not color or len(color) < 3:
+            continue
+        # Red circle (end): 2x2 stroked circle, 4 bezier curves, stroke (1,0,0)
+        if (
+            1.5 <= w <= 2.5
+            and 1.5 <= h <= 2.5
+            and sum(1 for it in items if it[0] == "c") == 4
+            and color[0] > 0.9 and color[1] < 0.1 and color[2] < 0.1
+        ):
+            ends.append({"x": (rect.x0 + rect.x1) / 2, "y": (rect.y0 + rect.y1) / 2})
+            continue
+        # Green triangle (start): ~3.1x3.4 stroked triangle, 3 line segs, stroke (0,1,0)
+        if (
+            1.5 < w < 6
+            and 1.5 < h < 6
+            and sum(1 for it in items if it[0] == "l") == 3
+            and color[0] < 0.05 and color[1] > 0.95 and color[2] < 0.05
+        ):
+            pts: set[tuple[float, float]] = set()
+            for it in items:
+                if it[0] == "l":
+                    pts.add((round(it[1].x, 1), round(it[1].y, 1)))
+                    pts.add((round(it[2].x, 1), round(it[2].y, 1)))
+            if len(pts) != 3:
+                continue
+            starts.append({"x": (rect.x0 + rect.x1) / 2, "y": (rect.y0 + rect.y1) / 2, "pts": [list(p) for p in sorted(pts)]})
+    try:
+        doc.close()
+    except Exception:
+        pass
     return {
+        "status": "ok",
+        "source_file": electrical_paths[0].name,
+        "starts": starts,
+        "ends": ends,
+    }
+
+
+def _prepare_bhk_vector_map_layers(physical_rows: list[dict[str, Any]], string_zones: list[dict[str, Any]], strings_flat: list[dict[str, Any]], optional_map_data: dict[str, Any], panel_geometry: dict[str, Any], string_markers: dict[str, Any] | None = None) -> dict[str, Any]:
+    out = {
         "physical_rows": physical_rows,
         "string_zones": string_zones,
         "strings": strings_flat,
@@ -753,6 +827,10 @@ def _prepare_bhk_vector_map_layers(physical_rows: list[dict[str, Any]], string_z
         "site_border": panel_geometry.get("site_border") or [],
         **(optional_map_data or {}),
     }
+    if string_markers:
+        out["string_start_markers"] = string_markers.get("starts") or []
+        out["string_end_markers"] = string_markers.get("ends") or []
+    return out
 
 
 def _logical_optimizers_from_visible_strings(strings_flat: list[dict[str, Any]], opt_per_string: int, mod_per_opt: int) -> list[dict[str, Any]]:
@@ -1025,7 +1103,8 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
         }
 
     optional_map_data = prepare_optional_asset_map_data(optional_assets, features)
-    epl_map_layers = _prepare_bhk_vector_map_layers(physical_rows, string_zones, strings_flat, optional_map_data, panel_geometry)
+    string_markers = _extract_bhk_string_markers(pdf_paths)
+    epl_map_layers = _prepare_bhk_vector_map_layers(physical_rows, string_zones, strings_flat, optional_map_data, panel_geometry, string_markers)
 
     return {
         "project_type": "agro_pv_solar_edge",

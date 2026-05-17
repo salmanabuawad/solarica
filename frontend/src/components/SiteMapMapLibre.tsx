@@ -36,8 +36,6 @@ import {
 const DEG_PER_PT = 0.001;
 const pt2lng = (pt: number) => pt * DEG_PER_PT;
 const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
-const EMPTY_IMAGE_URL =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 const STRING_STATUSES = ["new", "completed", "verified"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   new: "New",
@@ -81,6 +79,8 @@ export default function SiteMapMapLibre({
   electricalZones = [],
   electricalRows = [],
   panelBaseRows = [],
+  stringStartMarkers = [],
+  stringEndMarkers = [],
   stringDetail = null,
   siteBorder = [],
   securityDevices = [],
@@ -810,6 +810,39 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [inverters, imageWidth]);
 
+  // Raw green-triangle/red-circle markers extracted from the BHK electrical
+  // PDF; one per string. Each marker is a symbol on the map. Matching to
+  // specific string IDs happens elsewhere; here we just render the glyphs.
+  const stringStartMarkersGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (stringStartMarkers || [])
+      .filter((m: any) => typeof m?.x === "number" && typeof m?.y === "number")
+      .map((m: any, idx: number) => ({
+        type: "Feature" as const,
+        id: `string-start-${idx}`,
+        geometry: { type: "Point" as const, coordinates: rotatedToLngLat(m.x, m.y, imageWidth) },
+        properties: { kind: "start" },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [stringStartMarkers, imageWidth]);
+
+  const stringEndMarkersGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) {
+      return { type: "FeatureCollection" as const, features: [] };
+    }
+    const features = (stringEndMarkers || [])
+      .filter((m: any) => typeof m?.x === "number" && typeof m?.y === "number")
+      .map((m: any, idx: number) => ({
+        type: "Feature" as const,
+        id: `string-end-${idx}`,
+        geometry: { type: "Point" as const, coordinates: rotatedToLngLat(m.x, m.y, imageWidth) },
+        properties: { kind: "end" },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [stringEndMarkers, imageWidth]);
+
   const electricalZonesGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
       return { type: "FeatureCollection" as const, features: [] };
@@ -1006,11 +1039,18 @@ export default function SiteMapMapLibre({
 
     map.on("load", () => {
       // --- Sources -------------------------------------------------------
-      map.addSource("map-background", {
-        type: "image",
-        url: mapImageUrl || EMPTY_IMAGE_URL,
-        coordinates: mapImageCoordinates as any,
-      });
+      // Only add the raster image source when we actually have an image
+      // to show. MapLibre 5.x's ImageSource.load() rejects the 1x1 PNG
+      // placeholder via createImageBitmap, surfacing as console
+      // InvalidStateError noise. The update effect below adds the
+      // source on demand if mapImageUrl becomes truthy later.
+      if (mapImageUrl) {
+        map.addSource("map-background", {
+          type: "image",
+          url: mapImageUrl,
+          coordinates: mapImageCoordinates as any,
+        });
+      }
       map.addSource("blocks", { type: "geojson", data: blocksGeoJSON });
       map.addSource("structural-row-guides", { type: "geojson", data: structuralRowGuideGeoJSON });
       map.addSource("trackers", { type: "geojson", data: trackersGeoJSON });
@@ -1027,16 +1067,20 @@ export default function SiteMapMapLibre({
       map.addSource("security-devices", { type: "geojson", data: securityDevicesGeoJSON });
       map.addSource("weather-stations", { type: "geojson", data: weatherStationsGeoJSON });
       map.addSource("weather-sensors", { type: "geojson", data: weatherSensorsGeoJSON });
+      map.addSource("string-start-markers", { type: "geojson", data: stringStartMarkersGeoJSON });
+      map.addSource("string-end-markers", { type: "geojson", data: stringEndMarkersGeoJSON });
 
-      map.addLayer({
-        id: "map-background-layer",
-        type: "raster",
-        source: "map-background",
-        paint: {
-          "raster-opacity": mapImageUrl ? 0.92 : 0,
-          "raster-fade-duration": 0,
-        },
-      });
+      if (mapImageUrl) {
+        map.addLayer({
+          id: "map-background-layer",
+          type: "raster",
+          source: "map-background",
+          paint: {
+            "raster-opacity": 0.92,
+            "raster-fade-duration": 0,
+          },
+        });
+      }
 
       // --- Block fill + outline -----------------------------------------
       //
@@ -1312,6 +1356,11 @@ export default function SiteMapMapLibre({
       stringStart.onload = () => { if (!map.hasImage("string-start-rect")) map.addImage("string-start-rect", stringStart); };
       stringStart.src = "data:image/svg+xml;utf8," + encodeURIComponent(
         `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="22" viewBox="0 0 24 22"><path d="M12 3L22 19H2Z" fill="#22c55e" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>`,
+      );
+      const stringEnd = new Image(20, 20);
+      stringEnd.onload = () => { if (!map.hasImage("string-end-circle")) map.addImage("string-end-circle", stringEnd); };
+      stringEnd.src = "data:image/svg+xml;utf8," + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="2"/></svg>`,
       );
 
       map.addLayer({
@@ -1663,6 +1712,36 @@ export default function SiteMapMapLibre({
           "circle-stroke-width": 1.5,
         },
       });
+      // BHK per-string start/end glyphs extracted from the electrical PDF.
+      // Sized small so they don't overwhelm the panel grid at low zoom.
+      map.addLayer({
+        id: "string-start-markers-layer",
+        type: "symbol",
+        source: "string-start-markers",
+        layout: {
+          "icon-image": "string-start-rect",
+          "icon-size": [
+            "interpolate", ["linear"], ["zoom"],
+            8, 0.25, 12, 0.4, 16, 0.6, 20, 0.85,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+      map.addLayer({
+        id: "string-end-markers-layer",
+        type: "symbol",
+        source: "string-end-markers",
+        layout: {
+          "icon-image": "string-end-circle",
+          "icon-size": [
+            "interpolate", ["linear"], ["zoom"],
+            8, 0.25, 12, 0.4, 16, 0.6, 20, 0.85,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
       map.addLayer({
         id: "inverters-layer",
         type: "circle",
@@ -1960,14 +2039,31 @@ export default function SiteMapMapLibre({
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
+      if (!map.isStyleLoaded()) { setTimeout(apply, 50); return; }
       const src = map.getSource("map-background") as any;
-      if (!src) { setTimeout(apply, 50); return; }
-      const url = mapImageUrl || EMPTY_IMAGE_URL;
-      if (typeof src.updateImage === "function") {
-        src.updateImage({ url, coordinates: mapImageCoordinates });
+      if (!mapImageUrl) {
+        // No image to show. Tear down any previously added layer/source
+        // so we don't carry around a stale placeholder.
+        if (map.getLayer("map-background-layer")) map.removeLayer("map-background-layer");
+        if (src) map.removeSource("map-background");
+        return;
       }
-      if (map.getLayer("map-background-layer")) {
-        map.setPaintProperty("map-background-layer", "raster-opacity", mapImageUrl ? 0.92 : 0);
+      if (!src) {
+        map.addSource("map-background", {
+          type: "image",
+          url: mapImageUrl,
+          coordinates: mapImageCoordinates as any,
+        });
+        map.addLayer({
+          id: "map-background-layer",
+          type: "raster",
+          source: "map-background",
+          paint: { "raster-opacity": 0.92, "raster-fade-duration": 0 },
+        }, map.getLayer("blocks-fill") ? "blocks-fill" : undefined);
+        return;
+      }
+      if (typeof src.updateImage === "function") {
+        src.updateImage({ url: mapImageUrl, coordinates: mapImageCoordinates });
       }
     };
     apply();
@@ -2130,10 +2226,12 @@ export default function SiteMapMapLibre({
       (map.getSource("security-devices") as GeoJSONSource | undefined)?.setData(securityDevicesGeoJSON as any);
       (map.getSource("weather-stations") as GeoJSONSource | undefined)?.setData(weatherStationsGeoJSON as any);
       (map.getSource("weather-sensors") as GeoJSONSource | undefined)?.setData(weatherSensorsGeoJSON as any);
+      (map.getSource("string-start-markers") as GeoJSONSource | undefined)?.setData(stringStartMarkersGeoJSON as any);
+      (map.getSource("string-end-markers") as GeoJSONSource | undefined)?.setData(stringEndMarkersGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2373,6 +2471,7 @@ export default function SiteMapMapLibre({
     // dense-threshold) or keep every Nth.
     const visible: [string, { lng: number; lat: number }][] = [];
     for (const e of Object.entries(rowLabelDataRef.current)) {
+      if (!Number.isFinite(e[1].lng) || !Number.isFinite(e[1].lat)) continue;
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
     const stride = visible.length <= mapLabelDenseThresholdRef.current
@@ -2425,6 +2524,7 @@ export default function SiteMapMapLibre({
     const bounds = map.getBounds();
     const visible: [string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }][] = [];
     for (const e of Object.entries(electricalRowLabelDataRef.current)) {
+      if (!Number.isFinite(e[1].lng) || !Number.isFinite(e[1].lat)) continue;
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
     const stride = 1;
@@ -2494,6 +2594,7 @@ export default function SiteMapMapLibre({
     const bounds = map.getBounds();
     const visible: [string, { lng: number; lat: number }][] = [];
     for (const e of Object.entries(trackerLabelDataRef.current)) {
+      if (!Number.isFinite(e[1].lng) || !Number.isFinite(e[1].lat)) continue;
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
     const stride = visible.length <= mapLabelDenseThresholdRef.current

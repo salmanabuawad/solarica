@@ -699,6 +699,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   }, [stringOptimizerModel]);
   const eplMapLayers = stringOptimizerModel?.map_data?.layers || project?.strings_optimizers?.map_data?.layers || {};
   const panelBaseRows = Array.isArray(eplMapLayers?.panel_rows) ? eplMapLayers.panel_rows : [];
+  const stringStartMarkers = Array.isArray(eplMapLayers?.string_start_markers) ? eplMapLayers.string_start_markers : [];
+  const stringEndMarkers = Array.isArray(eplMapLayers?.string_end_markers) ? eplMapLayers.string_end_markers : [];
 
   const electricalZoneRows = useMemo(() => {
     const metadata = stringOptimizerModel?.metadata || {};
@@ -1717,6 +1719,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   electricalZones={electricalZones}
                   electricalRows={electricalRowMarkers}
                   panelBaseRows={panelBaseRows}
+                  stringStartMarkers={stringStartMarkers}
+                  stringEndMarkers={stringEndMarkers}
                   stringDetail={stringDetail}
                   securityDevices={securityDevices}
                   weatherAssets={weatherAssets}

@@ -16,6 +16,10 @@ export interface SiteMapProps {
   electricalRows?: any[];
   /** Panel-plan vector base rows extracted from BHK E_41 gray linework. */
   panelBaseRows?: any[];
+  /** Raw green-triangle string-start markers extracted from the BHK electrical PDF. */
+  stringStartMarkers?: { x: number; y: number }[];
+  /** Raw red-circle string-end markers extracted from the BHK electrical PDF. */
+  stringEndMarkers?: { x: number; y: number }[];
   /** Canonical string endpoint/panel-pair detail from the electrical PDF. */
   stringDetail?: any;
   /** Site border sketched from panel row endpoints. */
