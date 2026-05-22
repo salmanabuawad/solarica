@@ -498,14 +498,29 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
 LABEL_ASSIGN_MAX = 200.0  # reject Hungarian matches farther than this
 
 
-def _assign_labels(strings, label_words) -> None:
-    """Assign each dotted string label to its cable.
+def _label_cost(label_pt, s) -> float:
+    """Cost of attaching a label to a cable.
 
-    The label text is drawn *along* the string's tracker row (rotated to
-    the row angle), so it sits on/near its own cable ribbon. We assign by
-    minimum distance from the label to the ribbon's vertices, solved as a
-    global 1:1 linear assignment (Hungarian) to avoid collisions in dense
-    areas, rejecting matches beyond a sane radius.
+    The label names the string and is drawn along the FIRST row run, right
+    by the green start triangle. So the best anchor is the start: take the
+    distance from the label to the green start, but allow the label to sit
+    anywhere along the start row by also crediting closeness to the ribbon.
+    Combine: mostly start-distance, with the ribbon distance as a tie-breaker
+    so a label sitting further out along its own row still wins over a
+    different cable whose start happens to be nearer.
+    """
+    start_d = _dist(label_pt, s["_green"])
+    ribbon_d = _min_vertex_dist(s["_ribbon"], label_pt)
+    return 0.65 * start_d + 0.35 * ribbon_d
+
+
+def _assign_labels(strings, label_words) -> None:
+    """Assign each dotted x.x.x.x label to its cable via global 1:1 matching.
+
+    Labels are drawn along the first row run by the green start triangle, so
+    we score each (label, cable) pair with _label_cost and solve the optimal
+    assignment (Hungarian), rejecting matches beyond a sane radius. Falls
+    back to greedy nearest if scipy is unavailable.
     """
     if not strings:
         return
@@ -519,7 +534,7 @@ def _assign_labels(strings, label_words) -> None:
         cost = np.zeros((len(labels), len(strings)))
         for i, (_t, lp) in enumerate(labels):
             for j, s in enumerate(strings):
-                cost[i][j] = _min_vertex_dist(s["_ribbon"], lp)
+                cost[i][j] = _label_cost(lp, s)
         rows, cols = linear_sum_assignment(cost)
         for i, j in zip(rows, cols):
             if cost[i][j] <= LABEL_ASSIGN_MAX:
@@ -528,7 +543,7 @@ def _assign_labels(strings, label_words) -> None:
         for s in strings:
             best = None
             for t, lp in labels:
-                d = _min_vertex_dist(s["_ribbon"], lp)
+                d = _label_cost(lp, s)
                 if best is None or d < best[0]:
                     best = (d, t)
             if best and best[0] <= LABEL_ASSIGN_MAX:
