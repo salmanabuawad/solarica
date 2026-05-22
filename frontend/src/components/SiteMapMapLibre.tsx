@@ -447,6 +447,27 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
+  // South-origin panel numbers (one per E41 panel rectangle). Rendered only
+  // at high zoom so they appear when the user zooms into a row.
+  const panelNumbersGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
+    for (const row of panelBaseRows || []) {
+      for (const p of row?.panels || []) {
+        const cx = Number(p?.cx);
+        const cy = Number(p?.cy);
+        const num = Number(p?.panel);
+        if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(num)) continue;
+        features.push({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(cx, cy, imageWidth) },
+          properties: { num: String(num) },
+        });
+      }
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [panelBaseRows, imageWidth]);
+
   const electricalStringLabelLinesGeoJSON = useMemo(() => {
     const features: any[] = [];
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
@@ -1169,6 +1190,7 @@ export default function SiteMapMapLibre({
       map.addSource("topology-lines", { type: "geojson", data: topologyLinesGeoJSON });
       map.addSource("topology-markers", { type: "geojson", data: topologyMarkersGeoJSON });
       map.addSource("topology-highlight", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addSource("panel-numbers", { type: "geojson", data: panelNumbersGeoJSON });
 
       if (mapImageUrl) {
         map.addLayer({
@@ -1927,6 +1949,26 @@ export default function SiteMapMapLibre({
           "circle-stroke-width": 1.2,
         },
       });
+      // Panel numbers — only at high zoom so they reveal on zoom-in.
+      map.addLayer({
+        id: "panel-numbers-layer",
+        type: "symbol",
+        source: "panel-numbers",
+        minzoom: 16,
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "num"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 16, 6, 18, 9, 20, 13],
+          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#475569",
+          "text-halo-color": "rgba(255,255,255,0.92)",
+          "text-halo-width": 1.0,
+        },
+      });
       map.addLayer({
         id: "inverters-layer",
         type: "circle",
@@ -2443,10 +2485,11 @@ export default function SiteMapMapLibre({
       (map.getSource("string-end-markers") as GeoJSONSource | undefined)?.setData(stringEndMarkersGeoJSON as any);
       (map.getSource("topology-lines") as GeoJSONSource | undefined)?.setData(topologyLinesGeoJSON as any);
       (map.getSource("topology-markers") as GeoJSONSource | undefined)?.setData(topologyMarkersGeoJSON as any);
+      (map.getSource("panel-numbers") as GeoJSONSource | undefined)?.setData(panelNumbersGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2564,6 +2607,7 @@ export default function SiteMapMapLibre({
       show("electrical-string-end-panel-labels", stringsOn);
       const hasPanelBase = (panelBaseRows || []).length > 0;
       show("panel-base-rows-layer", hasPanelBase);
+      show("panel-numbers-layer", hasPanelBase);
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));

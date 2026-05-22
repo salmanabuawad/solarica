@@ -269,6 +269,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [selectedTracker, setSelectedTracker] = useState<any>(null);
   const [gridFilterBy, setGridFilterBy] = useState<"row" | "tracker">("row");
   const [gridFilterValue, setGridFilterValue] = useState("");
+  const [eplGridTab, setEplGridTab] = useState<"routes" | "rows">("routes");
   const [pierStatuses, setPierStatuses] = useState<Record<string, string>>({});
   const [stringStatuses, setStringStatuses] = useState<Record<string, string>>({});
   const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
@@ -704,6 +705,31 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const stringStartMarkers = Array.isArray(eplMapLayers?.string_start_markers) ? eplMapLayers.string_start_markers : [];
   const stringEndMarkers = Array.isArray(eplMapLayers?.string_end_markers) ? eplMapLayers.string_end_markers : [];
   const stringTopology = Array.isArray(eplMapLayers?.string_topology) ? eplMapLayers.string_topology : [];
+
+  const topologyGridRows = useMemo(() => {
+    const fmtPair = (p: any) => Array.isArray(p) && p.length === 2 ? `${p[0]}–${p[1]}` : "";
+    return (stringTopology || []).map((s: any, idx: number) => {
+      const events = Array.isArray(s?.events) ? s.events : [];
+      const start = events.find((e: any) => e.type === "start");
+      const end = events.find((e: any) => e.type === "end");
+      const jumpPanels = events
+        .filter((e: any) => e.type === "exit_row")
+        .map((e: any) => `R${e.physical_row}: ${fmtPair(e.between_panels)}`)
+        .join("   ");
+      return {
+        id: String(s?.string || `str-${s?.ribbon_idx ?? idx}`),
+        string: s?.string || "(unlabeled)",
+        start_row: start?.physical_row ?? "",
+        end_row: end?.physical_row ?? "",
+        start_panels: fmtPair(start?.between_panels),
+        jump_panels: jumpPanels,
+        end_panels: fmtPair(end?.between_panels),
+        jump_count: Number(s?.jump_count || 0),
+        total_panels: s?.total_panels ?? "",
+        optimizer_count: s?.optimizer_count ?? "",
+      };
+    });
+  }, [stringTopology]);
 
   const electricalZoneRows = useMemo(() => {
     const metadata = stringOptimizerModel?.metadata || {};
@@ -1796,31 +1822,57 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         ) : electricalDetailsMode ? (
           <div>
             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+              {stringTopology.length > 0 && (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <Pill active={eplGridTab === "routes"} onClick={() => setEplGridTab("routes")}>String routes</Pill>
+                  <Pill active={eplGridTab === "rows"} onClick={() => setEplGridTab("rows")}>Physical rows</Pill>
+                </div>
+              )}
               <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-                {electricalPhysicalRows.length.toLocaleString()} physical rows
-              </span>
-              <span style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
-                Pier grid will appear after the ramming PDF is uploaded and parsed.
+                {eplGridTab === "routes" && stringTopology.length > 0
+                  ? `${topologyGridRows.length.toLocaleString()} strings`
+                  : `${electricalPhysicalRows.length.toLocaleString()} physical rows`}
               </span>
             </div>
-            <SimpleGrid
-              rows={electricalPhysicalRows}
-              columns={[
-                { field: "physical_row", headerName: "Row", width: 90, type: "numericColumn" },
-                { field: "zones", headerName: "Zone", width: 100 },
-                { field: "string_pattern", headerName: "String Numbers", width: 160 },
-                { field: "string_count", headerName: "Strings", width: 110, type: "numericColumn" },
-                { field: "optimizer_count", headerName: "Optimizers", width: 130, type: "numericColumn" },
-                { field: "optimizer_pattern", headerName: "Optimizer Pattern", minWidth: 240, flex: 1 },
-                { field: "module_count", headerName: "Modules", width: 120, type: "numericColumn" },
-                { field: "split_strings", headerName: "Split Strings", width: 160 },
-              ]}
-              height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
-              enableQuickFilter
-              quickFilterPlaceholder="Search electrical rows..."
-              getRowId={(p: any) => p.data?.id}
-              gridApiRef={pierGridApiRef}
-            />
+            {eplGridTab === "routes" && stringTopology.length > 0 ? (
+              <SimpleGrid
+                rows={topologyGridRows}
+                columns={[
+                  { field: "string", headerName: "String", width: 130, pinned: "left" },
+                  { field: "start_row", headerName: "Start row", width: 110, type: "numericColumn" },
+                  { field: "end_row", headerName: "End row", width: 110, type: "numericColumn" },
+                  { field: "start_panels", headerName: "Start panels", width: 130 },
+                  { field: "jump_panels", headerName: "Jump panels", minWidth: 200, flex: 1 },
+                  { field: "end_panels", headerName: "End panels", width: 130 },
+                  { field: "optimizer_count", headerName: "Optimizers", width: 120, type: "numericColumn" },
+                  { field: "total_panels", headerName: "Panels", width: 100, type: "numericColumn" },
+                ]}
+                height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
+                enableQuickFilter
+                quickFilterPlaceholder="Search strings..."
+                getRowId={(p: any) => p.data?.id}
+                gridApiRef={pierGridApiRef}
+              />
+            ) : (
+              <SimpleGrid
+                rows={electricalPhysicalRows}
+                columns={[
+                  { field: "physical_row", headerName: "Row", width: 90, type: "numericColumn" },
+                  { field: "zones", headerName: "Zone", width: 100 },
+                  { field: "string_pattern", headerName: "String Numbers", width: 160 },
+                  { field: "string_count", headerName: "Strings", width: 110, type: "numericColumn" },
+                  { field: "optimizer_count", headerName: "Optimizers", width: 130, type: "numericColumn" },
+                  { field: "optimizer_pattern", headerName: "Optimizer Pattern", minWidth: 240, flex: 1 },
+                  { field: "module_count", headerName: "Modules", width: 120, type: "numericColumn" },
+                  { field: "split_strings", headerName: "Split Strings", width: 160 },
+                ]}
+                height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
+                enableQuickFilter
+                quickFilterPlaceholder="Search electrical rows..."
+                getRowId={(p: any) => p.data?.id}
+                gridApiRef={pierGridApiRef}
+              />
+            )}
           </div>
         ) : (
           <div>
