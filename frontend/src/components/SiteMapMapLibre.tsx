@@ -1905,10 +1905,9 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "kind"], "jump"],
         layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#f97316",
-          "line-opacity": 0.95,
-          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.4, 8, 2.2, 14, 3.0, 18, 4.0],
-          "line-dasharray": [2, 1.4],
+          "line-color": "#eab308",
+          "line-opacity": 1,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.6, 8, 2.6, 14, 3.4, 18, 4.6],
         },
       });
       map.addLayer({
