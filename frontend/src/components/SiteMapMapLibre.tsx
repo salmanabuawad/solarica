@@ -453,14 +453,27 @@ export default function SiteMapMapLibre({
     const features: any[] = [];
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
     for (const row of panelBaseRows || []) {
+      // Project each panel centre onto the row's centerline so the numbers
+      // sit on the gray row line rather than offset to one side.
+      const x0 = Number(row?.x0); const y0 = Number(row?.y0);
+      const x1 = Number(row?.x1); const y1 = Number(row?.y1);
+      const haveLine = [x0, y0, x1, y1].every((v) => Number.isFinite(v));
+      const dx = x1 - x0; const dy = y1 - y0;
+      const denom = dx * dx + dy * dy || 1;
       for (const p of row?.panels || []) {
         const cx = Number(p?.cx);
         const cy = Number(p?.cy);
         const num = Number(p?.panel);
         if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(num)) continue;
+        let px = cx; let py = cy;
+        if (haveLine) {
+          const t = ((cx - x0) * dx + (cy - y0) * dy) / denom;
+          px = x0 + dx * t;
+          py = y0 + dy * t;
+        }
         features.push({
           type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(cx, cy, imageWidth) },
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(px, py, imageWidth) },
           properties: { num: String(num) },
         });
       }
