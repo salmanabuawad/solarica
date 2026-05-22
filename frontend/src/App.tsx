@@ -183,6 +183,7 @@ const INITIAL_LAYERS = [
   { key: "row_labels",  label: "Row numbers", visible: true },
   { key: "piers",       label: "Piers",       visible: true },
   { key: "string_zones", label: "String zones", visible: true },
+  { key: "string_topology", label: "String routes", visible: false },
   { key: "zones",       label: "Zones",       visible: false },
   { key: "trackers",    label: "Trackers",    visible: false },
   // Single "Blocks" checkbox drives BOTH the block fill/outline AND
@@ -204,6 +205,7 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   blocks:      "layers.blocks",
   blockLabels: "layers.blockLabels",  // unused in the toolbar; kept for compat
   string_zones: "Strings",
+  string_topology: "String routes",
   zones: "Zones",
   inverters:   "layers.inverters",
   dccb:        "layers.dccb",
@@ -701,6 +703,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const panelBaseRows = Array.isArray(eplMapLayers?.panel_rows) ? eplMapLayers.panel_rows : [];
   const stringStartMarkers = Array.isArray(eplMapLayers?.string_start_markers) ? eplMapLayers.string_start_markers : [];
   const stringEndMarkers = Array.isArray(eplMapLayers?.string_end_markers) ? eplMapLayers.string_end_markers : [];
+  const stringTopology = Array.isArray(eplMapLayers?.string_topology) ? eplMapLayers.string_topology : [];
 
   const electricalZoneRows = useMemo(() => {
     const metadata = stringOptimizerModel?.metadata || {};
@@ -799,6 +802,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         string_points: strings
           .map((s: any) => ({
             id: String(s?.raw_label || s?.id || "").trim(),
+            zone: Number(s?.zone),
+            string_in_zone: Number(s?.string_in_zone),
             x: Number(s?.x),
             y: Number(s?.y),
             x1: Number(s?.x1),
@@ -904,6 +909,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     if (trackers.length > 0) visibleKeys.add("trackers");
     if (blocks.length > 0) visibleKeys.add("blocks");
     if (electricalZones.length > 0) visibleKeys.add("string_zones");
+    if (stringTopology.length > 0) visibleKeys.add("string_topology");
     if (electricalZones.length > 0) visibleKeys.add("zones");
     if (electricalZones.length > 0 || inverters.length > 0) visibleKeys.add("inverters");
     if (electricalZones.length > 0 || dccbs.length > 0) visibleKeys.add("dccb");
@@ -917,7 +923,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       visibleKeys.add("weather_sensors");
     }
     return layers.filter((layer) => visibleKeys.has(layer.key));
-  }, [blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, piers.length, securityDevices.length, trackers.length, weatherSensors.length, weatherStations.length]);
+  }, [blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, piers.length, securityDevices.length, stringTopology.length, trackers.length, weatherSensors.length, weatherStations.length]);
   const mobileMainMapToggles = useMemo(() => {
     const keys = new Set(["row_labels", "string_zones", "zones"]);
     return mapLayerToggles.filter((layer) => keys.has(layer.key));
@@ -1721,6 +1727,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   panelBaseRows={panelBaseRows}
                   stringStartMarkers={stringStartMarkers}
                   stringEndMarkers={stringEndMarkers}
+                  stringTopology={stringTopology}
                   stringDetail={stringDetail}
                   securityDevices={securityDevices}
                   weatherAssets={weatherAssets}

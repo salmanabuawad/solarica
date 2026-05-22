@@ -761,11 +761,8 @@ def _extract_bhk_string_markers(pdf_paths: list[str | Path]) -> dict[str, Any]:
     try:
         doc = fitz.open(str(electrical_paths[0]))
         page = doc[0]
-        # Use unrotated coords so positions match the rest of the BHK parser.
-        try:
-            page.set_rotation(0)
-        except Exception:
-            pass
+        # Read with the PDF's native rotation so coords match the rest of
+        # the BHK extraction (which never calls set_rotation).
         drawings = page.get_drawings()
     except Exception as exc:
         return {"status": "error", "reason": str(exc), "starts": [], "ends": []}
@@ -810,6 +807,7 @@ def _extract_bhk_string_markers(pdf_paths: list[str | Path]) -> dict[str, Any]:
         doc.close()
     except Exception:
         pass
+
     return {
         "status": "ok",
         "source_file": electrical_paths[0].name,
@@ -818,18 +816,90 @@ def _extract_bhk_string_markers(pdf_paths: list[str | Path]) -> dict[str, Any]:
     }
 
 
+def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str, Any]) -> dict[str, Any]:
+    """Reconstruct real per-string electrical routes from the E20 BE-STRINGS
+    layer, with south-origin physical-row numbering and geometry-derived
+    panel pairs. See app.modules.epl.bhk_topology."""
+    if fitz is None:
+        return {"status": "unavailable", "strings": []}
+    electrical_paths = [Path(p) for p in pdf_paths if _is_bhk_electrical_plan(p)]
+    if not electrical_paths:
+        return {"status": "not_detected", "strings": []}
+    panel_rows = panel_geometry.get("panel_rows") or []
+    if not panel_rows:
+        return {"status": "no_panel_rows", "strings": []}
+    try:
+        from .bhk_topology import reconstruct_topology
+        doc = fitz.open(str(electrical_paths[0]))
+        page = doc[0]
+        label_words = []
+        for w in page.get_text("words") or []:
+            text = str(w[4]).strip()
+            if re.fullmatch(r"\d+\.\d+\.\d+\.\d+", text):
+                label_words.append({"text": text, "x": (float(w[0]) + float(w[2])) / 2, "y": (float(w[1]) + float(w[3])) / 2})
+        result = reconstruct_topology(page, panel_rows, label_words, include_geometry=True)
+        doc.close()
+        result["status"] = "ok"
+        result["source_file"] = electrical_paths[0].name
+        return result
+    except Exception as exc:
+        return {"status": "error", "reason": str(exc), "strings": []}
+
+
+def _snap_markers_to_panel_rows(markers: list[dict[str, Any]], panel_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Project each marker onto the nearest panel-row line.
+
+    The BHK PDF places end-of-string glyphs slightly outside the panel row
+    they belong to, which makes them look like they're floating in the gap
+    between rows on the map. The visible row lines on the map are drawn
+    from panel_rows (Panels Plan geometry), so we snap each marker onto
+    the nearest such line — preserving the marker's along-row position
+    (its x) and replacing y with the line's y at that x.
+    """
+    if not markers or not panel_rows:
+        return markers
+    lines: list[tuple[float, float, float, float, float]] = []
+    for row in panel_rows:
+        sx = row.get("south_x"); sy = row.get("south_y")
+        nx = row.get("north_x"); ny = row.get("north_y")
+        if not all(isinstance(v, (int, float)) for v in (sx, sy, nx, ny)):
+            continue
+        lines.append((float(sx), float(sy), float(nx), float(ny), (float(sy) + float(ny)) / 2))
+    if not lines:
+        return markers
+    snapped: list[dict[str, Any]] = []
+    for m in markers:
+        mx = m.get("x"); my = m.get("y")
+        if not (isinstance(mx, (int, float)) and isinstance(my, (int, float))):
+            snapped.append(m)
+            continue
+        best = min(lines, key=lambda l: abs(l[4] - float(my)))
+        sx, sy, nx, ny, _ = best
+        dx = nx - sx
+        if abs(dx) < 1e-9:
+            new_y = (sy + ny) / 2
+        else:
+            new_y = sy + (ny - sy) * (float(mx) - sx) / dx
+        new_m = dict(m)
+        new_m["y_raw"] = float(my)
+        new_m["y"] = new_y
+        snapped.append(new_m)
+    return snapped
+
+
 def _prepare_bhk_vector_map_layers(physical_rows: list[dict[str, Any]], string_zones: list[dict[str, Any]], strings_flat: list[dict[str, Any]], optional_map_data: dict[str, Any], panel_geometry: dict[str, Any], string_markers: dict[str, Any] | None = None) -> dict[str, Any]:
+    panel_rows = panel_geometry.get("panel_rows") or []
     out = {
         "physical_rows": physical_rows,
         "string_zones": string_zones,
         "strings": strings_flat,
-        "panel_rows": panel_geometry.get("panel_rows") or [],
+        "panel_rows": panel_rows,
         "site_border": panel_geometry.get("site_border") or [],
         **(optional_map_data or {}),
     }
     if string_markers:
-        out["string_start_markers"] = string_markers.get("starts") or []
-        out["string_end_markers"] = string_markers.get("ends") or []
+        out["string_start_markers"] = _snap_markers_to_panel_rows(string_markers.get("starts") or [], panel_rows)
+        out["string_end_markers"] = _snap_markers_to_panel_rows(string_markers.get("ends") or [], panel_rows)
     return out
 
 
@@ -1105,6 +1175,9 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
     optional_map_data = prepare_optional_asset_map_data(optional_assets, features)
     string_markers = _extract_bhk_string_markers(pdf_paths)
     epl_map_layers = _prepare_bhk_vector_map_layers(physical_rows, string_zones, strings_flat, optional_map_data, panel_geometry, string_markers)
+    topology = _extract_bhk_topology(pdf_paths, panel_geometry)
+    epl_map_layers["string_topology"] = topology.get("strings", [])
+    epl_map_layers["string_topology_stats"] = topology.get("stats", {})
 
     return {
         "project_type": "agro_pv_solar_edge",

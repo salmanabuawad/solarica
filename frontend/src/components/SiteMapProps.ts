@@ -20,6 +20,13 @@ export interface SiteMapProps {
   stringStartMarkers?: { x: number; y: number }[];
   /** Raw red-circle string-end markers extracted from the BHK electrical PDF. */
   stringEndMarkers?: { x: number; y: number }[];
+  /**
+   * Reconstructed per-string electrical topology from the E20 BE-STRINGS layer.
+   * Each entry: { string, events[start/exit_row/enter_row/end with physical_row
+   * + south-origin panel pairs], segments[[x0,y0,x1,y1,'h'|'jump']], start_xy,
+   * end_xy, jump_count }. Coordinates are E20 PDF points.
+   */
+  stringTopology?: any[];
   /** Canonical string endpoint/panel-pair detail from the electrical PDF. */
   stringDetail?: any;
   /** Site border sketched from panel row endpoints. */

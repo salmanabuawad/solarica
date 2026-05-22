@@ -81,6 +81,7 @@ export default function SiteMapMapLibre({
   panelBaseRows = [],
   stringStartMarkers = [],
   stringEndMarkers = [],
+  stringTopology = [],
   stringDetail = null,
   siteBorder = [],
   securityDevices = [],
@@ -141,6 +142,13 @@ export default function SiteMapMapLibre({
   const mapLabelDenseThresholdRef = useRef(mapLabelDenseThreshold);
   useEffect(() => { mapLabelStrideRef.current = mapLabelStride; }, [mapLabelStride]);
   useEffect(() => { mapLabelDenseThresholdRef.current = mapLabelDenseThreshold; }, [mapLabelDenseThreshold]);
+  const stringTopologyRef = useRef(stringTopology);
+  useEffect(() => { stringTopologyRef.current = stringTopology; }, [stringTopology]);
+  const imageWidthRef = useRef(imageWidth);
+  useEffect(() => { imageWidthRef.current = imageWidth; }, [imageWidth]);
+  // Topology string clicked on the map → drives the route highlight + the
+  // events inspector card.
+  const [selectedTopologyString, setSelectedTopologyString] = useState<any>(null);
 
   // ---- GeoJSON sources (memoized by dataset) ------------------------------
 
@@ -546,6 +554,7 @@ export default function SiteMapMapLibre({
       while (angle < -90) angle += 180;
       return angle;
     };
+    const segmentEndpointsByKey: Record<string, { id: string; rowNo: number; start: number[]; end: number[] }[]> = {};
     for (const row of electricalRows || []) {
       const rowNo = Number(row?.row_num);
       const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
@@ -639,6 +648,43 @@ export default function SiteMapMapLibre({
           id: `${id}-end`,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(end[0], end[1], imageWidth) },
           properties: { id, row: String(rowNo || ""), kind: "end", panel_label: endPanelLabel },
+        });
+        const zoneNum = Number((stringPoint as any)?.zone);
+        const sNum = Number((stringPoint as any)?.string_in_zone);
+        const splitKey = Number.isFinite(zoneNum) && zoneNum > 0 && Number.isFinite(sNum) && sNum > 0
+          ? `z${zoneNum}.s${sNum}`
+          : id;
+        (segmentEndpointsByKey[splitKey] ??= []).push({ id, rowNo: Number(rowNo) || 0, start, end });
+      }
+    }
+    // Row-jump connectors: when the same logical string (same zone +
+    // string_in_zone, or same raw label) appears on multiple physical
+    // rows, the wire continues from the end of one row's segment to the
+    // start of the next row's segment. Emit a dashed line so the jump is
+    // visually obvious.
+    for (const [splitKey, entries] of Object.entries(segmentEndpointsByKey)) {
+      if (entries.length < 2) continue;
+      const ordered = [...entries].sort((a, b) => a.rowNo - b.rowNo);
+      for (let i = 0; i < ordered.length - 1; i += 1) {
+        const from = ordered[i].end;
+        const to = ordered[i + 1].start;
+        features.push({
+          type: "Feature" as const,
+          id: `${splitKey}-jump-${i}`,
+          geometry: {
+            type: "LineString" as const,
+            coordinates: [
+              rotatedToLngLat(from[0], from[1], imageWidth),
+              rotatedToLngLat(to[0], to[1], imageWidth),
+            ],
+          },
+          properties: {
+            id: ordered[i].id,
+            split_key: splitKey,
+            kind: "row-jump",
+            from_row: String(ordered[i].rowNo || ""),
+            to_row: String(ordered[i + 1].rowNo || ""),
+          },
         });
       }
     }
@@ -792,6 +838,57 @@ export default function SiteMapMapLibre({
       }));
     return { type: "FeatureCollection" as const, features };
   }, [dccbs, imageWidth]);
+
+  // Reconstructed string topology (E20 BE-STRINGS): route line segments
+  // (horizontal traversals + vertical row jumps), plus start/end markers.
+  // Coordinates are E20 PDF points, same frame as the other electrical layers.
+  const topologyLinesGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    const features: any[] = [];
+    for (const s of stringTopology || []) {
+      const id = String(s?.string ?? "").trim();
+      for (const seg of s?.segments || []) {
+        if (!Array.isArray(seg) || seg.length < 5) continue;
+        const [x0, y0, x1, y1, kind] = seg;
+        if (![x0, y0, x1, y1].every((v: any) => Number.isFinite(Number(v)))) continue;
+        features.push({
+          type: "Feature" as const,
+          geometry: {
+            type: "LineString" as const,
+            coordinates: [rotatedToLngLat(Number(x0), Number(y0), imageWidth), rotatedToLngLat(Number(x1), Number(y1), imageWidth)],
+          },
+          properties: { id, kind: kind === "jump" ? "jump" : "run" },
+        });
+      }
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [stringTopology, imageWidth]);
+
+  const topologyMarkersGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    const features: any[] = [];
+    for (const s of stringTopology || []) {
+      const id = String(s?.string ?? "").trim();
+      const jumps = Number(s?.jump_count || 0);
+      const start = s?.start_xy;
+      const end = s?.end_xy;
+      if (Array.isArray(start) && start.length === 2) {
+        features.push({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(start[0]), Number(start[1]), imageWidth) },
+          properties: { id, role: "start", jumps },
+        });
+      }
+      if (Array.isArray(end) && end.length === 2) {
+        features.push({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(end[0]), Number(end[1]), imageWidth) },
+          properties: { id, role: "end", jumps },
+        });
+      }
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [stringTopology, imageWidth]);
 
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
@@ -1069,6 +1166,9 @@ export default function SiteMapMapLibre({
       map.addSource("weather-sensors", { type: "geojson", data: weatherSensorsGeoJSON });
       map.addSource("string-start-markers", { type: "geojson", data: stringStartMarkersGeoJSON });
       map.addSource("string-end-markers", { type: "geojson", data: stringEndMarkersGeoJSON });
+      map.addSource("topology-lines", { type: "geojson", data: topologyLinesGeoJSON });
+      map.addSource("topology-markers", { type: "geojson", data: topologyMarkersGeoJSON });
+      map.addSource("topology-highlight", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 
       if (mapImageUrl) {
         map.addLayer({
@@ -1536,6 +1636,25 @@ export default function SiteMapMapLibre({
         },
       });
       map.addLayer({
+        id: "electrical-string-row-jumps",
+        type: "line",
+        source: "electrical-string-segments",
+        filter: ["==", ["get", "kind"], "row-jump"],
+        layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#f59e0b",
+          "line-opacity": 0.95,
+          "line-width": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 1.2,
+            8, 1.8,
+            14, 2.6,
+            18, 3.6,
+          ],
+          "line-dasharray": [2, 1.5],
+        },
+      });
+      map.addLayer({
         id: "electrical-string-point-labels",
         type: "symbol",
         source: "electrical-string-segments",
@@ -1742,6 +1861,72 @@ export default function SiteMapMapLibre({
           "icon-ignore-placement": true,
         },
       });
+      // --- Reconstructed string topology (E20 BE-STRINGS) ---------------
+      // Route traversals (blue), row-jumps (orange, dashed + thicker), and
+      // start (green) / end (red) markers. Hidden until toggled.
+      map.addLayer({
+        id: "topology-runs-layer",
+        type: "line",
+        source: "topology-lines",
+        filter: ["==", ["get", "kind"], "run"],
+        layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#2563eb",
+          "line-opacity": 0.7,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 0.8, 8, 1.3, 14, 2.0, 18, 2.8],
+        },
+      });
+      map.addLayer({
+        id: "topology-jumps-layer",
+        type: "line",
+        source: "topology-lines",
+        filter: ["==", ["get", "kind"], "jump"],
+        layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#f97316",
+          "line-opacity": 0.95,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.4, 8, 2.2, 14, 3.0, 18, 4.0],
+          "line-dasharray": [2, 1.4],
+        },
+      });
+      map.addLayer({
+        id: "topology-highlight-layer",
+        type: "line",
+        source: "topology-highlight",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#facc15",
+          "line-opacity": 0.95,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 3, 8, 5, 14, 7, 18, 10],
+          "line-blur": 0.4,
+        },
+      });
+      map.addLayer({
+        id: "topology-start-layer",
+        type: "circle",
+        source: "topology-markers",
+        filter: ["==", ["get", "role"], "start"],
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 2, 8, 3, 14, 4.5, 18, 6.5],
+          "circle-color": "#16a34a",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.2,
+        },
+      });
+      map.addLayer({
+        id: "topology-end-layer",
+        type: "circle",
+        source: "topology-markers",
+        filter: ["==", ["get", "role"], "end"],
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 2, 8, 3, 14, 4.5, 18, 6.5],
+          "circle-color": "#dc2626",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1.2,
+        },
+      });
       map.addLayer({
         id: "inverters-layer",
         type: "circle",
@@ -1946,6 +2131,34 @@ export default function SiteMapMapLibre({
           )
           .addTo(map);
       });
+      // Topology route/marker click → highlight the full route and open the
+      // events inspector card.
+      const onTopologyClick = (e: MapMouseEvent & { features?: any[] }) => {
+        if (isBoxDraggingRef.current) return;
+        const f = e.features?.[0];
+        if (!f) return;
+        const id = String(f.properties?.id ?? "");
+        const s = (stringTopologyRef.current || []).find((t: any) => String(t?.string ?? "") === id);
+        if (!s) return;
+        setSelectedTopologyString(s);
+        const iw = imageWidthRef.current;
+        const feats = (s.segments || [])
+          .filter((seg: any) => Array.isArray(seg) && seg.length >= 4)
+          .map((seg: any) => ({
+            type: "Feature" as const,
+            geometry: {
+              type: "LineString" as const,
+              coordinates: [rotatedToLngLat(Number(seg[0]), Number(seg[1]), iw), rotatedToLngLat(Number(seg[2]), Number(seg[3]), iw)],
+            },
+            properties: {},
+          }));
+        (map.getSource("topology-highlight") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: feats } as any);
+      };
+      for (const lyr of ["topology-runs-layer", "topology-jumps-layer", "topology-start-layer", "topology-end-layer"]) {
+        map.on("click", lyr, onTopologyClick);
+        map.on("mouseenter", lyr, () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
+        map.on("mouseleave", lyr, () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
+      }
       map.on("mouseenter", "piers-layer", () => {
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
       });
@@ -2228,10 +2441,12 @@ export default function SiteMapMapLibre({
       (map.getSource("weather-sensors") as GeoJSONSource | undefined)?.setData(weatherSensorsGeoJSON as any);
       (map.getSource("string-start-markers") as GeoJSONSource | undefined)?.setData(stringStartMarkersGeoJSON as any);
       (map.getSource("string-end-markers") as GeoJSONSource | undefined)?.setData(stringEndMarkersGeoJSON as any);
+      (map.getSource("topology-lines") as GeoJSONSource | undefined)?.setData(topologyLinesGeoJSON as any);
+      (map.getSource("topology-markers") as GeoJSONSource | undefined)?.setData(topologyMarkersGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2339,6 +2554,7 @@ export default function SiteMapMapLibre({
         show("electrical-zone-bands-fill", zonesOn);
         show("electrical-zone-bands-outline", zonesOn);
       show("electrical-string-lines", stringsOn);
+      show("electrical-string-row-jumps", stringsOn);
       show("electrical-string-starts", stringsOn);
       show("electrical-string-ends", stringsOn);
       show("electrical-string-labels", false);
@@ -2351,6 +2567,16 @@ export default function SiteMapMapLibre({
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));
+      const topologyOn = layerVisible(layers, "string_topology", false);
+      show("topology-runs-layer", topologyOn);
+      show("topology-jumps-layer", topologyOn);
+      show("topology-start-layer", topologyOn);
+      show("topology-end-layer", topologyOn);
+      show("topology-highlight-layer", topologyOn);
+      if (!topologyOn) {
+        setSelectedTopologyString(null);
+        (map.getSource("topology-highlight") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [] } as any);
+      }
       show("dccb-layer", layerVisible(layers, "dccb", false));
       show("inverters-layer", layerVisible(layers, "inverters", false));
       show("security-devices-layer", layerVisible(layers, "security_cameras", false));
@@ -2983,6 +3209,57 @@ export default function SiteMapMapLibre({
           onClose={() => setSelectedString(null)}
         />
       )}
+      {selectedTopologyString && (
+        <TopologyInspector
+          info={selectedTopologyString}
+          onClose={() => {
+            setSelectedTopologyString(null);
+            const src = mapRef.current?.getSource("topology-highlight") as GeoJSONSource | undefined;
+            src?.setData({ type: "FeatureCollection", features: [] } as any);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function TopologyInspector({ info, onClose }: { info: any; onClose: () => void }) {
+  const events: any[] = Array.isArray(info?.events) ? info.events : [];
+  const crossedRows = Array.from(new Set(events.map((e) => e.physical_row).filter((r) => r != null)));
+  const eventColor: Record<string, string> = {
+    start: "#16a34a", end: "#dc2626", exit_row: "#f97316", enter_row: "#2563eb",
+  };
+  return (
+    <div
+      style={{
+        position: "absolute", top: 12, right: 12, zIndex: 20,
+        background: "rgba(255,255,255,0.97)", border: "1px solid #cbd5e1",
+        borderRadius: 8, boxShadow: "0 4px 14px rgba(0,0,0,0.18)",
+        font: "12px Arial, sans-serif", maxWidth: 320, maxHeight: "70%", overflowY: "auto",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderBottom: "1px solid #e2e8f0" }}>
+        <div style={{ fontWeight: 700, fontSize: 13 }}>String {info?.string || "(unlabeled)"}</div>
+        <button onClick={onClose} style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 16, lineHeight: 1, color: "#64748b" }}>×</button>
+      </div>
+      <div style={{ padding: "8px 10px" }}>
+        <div style={{ marginBottom: 6, color: "#334155" }}>
+          {info?.jump_count ? `${info.jump_count} row jump${info.jump_count > 1 ? "s" : ""}` : "single row"}
+          {crossedRows.length > 0 && ` · rows ${crossedRows.join(" → ")}`}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {events.map((e, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: eventColor[e.type] || "#94a3b8", flexShrink: 0 }} />
+              <span style={{ fontWeight: 600, minWidth: 78 }}>{e.type}</span>
+              <span style={{ color: "#475569" }}>{e.row || "?"}</span>
+              <span style={{ color: "#94a3b8", marginLeft: "auto" }}>
+                {Array.isArray(e.between_panels) ? `panels ${e.between_panels[0]}–${e.between_panels[1]}` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
