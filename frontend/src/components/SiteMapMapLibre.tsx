@@ -3247,6 +3247,16 @@ function TopologyInspector({ info, onClose }: { info: any; onClose: () => void }
           {info?.jump_count ? `${info.jump_count} row jump${info.jump_count > 1 ? "s" : ""}` : "single row"}
           {crossedRows.length > 0 && ` · rows ${crossedRows.join(" → ")}`}
         </div>
+        {Number(info?.total_panels) > 0 && (
+          <div style={{ marginBottom: 6, color: "#334155" }}>
+            {info.optimizer_count} optimizers · {info.total_panels} panels
+            {Array.isArray(info?.rows) && info.rows.length > 1 && (
+              <div style={{ color: "#64748b", marginTop: 2 }}>
+                {info.rows.map((r: any) => `R${r.physical_row}: ${r.panel_from}–${r.panel_to}`).join("  ")}
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           {events.map((e, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>

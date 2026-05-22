@@ -346,6 +346,51 @@ def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) 
     return events
 
 
+def row_coverage(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) -> dict[str, Any]:
+    """Per-row panel coverage, counting each row's panels ONCE.
+
+    A string runs out along a row and back to the start before jumping, so
+    the drawing shows the same panels twice. We take the min..max panel the
+    horizontal runs reach on each row (the physical extent) — independent of
+    how many times the cable retraces it — and report it once. Summing the
+    per-row spans yields the string's total panels, which should equal
+    ~44 (22 series optimizers x 2 panels each).
+    """
+    if n_rows is None:
+        n_rows = len(panel_rows)
+    horiz, _vert = classify_runs(runs)
+    by_row: dict[int, list[int]] = {}
+    for _mid, p, q in horiz:
+        for pt in (p, q):
+            idx = assign_row(pt, panel_rows)
+            if not idx:
+                continue
+            pp = panel_pair_at(pt, panel_rows, idx)
+            if pp["between_panels"]:
+                by_row.setdefault(idx, []).extend(pp["between_panels"])
+    # Make sure the start/end anchors are included.
+    for pt in (start_pt, end_pt):
+        idx = assign_row(pt, panel_rows)
+        if idx:
+            pp = panel_pair_at(pt, panel_rows, idx)
+            if pp["between_panels"]:
+                by_row.setdefault(idx, []).extend(pp["between_panels"])
+    rows = []
+    total = 0
+    for idx, panels in by_row.items():
+        lo, hi = min(panels), max(panels)
+        count = hi - lo + 1
+        total += count
+        rows.append({
+            "physical_row": _south_row(idx, n_rows),
+            "panel_from": lo,
+            "panel_to": hi,
+            "panel_count": count,
+        })
+    rows.sort(key=lambda r: r["physical_row"])
+    return {"rows": rows, "total_panels": total, "optimizer_count": round(total / 2)}
+
+
 def _row_crossing_guess(r_a, r_b, horiz, panel_rows):
     """Fallback crossing point when no clean vertical jump run is found:
     the end of row r_a's horizontal run nearest row r_b."""
@@ -407,6 +452,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
         green, red = greens[gi], reds[rdi]
         runs = ribbon_centerline_runs(ribbon)
         events = route_events(runs, green, red, panel_rows)
+        coverage = row_coverage(runs, green, red, panel_rows)
         entry = {
             "string": None,
             "ribbon_idx": ribbon_idx,
@@ -415,6 +461,9 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
             "_green": green,
             "_ribbon": ribbon,
             "events": events,
+            "rows": coverage["rows"],
+            "total_panels": coverage["total_panels"],
+            "optimizer_count": coverage["optimizer_count"],
             "jump_count": sum(1 for e in events if e["type"] == "enter_row"),
         }
         if include_geometry:
@@ -431,6 +480,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
         s.pop("_ribbon", None)
 
     multi = sum(1 for s in strings if s["jump_count"] >= 1)
+    on_target = sum(1 for s in strings if 42 <= int(s.get("total_panels", 0)) <= 46)
     return {
         "strings": strings,
         "stats": {
@@ -440,6 +490,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
             "matched_strings": len(strings),
             "multi_row_strings": multi,
             "labeled_strings": sum(1 for s in strings if s["string"]),
+            "strings_at_44_panels": on_target,
         },
     }
 
