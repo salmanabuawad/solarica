@@ -878,6 +878,27 @@ export default function SiteMapMapLibre({
   // Coordinates are E20 PDF points, same frame as the other electrical layers.
   const topologyLinesGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    // Snap route points onto the nearest panel-row centerline so the string
+    // line lies *on* the row rather than offset beside it (the E20 cable
+    // coords sit a little off the E41 grid line).
+    const rowsForSnap = (panelBaseRows || [])
+      .filter((r: any) => ["x0", "y0", "x1", "y1"].every((k) => Number.isFinite(Number(r?.[k]))))
+      .map((r: any) => ({ x0: Number(r.x0), y0: Number(r.y0), x1: Number(r.x1), y1: Number(r.y1) }));
+    const snap = (x: number, y: number): [number, number] => {
+      let best: { d: number; qx: number; qy: number } | null = null;
+      for (const r of rowsForSnap) {
+        const dx = r.x1 - r.x0;
+        const dy = r.y1 - r.y0;
+        const denom = dx * dx + dy * dy || 1;
+        let t = ((x - r.x0) * dx + (y - r.y0) * dy) / denom;
+        t = Math.max(0, Math.min(1, t));
+        const qx = r.x0 + dx * t;
+        const qy = r.y0 + dy * t;
+        const d = Math.hypot(x - qx, y - qy);
+        if (!best || d < best.d) best = { d, qx, qy };
+      }
+      return best ? [best.qx, best.qy] : [x, y];
+    };
     const features: any[] = [];
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
@@ -885,18 +906,22 @@ export default function SiteMapMapLibre({
         if (!Array.isArray(seg) || seg.length < 5) continue;
         const [x0, y0, x1, y1, kind] = seg;
         if (![x0, y0, x1, y1].every((v: any) => Number.isFinite(Number(v)))) continue;
+        const isJump = kind === "jump";
+        // Runs sit on the row line; jumps cross rows so leave them raw.
+        const a = isJump ? [Number(x0), Number(y0)] : snap(Number(x0), Number(y0));
+        const b = isJump ? [Number(x1), Number(y1)] : snap(Number(x1), Number(y1));
         features.push({
           type: "Feature" as const,
           geometry: {
             type: "LineString" as const,
-            coordinates: [rotatedToLngLat(Number(x0), Number(y0), imageWidth), rotatedToLngLat(Number(x1), Number(y1), imageWidth)],
+            coordinates: [rotatedToLngLat(a[0], a[1], imageWidth), rotatedToLngLat(b[0], b[1], imageWidth)],
           },
-          properties: { id, kind: kind === "jump" ? "jump" : "run" },
+          properties: { id, kind: isJump ? "jump" : "run" },
         });
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth]);
+  }, [stringTopology, panelBaseRows, imageWidth]);
 
   const topologyMarkersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -1906,9 +1931,9 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "kind"], "run"],
         layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#2563eb",
-          "line-opacity": 0.7,
-          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 0.8, 8, 1.3, 14, 2.0, 18, 2.8],
+          "line-color": "#f97316",
+          "line-opacity": 0.95,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.0, 8, 1.6, 14, 2.4, 18, 3.4],
         },
       });
       map.addLayer({
