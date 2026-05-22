@@ -1953,11 +1953,11 @@ export default function SiteMapMapLibre({
         id: "panel-numbers-layer",
         type: "symbol",
         source: "panel-numbers",
-        minzoom: 16,
+        minzoom: 11,
         layout: {
           visibility: "none",
           "text-field": ["get", "num"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 16, 6, 18, 9, 20, 13],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 11, 7, 13, 10, 16, 13, 20, 18],
           "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
           "text-allow-overlap": false,
           "text-ignore-placement": false,
