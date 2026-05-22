@@ -299,8 +299,9 @@ def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) 
         occupied.add(end_row)
 
     events: list[dict[str, Any]] = []
+    connectors: list[tuple[tuple[float, float], tuple[float, float]]] = []
     if not start_row:
-        return events
+        return events, connectors
 
     # Order rows along the direction of travel (start -> end).
     if end_row and end_row != start_row:
@@ -331,9 +332,11 @@ def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) 
             exit_pt = p if ra == r_a else q
             enter_pt = q if ra == r_a else p
         else:
-            # No explicit vertical run found; approximate the crossing x as
-            # the mean of the two rows' horizontal-run midpoints.
-            exit_pt = enter_pt = _row_crossing_guess(r_a, r_b, horiz, panel_rows)
+            # No explicit vertical run found; approximate the crossing x and
+            # span it across to row r_b so the jump still draws a real line.
+            exit_pt = _row_crossing_guess(r_a, r_b, horiz, panel_rows)
+            enter_pt = _row_point_at_x(panel_rows[r_b - 1], exit_pt[0])
+        connectors.append((exit_pt, enter_pt))
         ex = panel_pair_at(exit_pt, panel_rows, r_a)
         en = panel_pair_at(enter_pt, panel_rows, r_b)
         sa, sb = _south_row(r_a, n_rows), _south_row(r_b, n_rows)
@@ -343,7 +346,7 @@ def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) 
     pp_end = panel_pair_at(end_pt, panel_rows, end_row)
     er = _south_row(end_row, n_rows)
     events.append({"type": "end", "row": _row_id(er), "physical_row": er, "between_panels": pp_end["between_panels"]})
-    return events
+    return events, connectors
 
 
 def row_coverage(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) -> dict[str, Any]:
@@ -389,6 +392,16 @@ def row_coverage(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) 
         })
     rows.sort(key=lambda r: r["physical_row"])
     return {"rows": rows, "total_panels": total, "optimizer_count": round(total / 2)}
+
+
+def _row_point_at_x(row, x):
+    """Point on a panel row's centerline at the given x."""
+    sx, sy, nx, ny = _row_axis(row)
+    dx = nx - sx
+    if abs(dx) < 1e-9:
+        return ((sx + nx) / 2.0, (sy + ny) / 2.0)
+    t = (x - sx) / dx
+    return (x, sy + (ny - sy) * t)
 
 
 def _row_crossing_guess(r_a, r_b, horiz, panel_rows):
@@ -451,7 +464,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
         rdi = min(r_list, key=lambda i: _min_vertex_dist(ribbon, reds[i]))
         green, red = greens[gi], reds[rdi]
         runs = ribbon_centerline_runs(ribbon)
-        events = route_events(runs, green, red, panel_rows)
+        events, jump_connectors = route_events(runs, green, red, panel_rows)
         coverage = row_coverage(runs, green, red, panel_rows)
         entry = {
             "string": None,
@@ -467,9 +480,12 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
             "jump_count": sum(1 for e in events if e["type"] == "enter_row"),
         }
         if include_geometry:
-            horiz, vert = classify_runs(runs)
+            horiz, _vert = classify_runs(runs)
             segs = [[round(p[0], 2), round(p[1], 2), round(q[0], 2), round(q[1], 2), "h"] for _m, p, q in horiz]
-            segs += [[round(p[0], 2), round(p[1], 2), round(q[0], 2), round(q[1], 2), "jump"] for p, q in vert]
+            # Jump lines come from the route's actual row-to-row connectors,
+            # so every detected jump draws a line (raw vertical runs miss the
+            # inferred crossings).
+            segs += [[round(a[0], 2), round(a[1], 2), round(b[0], 2), round(b[1], 2), "jump"] for a, b in jump_connectors]
             entry["segments"] = segs
         strings.append(entry)
 

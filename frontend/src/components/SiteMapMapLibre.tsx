@@ -2606,7 +2606,7 @@ export default function SiteMapMapLibre({
       show("electrical-string-end-panel-labels", stringsOn);
       const hasPanelBase = (panelBaseRows || []).length > 0;
       show("panel-base-rows-layer", hasPanelBase);
-      show("panel-numbers-layer", hasPanelBase);
+      show("panel-numbers-layer", layerVisible(layers, "panels", false));
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));
