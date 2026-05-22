@@ -816,10 +816,15 @@ def _extract_bhk_string_markers(pdf_paths: list[str | Path]) -> dict[str, Any]:
     }
 
 
-def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str, Any]) -> dict[str, Any]:
+def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str, Any], opt_per_string: int | None = None) -> dict[str, Any]:
     """Reconstruct real per-string electrical routes from the E20 BE-STRINGS
     layer, with south-origin physical-row numbering and geometry-derived
-    panel pairs. See app.modules.epl.bhk_topology."""
+    panel pairs. See app.modules.epl.bhk_topology.
+
+    Every string in this plant is a fixed series chain of ``opt_per_string``
+    optimizers (44 panels). That count is a design constant, not something to
+    infer from the noisy traced span, so when provided we report it directly
+    (geometric span stays available as ``geom_panels`` for QA)."""
     if fitz is None:
         return {"status": "unavailable", "strings": []}
     electrical_paths = [Path(p) for p in pdf_paths if _is_bhk_electrical_plan(p)]
@@ -839,6 +844,11 @@ def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str,
                 label_words.append({"text": text, "x": (float(w[0]) + float(w[2])) / 2, "y": (float(w[1]) + float(w[3])) / 2})
         result = reconstruct_topology(page, panel_rows, label_words, include_geometry=True)
         doc.close()
+        if opt_per_string:
+            for s in result.get("strings", []):
+                s["geom_panels"] = s.get("total_panels")
+                s["optimizer_count"] = opt_per_string
+                s["total_panels"] = opt_per_string * 2
         result["status"] = "ok"
         result["source_file"] = electrical_paths[0].name
         return result
@@ -1175,7 +1185,7 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
     optional_map_data = prepare_optional_asset_map_data(optional_assets, features)
     string_markers = _extract_bhk_string_markers(pdf_paths)
     epl_map_layers = _prepare_bhk_vector_map_layers(physical_rows, string_zones, strings_flat, optional_map_data, panel_geometry, string_markers)
-    topology = _extract_bhk_topology(pdf_paths, panel_geometry)
+    topology = _extract_bhk_topology(pdf_paths, panel_geometry, metadata.get("optimizers_per_string"))
     epl_map_layers["string_topology"] = topology.get("strings", [])
     epl_map_layers["string_topology_stats"] = topology.get("stats", {})
 
