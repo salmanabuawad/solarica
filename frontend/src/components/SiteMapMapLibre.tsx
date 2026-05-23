@@ -620,7 +620,10 @@ export default function SiteMapMapLibre({
       return pointAt(panelRow, Number(panel?.t) || 0);
     };
     const pointForStringStart = (panelRow: any, panels: any[], panelNo: number) => {
-      if (panelNo <= 1) return pointAt(panelRow, 0);
+      // Anchor the first string-start to the first actual panel, not the row's
+      // structural endpoint (which over-runs the panel array, leaving the
+      // start marker floating off the edge ahead of panel 1).
+      if (panelNo <= 1) return panels.length ? pointForPanel(panelRow, panels[0]) : pointAt(panelRow, 0);
       return pointForPanel(panelRow, panels[panelNo - 1] || { t: 0 });
     };
     const shiftedPointAt = (panelRow: any, t: number, delta: number) => pointAt(panelRow, Math.max(0, Math.min(1, t + delta)));
