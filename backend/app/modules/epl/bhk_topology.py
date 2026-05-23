@@ -164,8 +164,14 @@ def _nearest_pier(pt, piers):
 def _project_to_nearest_row(pt, panel_rows):
     """Project a point onto the nearest panel-row centerline so it lies on
     the row line rather than offset beside it."""
+    res = _nearest_row_projection(pt, panel_rows)
+    return res[2] if res else pt
+
+
+def _nearest_row_projection(pt, panel_rows):
+    """Return (internal_row_idx, t, projected_point) for the nearest row."""
     best = None
-    for row in panel_rows:
+    for idx, row in enumerate(panel_rows):
         sx, sy, nx, ny = _row_axis(row)
         dx, dy = nx - sx, ny - sy
         denom = dx * dx + dy * dy or 1.0
@@ -173,8 +179,33 @@ def _project_to_nearest_row(pt, panel_rows):
         qx, qy = sx + dx * t, sy + dy * t
         d = (pt[0] - qx) ** 2 + (pt[1] - qy) ** 2
         if best is None or d < best[0]:
-            best = (d, (qx, qy))
-    return best[1] if best else pt
+            best = (d, idx, t, (qx, qy))
+    return (best[1], best[2], best[3]) if best else None
+
+
+def _number_piers(raw_piers, panel_rows):
+    """Enrich piers with south-origin row + per-row pier number.
+
+    Each pier is projected onto its nearest row; piers within a row are
+    numbered 1..N from the south end (smallest t). Row numbers are
+    south-origin (ROW_001 = south = largest PDF-Y)."""
+    n_rows = len(panel_rows)
+    by_row: dict[int, list[tuple[float, tuple[float, float]]]] = {}
+    for p in raw_piers:
+        res = _nearest_row_projection(p, panel_rows)
+        if res is None:
+            continue
+        idx, t, proj = res
+        by_row.setdefault(idx, []).append((t, proj))
+    records: list[dict[str, Any]] = []
+    for idx, items in by_row.items():
+        items.sort(key=lambda it: it[0])
+        srow = n_rows - idx  # idx is 0-based here
+        for i, (_t, (x, y)) in enumerate(items, start=1):
+            records.append({"x": round(x, 2), "y": round(y, 2),
+                            "row": srow, "row_id": f"ROW_{srow:03d}", "pier": i,
+                            "pier_id": f"ROW_{srow:03d}-PIER{i:03d}"})
+    return records
 
 
 def ribbon_centerline_runs(ribbon: list[tuple[float, float]]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
@@ -497,9 +528,15 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
     """
     prims = load_be_strings(e20_page)
     greens, reds, ribbons = prims["greens"], prims["reds"], prims["ribbons"]
-    # Piers sit on the rows; snap the extracted points onto the nearest row
-    # centerline so they (and the jumps that snap to them) lie on the row.
-    piers = [_project_to_nearest_row(p, panel_rows) for p in load_piers(e20_page)] if panel_rows else load_piers(e20_page)
+    # Piers sit on the rows; snap onto the nearest row centerline (so jumps
+    # snap to them) and number them south-origin per row for the UI.
+    raw_piers = load_piers(e20_page)
+    if panel_rows:
+        piers = [_project_to_nearest_row(p, panel_rows) for p in raw_piers]
+        pier_records = _number_piers(raw_piers, panel_rows)
+    else:
+        piers = list(raw_piers)
+        pier_records = [{"x": round(x, 2), "y": round(y, 2)} for x, y in raw_piers]
 
     # Each green/red marker sits ON exactly one cable ribbon. Assign every
     # marker to the ribbon with the nearest vertex.
@@ -563,7 +600,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
     on_target = sum(1 for s in strings if 42 <= int(s.get("total_panels", 0)) <= 46)
     return {
         "strings": strings,
-        "piers": [[round(x, 2), round(y, 2)] for x, y in piers],
+        "piers": pier_records,
         "stats": {
             "ribbons": len(ribbons),
             "greens": len(greens),

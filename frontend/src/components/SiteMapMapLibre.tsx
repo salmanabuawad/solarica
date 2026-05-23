@@ -151,6 +151,8 @@ export default function SiteMapMapLibre({
   // Topology string clicked on the map → drives the route highlight + the
   // events inspector card.
   const [selectedTopologyString, setSelectedTopologyString] = useState<any>(null);
+  // Pier clicked on the map → pier-detail modal.
+  const [selectedPierInfo, setSelectedPierInfo] = useState<any>(null);
 
   // ---- GeoJSON sources (memoized by dataset) ------------------------------
 
@@ -968,12 +970,22 @@ export default function SiteMapMapLibre({
   const stringPiersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
     const features = (stringPiers || [])
-      .filter((p: any) => Array.isArray(p) && p.length === 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])))
-      .map((p: any) => ({
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(p[0]), Number(p[1]), imageWidth) },
-        properties: {},
-      }));
+      .map((p: any) => {
+        // Accept both legacy [x,y] pairs and enriched {x,y,row,pier} records.
+        const x = Array.isArray(p) ? Number(p[0]) : Number(p?.x);
+        const y = Array.isArray(p) ? Number(p[1]) : Number(p?.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        const props = Array.isArray(p) ? {} : {
+          pier_id: p?.pier_id ?? "", row_id: p?.row_id ?? "",
+          row: p?.row ?? "", pier: p?.pier ?? "", x: Math.round(x), y: Math.round(y),
+        };
+        return {
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(x, y, imageWidth) },
+          properties: props,
+        };
+      })
+      .filter(Boolean);
     return { type: "FeatureCollection" as const, features };
   }, [stringPiers, imageWidth]);
 
@@ -2366,6 +2378,15 @@ export default function SiteMapMapLibre({
         map.on("mouseenter", lyr, () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
         map.on("mouseleave", lyr, () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
       }
+      // Pier click -> pier-detail modal.
+      map.on("click", "string-piers-layer", (e: MapMouseEvent & { features?: any[] }) => {
+        if (isBoxDraggingRef.current) return;
+        const f = e.features?.[0];
+        if (!f) return;
+        setSelectedPierInfo(f.properties || {});
+      });
+      map.on("mouseenter", "string-piers-layer", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "string-piers-layer", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
       map.on("mouseenter", "piers-layer", () => {
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
       });
@@ -3437,6 +3458,48 @@ export default function SiteMapMapLibre({
           }}
         />
       )}
+      {selectedPierInfo && (
+        <PierDetailModal info={selectedPierInfo} onClose={() => setSelectedPierInfo(null)} />
+      )}
+    </div>
+  );
+}
+
+function PierDetailModal({ info, onClose }: { info: any; onClose: () => void }) {
+  const rows: [string, any][] = [
+    ["Pier", info?.pier_id || (info?.pier ? `PIER${info.pier}` : "—")],
+    ["Row", info?.row_id || (info?.row ? `ROW_${info.row}` : "—")],
+    ["Pier # (from south)", info?.pier ?? "—"],
+    ["Position (x, y)", info?.x != null && info?.y != null ? `${info.x}, ${info.y}` : "—"],
+  ];
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "absolute", inset: 0, zIndex: 40,
+        background: "rgba(15,23,42,0.35)", display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 10, minWidth: 260, maxWidth: 360,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.25)", font: "13px Arial, sans-serif", overflow: "hidden",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "#334155", color: "#fff" }}>
+          <div style={{ fontWeight: 700 }}>Pier details</div>
+          <button onClick={onClose} style={{ border: "none", background: "transparent", color: "#fff", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ padding: "10px 14px" }}>
+          {rows.map(([k, v]) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "4px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <span style={{ color: "#64748b" }}>{k}</span>
+              <span style={{ fontWeight: 600, color: "#0f172a" }}>{String(v)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
