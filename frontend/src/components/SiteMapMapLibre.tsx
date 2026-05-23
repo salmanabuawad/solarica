@@ -1983,6 +1983,7 @@ export default function SiteMapMapLibre({
         type: "symbol",
         source: "string-start-markers",
         layout: {
+          visibility: "none",
           "icon-image": "string-start-rect",
           "icon-size": [
             "interpolate", ["linear"], ["zoom"],
@@ -1997,6 +1998,7 @@ export default function SiteMapMapLibre({
         type: "symbol",
         source: "string-end-markers",
         layout: {
+          visibility: "none",
           "icon-image": "string-end-circle",
           "icon-size": [
             "interpolate", ["linear"], ["zoom"],
@@ -2791,6 +2793,8 @@ export default function SiteMapMapLibre({
         show("electrical-zone-bands-outline", zonesOn);
       show("electrical-string-lines", stringsOn);
       show("electrical-string-row-jumps", stringsOn);
+      show("string-start-markers-layer", stringsOn);
+      show("string-end-markers-layer", stringsOn);
       show("electrical-string-starts", stringsOn);
       show("electrical-string-ends", stringsOn);
       show("electrical-string-labels", false);
