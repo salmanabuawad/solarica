@@ -980,7 +980,8 @@ export default function SiteMapMapLibre({
         if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
         const props = Array.isArray(p) ? {} : {
           pier_id: p?.pier_id ?? "", row_id: p?.row_id ?? "",
-          row: p?.row ?? "", pier: p?.pier ?? "", x: Math.round(x), y: Math.round(y),
+          row: p?.row ?? "", pier: p?.pier ?? "", type: p?.type ?? "",
+          x: Math.round(x), y: Math.round(y),
         };
         return {
           type: "Feature" as const,
@@ -3473,6 +3474,7 @@ function PierDetailModal({ info, onClose }: { info: any; onClose: () => void }) 
     ["Pier", info?.pier_id || (info?.pier ? `PIER${info.pier}` : "—")],
     ["Row", info?.row_id || (info?.row ? `ROW_${info.row}` : "—")],
     ["Pier # (from south)", info?.pier ?? "—"],
+    ["Type", info?.type ? String(info.type) : "—"],
     ["Position (x, y)", info?.x != null && info?.y != null ? `${info.x}, ${info.y}` : "—"],
   ];
   return (

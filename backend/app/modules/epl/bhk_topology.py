@@ -201,10 +201,15 @@ def _number_piers(raw_piers, panel_rows):
     for idx, items in by_row.items():
         items.sort(key=lambda it: it[0])
         srow = n_rows - idx  # idx is 0-based here
+        last = len(items)
         for i, (_t, (x, y)) in enumerate(items, start=1):
+            # The electrical drawings carry no named pier type (HAP/SAP/...);
+            # the only reliable distinction is the structural role from
+            # position: the first/last pier on a row are its end piers.
+            role = "end" if (i == 1 or i == last) else "intermediate"
             records.append({"x": round(x, 2), "y": round(y, 2),
                             "row": srow, "row_id": f"ROW_{srow:03d}", "pier": i,
-                            "pier_id": f"ROW_{srow:03d}-PIER{i:03d}"})
+                            "pier_id": f"ROW_{srow:03d}-PIER{i:03d}", "type": role})
     return records
 
 
