@@ -567,11 +567,15 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
         runs = ribbon_centerline_runs(ribbon)
         events, jump_connectors = route_events(runs, green, red, panel_rows, piers=piers)
         coverage = row_coverage(runs, green, red, panel_rows)
+        # Snap the start/end markers onto their row centerline so they sit on
+        # the row like the route and piers (matching uses the raw green pos).
+        start_pt = _project_to_nearest_row(green, panel_rows) if panel_rows else green
+        end_pt = _project_to_nearest_row(red, panel_rows) if panel_rows else red
         entry = {
             "string": None,
             "ribbon_idx": ribbon_idx,
-            "start_xy": [round(green[0], 2), round(green[1], 2)],
-            "end_xy": [round(red[0], 2), round(red[1], 2)],
+            "start_xy": [round(start_pt[0], 2), round(start_pt[1], 2)],
+            "end_xy": [round(end_pt[0], 2), round(end_pt[1], 2)],
             "_green": green,
             "_ribbon": ribbon,
             "events": events,
