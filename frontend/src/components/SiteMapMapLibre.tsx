@@ -2075,9 +2075,9 @@ export default function SiteMapMapLibre({
         minzoom: 10,
         layout: { visibility: "none" },
         paint: {
-          "fill-color": "#60a5fa",
-          "fill-opacity": 0.5,
-          "fill-outline-color": "#2563eb",
+          "fill-color": "#bfdbfe",
+          "fill-opacity": 0.45,
+          "fill-outline-color": "#3b82f6",
         },
       });
       // Physical trackers (Tracker-N labels) — purple dot + number.
@@ -2135,15 +2135,15 @@ export default function SiteMapMapLibre({
         layout: {
           visibility: "none",
           "text-field": ["get", "num"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 11, 7, 13, 10, 16, 13, 20, 18],
-          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 11, 8, 13, 11, 16, 14, 20, 19],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
           "text-allow-overlap": false,
           "text-ignore-placement": false,
         },
         paint: {
-          "text-color": "#475569",
-          "text-halo-color": "rgba(255,255,255,0.92)",
-          "text-halo-width": 1.0,
+          "text-color": "#0f172a",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 2.0,
         },
       });
       map.addLayer({
