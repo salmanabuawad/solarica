@@ -432,15 +432,26 @@ export default function SiteMapMapLibre({
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
     for (const row of panelBaseRows || []) {
       if (!["x0", "y0", "x1", "y1"].every((key) => Number.isFinite(Number(row?.[key])))) continue;
+      let a: [number, number] = [Number(row.x0), Number(row.y0)];
+      let b: [number, number] = [Number(row.x1), Number(row.y1)];
+      // Trim the drawn line to where the panels actually are — the structural
+      // grid line runs longer than the panel array, leaving empty stretches.
+      const panels = Array.isArray(row?.panels) ? row.panels : [];
+      const ts = panels.map((p: any) => Number(p?.t)).filter((t: number) => Number.isFinite(t));
+      const sx = Number(row.south_x); const sy = Number(row.south_y);
+      const nx = Number(row.north_x); const ny = Number(row.north_y);
+      if (ts.length && [sx, sy, nx, ny].every((v) => Number.isFinite(v))) {
+        const tmin = Math.min(...ts);
+        const tmax = Math.max(...ts);
+        a = [sx + (nx - sx) * tmin, sy + (ny - sy) * tmin];
+        b = [sx + (nx - sx) * tmax, sy + (ny - sy) * tmax];
+      }
       features.push({
         type: "Feature" as const,
         id: row.id || `panel-row-${features.length + 1}`,
         geometry: {
           type: "LineString" as const,
-          coordinates: [
-            rotatedToLngLat(Number(row.x0), Number(row.y0), imageWidth),
-            rotatedToLngLat(Number(row.x1), Number(row.y1), imageWidth),
-          ],
+          coordinates: [rotatedToLngLat(a[0], a[1], imageWidth), rotatedToLngLat(b[0], b[1], imageWidth)],
         },
         properties: { id: row.id || "", source_file: row.source_file || "" },
       });
