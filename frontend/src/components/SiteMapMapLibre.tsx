@@ -459,6 +459,35 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
+  // Panel rectangles (one polygon per E41 panel) so the row reads as a filled
+  // strip of modules rather than a bare line.
+  const panelRectsGeoJSON = useMemo(() => {
+    const features: any[] = [];
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
+    for (const row of panelBaseRows || []) {
+      for (const p of row?.panels || []) {
+        const x = Number(p?.x); const y = Number(p?.y);
+        const x1 = Number(p?.x1); const y1 = Number(p?.y1);
+        if (![x, y, x1, y1].every((v) => Number.isFinite(v))) continue;
+        features.push({
+          type: "Feature" as const,
+          geometry: {
+            type: "Polygon" as const,
+            coordinates: [[
+              rotatedToLngLat(x, y, imageWidth),
+              rotatedToLngLat(x1, y, imageWidth),
+              rotatedToLngLat(x1, y1, imageWidth),
+              rotatedToLngLat(x, y1, imageWidth),
+              rotatedToLngLat(x, y, imageWidth),
+            ]],
+          },
+          properties: {},
+        });
+      }
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [panelBaseRows, imageWidth]);
+
   // South-origin panel numbers (one per E41 panel rectangle). Rendered only
   // at high zoom so they appear when the user zooms into a row.
   const panelNumbersGeoJSON = useMemo(() => {
@@ -1253,6 +1282,7 @@ export default function SiteMapMapLibre({
       map.addSource("topology-markers", { type: "geojson", data: topologyMarkersGeoJSON });
       map.addSource("topology-highlight", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("panel-numbers", { type: "geojson", data: panelNumbersGeoJSON });
+      map.addSource("panel-rects", { type: "geojson", data: panelRectsGeoJSON });
       map.addSource("string-piers", { type: "geojson", data: stringPiersGeoJSON });
 
       if (mapImageUrl) {
@@ -2011,6 +2041,19 @@ export default function SiteMapMapLibre({
           "circle-stroke-width": 1.2,
         },
       });
+      // Panel rectangles — the module grid filling each row.
+      map.addLayer({
+        id: "panel-rects-layer",
+        type: "fill",
+        source: "panel-rects",
+        minzoom: 10,
+        layout: { visibility: "none" },
+        paint: {
+          "fill-color": "#60a5fa",
+          "fill-opacity": 0.5,
+          "fill-outline-color": "#2563eb",
+        },
+      });
       // Piers (E20 S-PLAN-PIER) — small dark dots, toggleable.
       map.addLayer({
         id: "string-piers-layer",
@@ -2561,11 +2604,12 @@ export default function SiteMapMapLibre({
       (map.getSource("topology-lines") as GeoJSONSource | undefined)?.setData(topologyLinesGeoJSON as any);
       (map.getSource("topology-markers") as GeoJSONSource | undefined)?.setData(topologyMarkersGeoJSON as any);
       (map.getSource("panel-numbers") as GeoJSONSource | undefined)?.setData(panelNumbersGeoJSON as any);
+      (map.getSource("panel-rects") as GeoJSONSource | undefined)?.setData(panelRectsGeoJSON as any);
       (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON, stringPiersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2683,7 +2727,9 @@ export default function SiteMapMapLibre({
       show("electrical-string-end-panel-labels", stringsOn);
       const hasPanelBase = (panelBaseRows || []).length > 0;
       show("panel-base-rows-layer", hasPanelBase);
-      show("panel-numbers-layer", layerVisible(layers, "panels", false));
+      const panelsOn = layerVisible(layers, "panels", false);
+      show("panel-rects-layer", panelsOn);
+      show("panel-numbers-layer", panelsOn);
       show("string-piers-layer", layerVisible(layers, "string_piers", false));
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
