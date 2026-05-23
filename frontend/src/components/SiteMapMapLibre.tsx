@@ -82,6 +82,7 @@ export default function SiteMapMapLibre({
   stringStartMarkers = [],
   stringEndMarkers = [],
   stringTopology = [],
+  stringPiers = [],
   stringDetail = null,
   siteBorder = [],
   securityDevices = [],
@@ -923,6 +924,18 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [stringTopology, panelBaseRows, imageWidth]);
 
+  const stringPiersGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    const features = (stringPiers || [])
+      .filter((p: any) => Array.isArray(p) && p.length === 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1])))
+      .map((p: any) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(p[0]), Number(p[1]), imageWidth) },
+        properties: {},
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [stringPiers, imageWidth]);
+
   const topologyMarkersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
     const features: any[] = [];
@@ -1229,6 +1242,7 @@ export default function SiteMapMapLibre({
       map.addSource("topology-markers", { type: "geojson", data: topologyMarkersGeoJSON });
       map.addSource("topology-highlight", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("panel-numbers", { type: "geojson", data: panelNumbersGeoJSON });
+      map.addSource("string-piers", { type: "geojson", data: stringPiersGeoJSON });
 
       if (mapImageUrl) {
         map.addLayer({
@@ -1986,6 +2000,19 @@ export default function SiteMapMapLibre({
           "circle-stroke-width": 1.2,
         },
       });
+      // Piers (E20 S-PLAN-PIER) — small dark dots, toggleable.
+      map.addLayer({
+        id: "string-piers-layer",
+        type: "circle",
+        source: "string-piers",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 1.0, 12, 1.8, 16, 3.0, 20, 4.5],
+          "circle-color": "#334155",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 0.6,
+        },
+      });
       // Panel numbers — only at high zoom so they reveal on zoom-in.
       map.addLayer({
         id: "panel-numbers-layer",
@@ -2523,10 +2550,11 @@ export default function SiteMapMapLibre({
       (map.getSource("topology-lines") as GeoJSONSource | undefined)?.setData(topologyLinesGeoJSON as any);
       (map.getSource("topology-markers") as GeoJSONSource | undefined)?.setData(topologyMarkersGeoJSON as any);
       (map.getSource("panel-numbers") as GeoJSONSource | undefined)?.setData(panelNumbersGeoJSON as any);
+      (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON, stringPiersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2645,6 +2673,7 @@ export default function SiteMapMapLibre({
       const hasPanelBase = (panelBaseRows || []).length > 0;
       show("panel-base-rows-layer", hasPanelBase);
       show("panel-numbers-layer", layerVisible(layers, "panels", false));
+      show("string-piers-layer", layerVisible(layers, "string_piers", false));
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));

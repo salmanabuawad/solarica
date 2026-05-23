@@ -184,6 +184,7 @@ const INITIAL_LAYERS = [
   { key: "piers",       label: "Piers",       visible: true },
   { key: "string_zones", label: "String zones", visible: true },
   { key: "string_topology", label: "String routes", visible: false },
+  { key: "string_piers", label: "Piers", visible: false },
   { key: "panels", label: "Panels", visible: false },
   { key: "zones",       label: "Zones",       visible: false },
   { key: "trackers",    label: "Trackers",    visible: false },
@@ -207,6 +208,7 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   blockLabels: "layers.blockLabels",  // unused in the toolbar; kept for compat
   string_zones: "Strings",
   string_topology: "String routes",
+  string_piers: "Piers",
   panels: "Panels",
   zones: "Zones",
   inverters:   "layers.inverters",
@@ -707,6 +709,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const stringStartMarkers = Array.isArray(eplMapLayers?.string_start_markers) ? eplMapLayers.string_start_markers : [];
   const stringEndMarkers = Array.isArray(eplMapLayers?.string_end_markers) ? eplMapLayers.string_end_markers : [];
   const stringTopology = Array.isArray(eplMapLayers?.string_topology) ? eplMapLayers.string_topology : [];
+  const stringPiers = Array.isArray(eplMapLayers?.string_piers) ? eplMapLayers.string_piers : [];
 
   const topologyGridRows = useMemo(() => {
     const fmtPair = (p: any) => Array.isArray(p) && p.length === 2 ? `${p[0]}–${p[1]}` : "";
@@ -938,6 +941,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     if (blocks.length > 0) visibleKeys.add("blocks");
     if (electricalZones.length > 0) visibleKeys.add("string_zones");
     if (stringTopology.length > 0) visibleKeys.add("string_topology");
+    if (stringPiers.length > 0) visibleKeys.add("string_piers");
     if (panelBaseRows.length > 0) visibleKeys.add("panels");
     if (electricalZones.length > 0) visibleKeys.add("zones");
     if (electricalZones.length > 0 || inverters.length > 0) visibleKeys.add("inverters");
@@ -952,7 +956,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       visibleKeys.add("weather_sensors");
     }
     return layers.filter((layer) => visibleKeys.has(layer.key));
-  }, [blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, panelBaseRows.length, piers.length, securityDevices.length, stringTopology.length, trackers.length, weatherSensors.length, weatherStations.length]);
+  }, [blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, panelBaseRows.length, piers.length, securityDevices.length, stringPiers.length, stringTopology.length, trackers.length, weatherSensors.length, weatherStations.length]);
   const mobileMainMapToggles = useMemo(() => {
     const keys = new Set(["row_labels", "string_zones", "zones"]);
     return mapLayerToggles.filter((layer) => keys.has(layer.key));
@@ -1757,6 +1761,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   stringStartMarkers={stringStartMarkers}
                   stringEndMarkers={stringEndMarkers}
                   stringTopology={stringTopology}
+                  stringPiers={stringPiers}
                   stringDetail={stringDetail}
                   securityDevices={securityDevices}
                   weatherAssets={weatherAssets}

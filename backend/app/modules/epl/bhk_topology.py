@@ -34,6 +34,7 @@ except Exception:  # pragma: no cover
     fitz = None
 
 STRINGS_LAYER = "BE-STRINGS"
+PIER_LAYER_HINT = "S-PLAN-PIER"
 
 # Geometry thresholds (PDF points). Calibrated against BHK_E_20: ribbon
 # width ~3pt, row pitch ~15pt, panel pitch ~5pt.
@@ -119,6 +120,45 @@ def load_be_strings(page) -> dict[str, Any]:
             if len(verts) >= 2:
                 ribbons.append(verts)
     return {"greens": greens, "reds": reds, "ribbons": ribbons}
+
+
+def load_piers(page) -> list[tuple[float, float]]:
+    """Extract pier points from the S-PLAN-PIER layer.
+
+    Each pier is drawn as a small circle (4 bezier curves, ~2.4pt) plus a
+    thin post bar (~0.4x1.7pt) at the same spot; we take both candidates and
+    dedupe co-located ones onto a coarse grid to get one point per pier."""
+    raw: list[tuple[float, float]] = []
+    for d in page.get_drawings():
+        if PIER_LAYER_HINT not in str(d.get("layer") or ""):
+            continue
+        rect = d.get("rect")
+        if not rect:
+            continue
+        items = d.get("items") or []
+        w = rect.x1 - rect.x0
+        h = rect.y1 - rect.y0
+        nc = sum(1 for it in items if it[0] == "c")
+        nq = sum(1 for it in items if it[0] == "qu")
+        is_circle = nc == 4 and 2.0 <= w <= 2.8 and 2.0 <= h <= 2.8
+        is_bar = nq >= 1 and 0.3 <= w <= 0.6 and 1.4 <= h <= 2.0
+        if is_circle or is_bar:
+            raw.append(((rect.x0 + rect.x1) / 2.0, (rect.y0 + rect.y1) / 2.0))
+    seen: set[tuple[int, int]] = set()
+    out: list[tuple[float, float]] = []
+    for x, y in raw:
+        key = (round(x / 3.0), round(y / 3.0))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((x, y))
+    return out
+
+
+def _nearest_pier(pt, piers):
+    if not piers:
+        return pt
+    return min(piers, key=lambda p: (p[0] - pt[0]) ** 2 + (p[1] - pt[1]) ** 2)
 
 
 def ribbon_centerline_runs(ribbon: list[tuple[float, float]]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
@@ -273,7 +313,7 @@ def _south_row(internal_idx: int | None, n_rows: int) -> int | None:
     return n_rows - internal_idx + 1
 
 
-def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) -> list[dict[str, Any]]:
+def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None, piers=None) -> list[dict[str, Any]]:
     """Derive ordered start/exit_row/enter_row/end events from centerline runs.
 
     Strategy (order-robust): classify runs into horizontal traversals and
@@ -336,6 +376,11 @@ def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None) 
             # span it across to row r_b so the jump still draws a real line.
             exit_pt = _row_crossing_guess(r_a, r_b, horiz, panel_rows)
             enter_pt = _row_point_at_x(panel_rows[r_b - 1], exit_pt[0])
+        # The cable crosses rows at a pier, so snap the crossing onto the
+        # nearest pier on each row.
+        if piers:
+            exit_pt = _nearest_pier(exit_pt, piers)
+            enter_pt = _nearest_pier(enter_pt, piers)
         connectors.append((exit_pt, enter_pt))
         ex = panel_pair_at(exit_pt, panel_rows, r_a)
         en = panel_pair_at(enter_pt, panel_rows, r_b)
@@ -436,6 +481,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
     """
     prims = load_be_strings(e20_page)
     greens, reds, ribbons = prims["greens"], prims["reds"], prims["ribbons"]
+    piers = load_piers(e20_page)
 
     # Each green/red marker sits ON exactly one cable ribbon. Assign every
     # marker to the ribbon with the nearest vertex.
@@ -464,7 +510,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
         rdi = min(r_list, key=lambda i: _min_vertex_dist(ribbon, reds[i]))
         green, red = greens[gi], reds[rdi]
         runs = ribbon_centerline_runs(ribbon)
-        events, jump_connectors = route_events(runs, green, red, panel_rows)
+        events, jump_connectors = route_events(runs, green, red, panel_rows, piers=piers)
         coverage = row_coverage(runs, green, red, panel_rows)
         entry = {
             "string": None,
@@ -499,10 +545,12 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
     on_target = sum(1 for s in strings if 42 <= int(s.get("total_panels", 0)) <= 46)
     return {
         "strings": strings,
+        "piers": [[round(x, 2), round(y, 2)] for x, y in piers],
         "stats": {
             "ribbons": len(ribbons),
             "greens": len(greens),
             "reds": len(reds),
+            "piers": len(piers),
             "matched_strings": len(strings),
             "multi_row_strings": multi,
             "labeled_strings": sum(1 for s in strings if s["string"]),

@@ -27,6 +27,8 @@ export interface SiteMapProps {
    * end_xy, jump_count }. Coordinates are E20 PDF points.
    */
   stringTopology?: any[];
+  /** Pier points (E20 S-PLAN-PIER layer) as [x, y] pairs in PDF points. */
+  stringPiers?: any[];
   /** Canonical string endpoint/panel-pair detail from the electrical PDF. */
   stringDetail?: any;
   /** Site border sketched from panel row endpoints. */

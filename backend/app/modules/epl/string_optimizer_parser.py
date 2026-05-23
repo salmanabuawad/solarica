@@ -1188,6 +1188,7 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
     topology = _extract_bhk_topology(pdf_paths, panel_geometry, metadata.get("optimizers_per_string"))
     epl_map_layers["string_topology"] = topology.get("strings", [])
     epl_map_layers["string_topology_stats"] = topology.get("stats", {})
+    epl_map_layers["string_piers"] = topology.get("piers", [])
 
     return {
         "project_type": "agro_pv_solar_edge",
