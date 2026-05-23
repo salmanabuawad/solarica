@@ -161,6 +161,22 @@ def _nearest_pier(pt, piers):
     return min(piers, key=lambda p: (p[0] - pt[0]) ** 2 + (p[1] - pt[1]) ** 2)
 
 
+def _project_to_nearest_row(pt, panel_rows):
+    """Project a point onto the nearest panel-row centerline so it lies on
+    the row line rather than offset beside it."""
+    best = None
+    for row in panel_rows:
+        sx, sy, nx, ny = _row_axis(row)
+        dx, dy = nx - sx, ny - sy
+        denom = dx * dx + dy * dy or 1.0
+        t = max(0.0, min(1.0, ((pt[0] - sx) * dx + (pt[1] - sy) * dy) / denom))
+        qx, qy = sx + dx * t, sy + dy * t
+        d = (pt[0] - qx) ** 2 + (pt[1] - qy) ** 2
+        if best is None or d < best[0]:
+            best = (d, (qx, qy))
+    return best[1] if best else pt
+
+
 def ribbon_centerline_runs(ribbon: list[tuple[float, float]]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
     """Collapse a ribbon outline into centerline run segments.
 
@@ -481,7 +497,9 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
     """
     prims = load_be_strings(e20_page)
     greens, reds, ribbons = prims["greens"], prims["reds"], prims["ribbons"]
-    piers = load_piers(e20_page)
+    # Piers sit on the rows; snap the extracted points onto the nearest row
+    # centerline so they (and the jumps that snap to them) lie on the row.
+    piers = [_project_to_nearest_row(p, panel_rows) for p in load_piers(e20_page)] if panel_rows else load_piers(e20_page)
 
     # Each green/red marker sits ON exactly one cable ribbon. Assign every
     # marker to the ribbon with the nearest vertex.
