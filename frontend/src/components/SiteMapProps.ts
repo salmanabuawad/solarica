@@ -29,6 +29,8 @@ export interface SiteMapProps {
   stringTopology?: any[];
   /** Pier points (E20 S-PLAN-PIER layer) as [x, y] pairs in PDF points. */
   stringPiers?: any[];
+  /** Physical trackers from the base map: { id, num, x, y } in PDF points. */
+  baseTrackers?: any[];
   /** Canonical string endpoint/panel-pair detail from the electrical PDF. */
   stringDetail?: any;
   /** Site border sketched from panel row endpoints. */

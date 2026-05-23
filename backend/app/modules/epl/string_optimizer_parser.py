@@ -856,6 +856,33 @@ def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str,
         return {"status": "error", "reason": str(exc), "strings": []}
 
 
+def _extract_tracker_labels(pdf_paths: list[str | Path]) -> list[dict[str, Any]]:
+    """Extract Tracker-N labels (id + position) across the BHK PDFs. The
+    labels live on the electrical plan; all sheets share one coordinate
+    frame, so we scan each and dedupe by tracker number."""
+    if fitz is None:
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    for p in pdf_paths:
+        try:
+            doc = fitz.open(str(p))
+            for w in doc[0].get_text("words") or []:
+                m = re.fullmatch(r"Tracker[-\s]?(\d+)", str(w[4]).strip(), re.IGNORECASE)
+                if m:
+                    num = int(m.group(1))
+                    if num in seen:
+                        continue
+                    seen.add(num)
+                    out.append({"id": f"Tracker-{num}", "num": num,
+                                "x": round((float(w[0]) + float(w[2])) / 2, 2),
+                                "y": round((float(w[1]) + float(w[3])) / 2, 2)})
+            doc.close()
+        except Exception:
+            continue
+    return out
+
+
 def _snap_markers_to_panel_rows(markers: list[dict[str, Any]], panel_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Project each marker onto the nearest panel-row line.
 
@@ -1189,6 +1216,7 @@ def build_string_optimizer_model_from_pdfs(pdf_paths: list[str | Path], fallback
     epl_map_layers["string_topology"] = topology.get("strings", [])
     epl_map_layers["string_topology_stats"] = topology.get("stats", {})
     epl_map_layers["string_piers"] = topology.get("piers", [])
+    epl_map_layers["base_trackers"] = _extract_tracker_labels(pdf_paths)
 
     return {
         "project_type": "agro_pv_solar_edge",

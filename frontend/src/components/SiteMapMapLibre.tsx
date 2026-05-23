@@ -83,6 +83,7 @@ export default function SiteMapMapLibre({
   stringEndMarkers = [],
   stringTopology = [],
   stringPiers = [],
+  baseTrackers = [],
   stringDetail = null,
   siteBorder = [],
   securityDevices = [],
@@ -976,6 +977,18 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [stringPiers, imageWidth]);
 
+  const baseTrackersGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    const features = (baseTrackers || [])
+      .filter((t: any) => Number.isFinite(Number(t?.x)) && Number.isFinite(Number(t?.y)))
+      .map((t: any) => ({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(t.x), Number(t.y), imageWidth) },
+        properties: { label: String(t?.num ?? t?.id ?? "") },
+      }));
+    return { type: "FeatureCollection" as const, features };
+  }, [baseTrackers, imageWidth]);
+
   const topologyMarkersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
     const features: any[] = [];
@@ -1284,6 +1297,7 @@ export default function SiteMapMapLibre({
       map.addSource("panel-numbers", { type: "geojson", data: panelNumbersGeoJSON });
       map.addSource("panel-rects", { type: "geojson", data: panelRectsGeoJSON });
       map.addSource("string-piers", { type: "geojson", data: stringPiersGeoJSON });
+      map.addSource("base-trackers", { type: "geojson", data: baseTrackersGeoJSON });
 
       if (mapImageUrl) {
         map.addLayer({
@@ -2054,6 +2068,39 @@ export default function SiteMapMapLibre({
           "fill-outline-color": "#2563eb",
         },
       });
+      // Physical trackers (Tracker-N labels) — purple dot + number.
+      map.addLayer({
+        id: "base-trackers-layer",
+        type: "circle",
+        source: "base-trackers",
+        layout: { visibility: "none" },
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 2, 12, 3.5, 16, 5, 20, 7],
+          "circle-color": "#7c3aed",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 1,
+        },
+      });
+      map.addLayer({
+        id: "base-trackers-labels",
+        type: "symbol",
+        source: "base-trackers",
+        minzoom: 12,
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "label"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 16, 13, 20, 17],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-anchor": "left",
+          "text-offset": [0.6, 0],
+          "text-allow-overlap": false,
+        },
+        paint: {
+          "text-color": "#5b21b6",
+          "text-halo-color": "rgba(255,255,255,0.95)",
+          "text-halo-width": 1.4,
+        },
+      });
       // Piers (E20 S-PLAN-PIER) — small dark dots, toggleable.
       map.addLayer({
         id: "string-piers-layer",
@@ -2606,10 +2653,11 @@ export default function SiteMapMapLibre({
       (map.getSource("panel-numbers") as GeoJSONSource | undefined)?.setData(panelNumbersGeoJSON as any);
       (map.getSource("panel-rects") as GeoJSONSource | undefined)?.setData(panelRectsGeoJSON as any);
       (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
+      (map.getSource("base-trackers") as GeoJSONSource | undefined)?.setData(baseTrackersGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2731,6 +2779,9 @@ export default function SiteMapMapLibre({
       show("panel-rects-layer", panelsOn);
       show("panel-numbers-layer", panelsOn);
       show("string-piers-layer", layerVisible(layers, "string_piers", false));
+      const trackersBaseOn = layerVisible(layers, "base_trackers", false);
+      show("base-trackers-layer", trackersBaseOn);
+      show("base-trackers-labels", trackersBaseOn);
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));

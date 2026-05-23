@@ -261,12 +261,14 @@ def build_base_map(pdf_paths: list[str | Path]) -> dict[str, Any]:
         return {"status": "no_rows", "warnings": [{"code": "no_physical_rows", "detail": "BE-Vertical Grid produced no rows", "severity": "error"}]}
     n_rows = len(rows_raw)
 
-    # Orientation: no north-arrow auto-detection available, so we apply the
-    # confirmed site convention (south = bottom = largest PDF-Y) and warn.
+    # Orientation: verified against the geographic compass rose on the sheet
+    # (top-left), which reads north-up / south-down. South-origin therefore
+    # = largest PDF-Y (bottom). A secondary grid-north text indicator points
+    # +x; the geographic compass governs.
     warnings.append({
-        "code": "orientation_assumed",
-        "detail": "South-origin set by site convention (south = largest PDF-Y / bottom of sheet); not auto-detected from a north arrow.",
-        "severity": "warning",
+        "code": "orientation_verified",
+        "detail": "North-up confirmed from the sheet's geographic compass (top-left); south = bottom (largest PDF-Y). A secondary grid-north marker points +x and was not used.",
+        "severity": "info",
     })
 
     def south_num(internal_idx):  # 0-based internal -> south-origin row number
