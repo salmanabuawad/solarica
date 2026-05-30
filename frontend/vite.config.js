@@ -32,6 +32,12 @@ export default defineConfig({
         navigateFallback: "/index.html",
         // Never cache API responses — our IndexedDB layer handles that.
         navigateFallbackDenylist: [/^\/api\//],
+        // Activate a new SW immediately and claim open clients so the page
+        // reload in main.tsx fires on the next visit (instead of waiting
+        // for every tab to close, which on mobile basically never happens).
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
             // Serve /api/* requests straight from the network. The
