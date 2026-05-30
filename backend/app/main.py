@@ -78,24 +78,26 @@ ACTIVE_USER_ROLES = {"admin", "editor", "viewer", "electric"}
 
 USERS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS users (
-  id            SERIAL PRIMARY KEY,
-  username      TEXT UNIQUE NOT NULL,
+  id            INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username      VARCHAR(255) NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   display_name  TEXT,
-  role          TEXT NOT NULL DEFAULT 'viewer',
+  role          VARCHAR(32) NOT NULL DEFAULT 'viewer',
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
 USER_PROJECT_ACCESS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS user_project_access (
-  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, project_id)
-);
+  user_id    INT NOT NULL,
+  project_id CHAR(36) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, project_id),
+  CONSTRAINT fk_upa_user    FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE CASCADE,
+  CONSTRAINT fk_upa_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
 
@@ -278,14 +280,15 @@ def api_create_user(request: Request, body: dict = Body(...)):
     with db_store.get_conn() as conn, conn.cursor() as cur:
         try:
             cur.execute(
-                "INSERT INTO users (username, password_hash, display_name, role) VALUES (%s, %s, %s, %s) RETURNING id",
+                "INSERT INTO users (username, password_hash, display_name, role) VALUES (%s, %s, %s, %s)",
                 (username, _hash_pw(password), display_name, role),
             )
         except Exception as exc:
-            if "duplicate key" in str(exc).lower():
+            msg = str(exc).lower()
+            if "duplicate" in msg or "1062" in msg:
                 raise HTTPException(409, f"User '{username}' already exists")
             raise
-        new_id = cur.fetchone()["id"]
+        new_id = cur.lastrowid
         conn.commit()
         return {"id": new_id, "username": username, "display_name": display_name, "role": role, "is_active": True}
 
@@ -337,19 +340,18 @@ def api_delete_user(user_id: int, request: Request):
 
 FIELD_CONFIG_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS field_configurations (
-  grid_name     text NOT NULL,
-  field_name    text NOT NULL,
-  display_name  text,
-  visible       boolean NOT NULL DEFAULT true,
-  pin_side      text,
-  column_order  integer,
-  width         integer,
-  created_at    timestamptz NOT NULL DEFAULT now(),
-  updated_at    timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (grid_name, field_name)
-);
-CREATE INDEX IF NOT EXISTS idx_field_configurations_grid_name
-  ON field_configurations(grid_name);
+  grid_name     VARCHAR(255) NOT NULL,
+  field_name    VARCHAR(255) NOT NULL,
+  display_name  TEXT,
+  visible       BOOLEAN NOT NULL DEFAULT TRUE,
+  pin_side      VARCHAR(32),
+  column_order  INT,
+  width         INT,
+  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (grid_name, field_name),
+  KEY idx_field_configurations_grid_name (grid_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
 
@@ -400,10 +402,9 @@ def _ensure_field_config_schema() -> None:
             for row in rows:
                 cur.execute(
                     """
-                    INSERT INTO field_configurations
+                    INSERT IGNORE INTO field_configurations
                         (grid_name, field_name, display_name, visible, pin_side, column_order)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (grid_name, field_name) DO NOTHING
                     """,
                     (
                         grid_name,
@@ -468,13 +469,13 @@ def api_upsert_field_configs(rows: list[dict] = Body(...)):
                 INSERT INTO field_configurations
                     (grid_name, field_name, display_name, visible, pin_side, column_order, width)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (grid_name, field_name) DO UPDATE SET
-                    display_name = EXCLUDED.display_name,
-                    visible      = EXCLUDED.visible,
-                    pin_side     = EXCLUDED.pin_side,
-                    column_order = EXCLUDED.column_order,
-                    width        = EXCLUDED.width,
-                    updated_at   = now()
+                ON DUPLICATE KEY UPDATE
+                    display_name = VALUES(display_name),
+                    visible      = VALUES(visible),
+                    pin_side     = VALUES(pin_side),
+                    column_order = VALUES(column_order),
+                    width        = VALUES(width),
+                    updated_at   = NOW()
                 """,
                 (
                     grid, field,
@@ -909,17 +910,16 @@ def api_update_pier_status(project_id: str, pier_id: str, body: StatusUpdate):
 
 PIER_STATUS_EVENTS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS pier_status_events (
-  id          SERIAL PRIMARY KEY,
-  project_id  UUID NOT NULL,
-  pier_code   TEXT NOT NULL,
-  status      TEXT NOT NULL,
+  id          INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id  CHAR(36) NOT NULL,
+  pier_code   VARCHAR(255) NOT NULL,
+  status      VARCHAR(64) NOT NULL,
   description TEXT,
-  attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
-  created_by  TEXT,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_pier_status_events_lookup
-  ON pier_status_events(project_id, pier_code, created_at DESC);
+  attachments JSON NOT NULL,
+  created_by  VARCHAR(255),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_pier_status_events_lookup (project_id, pier_code, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
 
@@ -943,14 +943,15 @@ STRING_IMAGE_MAX_SIZE_MB = 12
 STRING_STATUS_VALUES = {"new", "completed", "verified"}
 STRING_RECORDS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS string_records (
-  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  string_id  TEXT NOT NULL,
-  status     TEXT NOT NULL DEFAULT 'new',
-  comment    TEXT NOT NULL DEFAULT '',
-  images     JSONB NOT NULL DEFAULT '[]'::jsonb,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (project_id, string_id)
-);
+  project_id CHAR(36) NOT NULL,
+  string_id  VARCHAR(255) NOT NULL,
+  status     VARCHAR(32) NOT NULL DEFAULT 'new',
+  comment    TEXT NOT NULL,
+  images     JSON NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (project_id, string_id),
+  CONSTRAINT fk_string_records_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
 
@@ -980,10 +981,18 @@ def _string_records_dir(project_id: str) -> Path:
 
 
 def _normalize_string_record(row: dict) -> dict:
+    images = row.get("images") or []
+    if isinstance(images, (bytes, bytearray)):
+        images = images.decode("utf-8")
+    if isinstance(images, str):
+        try:
+            images = json.loads(images) if images else []
+        except (TypeError, ValueError):
+            images = []
     return {
         "status": row.get("status") or "new",
         "comment": row.get("comment") or "",
-        "images": row.get("images") or [],
+        "images": images,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
     }
 
@@ -1009,12 +1018,15 @@ def api_update_string_status(project_id: str, string_id: str, body: dict = Body(
     with db_store.get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO string_records (project_id, string_id, status)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (project_id, string_id) DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
-            RETURNING status, comment, images, updated_at
+            INSERT INTO string_records (project_id, string_id, status, comment, images)
+            VALUES (%s, %s, %s, '', '[]')
+            ON DUPLICATE KEY UPDATE status = VALUES(status), updated_at = NOW()
             """,
             (uu, string_id, status),
+        )
+        cur.execute(
+            "SELECT status, comment, images, updated_at FROM string_records WHERE project_id = %s AND string_id = %s",
+            (uu, string_id),
         )
         row = cur.fetchone()
         conn.commit()
@@ -1028,12 +1040,15 @@ def api_update_string_comment(project_id: str, string_id: str, body: dict = Body
     with db_store.get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO string_records (project_id, string_id, comment)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (project_id, string_id) DO UPDATE SET comment = EXCLUDED.comment, updated_at = NOW()
-            RETURNING status, comment, images, updated_at
+            INSERT INTO string_records (project_id, string_id, status, comment, images)
+            VALUES (%s, %s, 'new', %s, '[]')
+            ON DUPLICATE KEY UPDATE comment = VALUES(comment), updated_at = NOW()
             """,
             (uu, string_id, comment),
+        )
+        cur.execute(
+            "SELECT status, comment, images, updated_at FROM string_records WHERE project_id = %s AND string_id = %s",
+            (uu, string_id),
         )
         row = cur.fetchone()
         conn.commit()
@@ -1068,14 +1083,17 @@ async def api_add_string_image(project_id: str, string_id: str, file: UploadFile
     with db_store.get_conn() as conn, conn.cursor() as cur:
         cur.execute(
             """
-            INSERT INTO string_records (project_id, string_id, images)
-            VALUES (%s, %s, %s::jsonb)
-            ON CONFLICT (project_id, string_id) DO UPDATE SET
-              images = string_records.images || EXCLUDED.images,
+            INSERT INTO string_records (project_id, string_id, status, comment, images)
+            VALUES (%s, %s, 'new', '', %s)
+            ON DUPLICATE KEY UPDATE
+              images     = JSON_MERGE_PRESERVE(images, VALUES(images)),
               updated_at = NOW()
-            RETURNING status, comment, images, updated_at
             """,
             (uu, string_id, json.dumps([image])),
+        )
+        cur.execute(
+            "SELECT status, comment, images, updated_at FROM string_records WHERE project_id = %s AND string_id = %s",
+            (uu, string_id),
         )
         row = cur.fetchone()
         conn.commit()
@@ -1135,11 +1153,12 @@ async def api_create_status_event(
             """
             INSERT INTO pier_status_events
                 (project_id, pier_code, status, description, attachments, created_by)
-            VALUES (%s, %s, %s, %s, %s::jsonb, %s)
-            RETURNING id, created_at
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
             (uu, pier_code, status, description or None, json.dumps(saved), created_by),
         )
+        new_id = cur.lastrowid
+        cur.execute("SELECT id, created_at FROM pier_status_events WHERE id = %s", (new_id,))
         row = cur.fetchone()
         conn.commit()
 
@@ -1175,6 +1194,14 @@ def api_list_status_events(project_id: str, pier_code: str):
             d = dict(r)
             if d.get("created_at") is not None:
                 d["created_at"] = d["created_at"].isoformat()
+            att = d.get("attachments")
+            if isinstance(att, (bytes, bytearray)):
+                att = att.decode("utf-8")
+            if isinstance(att, str):
+                try:
+                    d["attachments"] = json.loads(att) if att else []
+                except (TypeError, ValueError):
+                    d["attachments"] = []
             out.append(d)
         return out
 
