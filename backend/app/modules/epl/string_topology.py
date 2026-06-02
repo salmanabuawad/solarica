@@ -41,6 +41,7 @@ PIER_LAYER_HINT = "S-PLAN-PIER"
 MIN_SIG_LEN = 6.0          # ignore ribbon-width artifacts shorter than this
 MIN_JUMP_LEN = 8.0         # a row-to-row jump segment is at least this long
 VERT_ANGLE_MIN = 60.0      # degrees from horizontal to count as a jump
+MAX_JUMP_ROWS = 4          # a string spans 2-4 NEARBY rows; never bridge more
 RUN_ANGLE_TOL = 14.0       # clustering: max angle delta for parallel edges
 RUN_PERP_TOL = 5.0         # clustering: max perpendicular gap for ribbon edges
 START_MATCH_MAX = 70.0     # green/label-to-route endpoint match radius
@@ -448,6 +449,10 @@ def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None, 
 
     for i in range(len(ordered_rows) - 1):
         r_a, r_b = ordered_rows[i], ordered_rows[i + 1]
+        if abs(r_a - r_b) > MAX_JUMP_ROWS:
+            # Far-apart rows mean a mis-paired/merged route, not a real jump.
+            # Drawing a connector here produces a bogus cross-sheet line.
+            continue
         jump = jump_index.get((min(r_a, r_b), max(r_a, r_b)))
         if jump:
             p, q, ra, rb = jump
@@ -649,19 +654,36 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
     # A string spans only 2-4 NEARBY rows, so its start and end are close.
     # Reject any leftover pairing beyond this span so we never link a start to
     # a far-away end (which would draw a bogus line across the sheet).
+    # Pair OPTIMALLY (min total distance), not greedily: greedy lets an early
+    # green grab a far red, cascading the true partners into bogus long pairs.
+    # Reject any pair whose rows are > MAX_JUMP_ROWS apart (a string spans 2-4
+    # nearby rows) or beyond MAX_STRING_SPAN, so no cross-sheet line is drawn.
     MAX_STRING_SPAN = 900.0
     left_g = [i for i in range(len(greens)) if i not in used_g]
     left_r = [i for i in range(len(reds)) if i not in used_r]
     pairs = []
-    for gi in left_g:
-        if not left_r:
-            break
-        g = greens[gi]
-        rdi = min(left_r, key=lambda j: _dist(g, reds[j]))
-        if _dist(g, reds[rdi]) > MAX_STRING_SPAN:
-            continue  # no plausible nearby end -> leave unmatched, don't fabricate
-        left_r.remove(rdi)
-        pairs.append((gi, rdi))
+    if left_g and left_r:
+        import numpy as np
+        from scipy.optimize import linear_sum_assignment
+
+        BIG = 1e9
+        g_rows = [assign_row(greens[gi], panel_rows) if panel_rows else None for gi in left_g]
+        r_rows = [assign_row(reds[rdi], panel_rows) if panel_rows else None for rdi in left_r]
+        cost = np.full((len(left_g), len(left_r)), BIG, dtype=float)
+        for a, gi in enumerate(left_g):
+            g = greens[gi]
+            for b, rdi in enumerate(left_r):
+                d = _dist(g, reds[rdi])
+                if d > MAX_STRING_SPAN:
+                    continue
+                if g_rows[a] and r_rows[b] and abs(g_rows[a] - r_rows[b]) > MAX_JUMP_ROWS:
+                    continue
+                cost[a, b] = d
+        rows_i, cols_i = linear_sum_assignment(cost)
+        for a, b in zip(rows_i, cols_i):
+            if cost[a, b] >= BIG:
+                continue  # infeasible -> leave unmatched, don't fabricate
+            pairs.append((left_g[a], left_r[b]))
     for gi, rdi in pairs:
         ri = _argmin_ribbon(ribbons, greens[gi])
         ribbon = ribbons[ri] if ri is not None else [greens[gi], reds[rdi]]
