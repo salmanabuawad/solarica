@@ -834,7 +834,10 @@ def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str,
     if not panel_rows:
         return {"status": "no_panel_rows", "strings": []}
     try:
-        from .bhk_topology import reconstruct_topology
+        # New engine: clean green-triangle/red-circle markers on BE-STRINGS
+        # (trees excluded by shape+layer) + leftover start/end pairing so
+        # fragmented routes are not dropped -> all 288 strings, not 276.
+        from .string_topology import reconstruct_topology
         doc = fitz.open(str(electrical_paths[0]))
         page = doc[0]
         label_words = []
