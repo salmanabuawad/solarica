@@ -2814,7 +2814,11 @@ export default function SiteMapMapLibre({
         show("electrical-zone-bands-fill", zonesOn);
         show("electrical-zone-bands-outline", zonesOn);
       show("electrical-string-lines", stringsOn);
-      show("electrical-string-row-jumps", stringsOn);
+      // Legacy split-string connector: linked the two rows a string number
+      // appears on, but drew a long line across the sheet when those rows
+      // were far apart (a string only spans 2-4 nearby rows). Superseded by
+      // the topology routes/jumps -> hidden.
+      show("electrical-string-row-jumps", false);
       show("string-start-markers-layer", stringsOn);
       show("string-end-markers-layer", stringsOn);
       show("electrical-string-starts", stringsOn);

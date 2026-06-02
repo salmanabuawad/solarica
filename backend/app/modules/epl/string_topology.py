@@ -646,6 +646,10 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
     # had both, dropping the string. Recover by pairing the leftover starts to
     # the leftover ends (greedy nearest), each routed through the ribbon
     # nearest its green. This is what lets all strings be found.
+    # A string spans only 2-4 NEARBY rows, so its start and end are close.
+    # Reject any leftover pairing beyond this span so we never link a start to
+    # a far-away end (which would draw a bogus line across the sheet).
+    MAX_STRING_SPAN = 900.0
     left_g = [i for i in range(len(greens)) if i not in used_g]
     left_r = [i for i in range(len(reds)) if i not in used_r]
     pairs = []
@@ -654,6 +658,8 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
             break
         g = greens[gi]
         rdi = min(left_r, key=lambda j: _dist(g, reds[j]))
+        if _dist(g, reds[rdi]) > MAX_STRING_SPAN:
+            continue  # no plausible nearby end -> leave unmatched, don't fabricate
         left_r.remove(rdi)
         pairs.append((gi, rdi))
     for gi, rdi in pairs:
