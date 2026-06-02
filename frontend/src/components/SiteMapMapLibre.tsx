@@ -2073,6 +2073,28 @@ export default function SiteMapMapLibre({
           "circle-stroke-width": 1.2,
         },
       });
+      // String-number labels at each route's start.
+      map.addLayer({
+        id: "topology-labels-layer",
+        type: "symbol",
+        source: "topology-markers",
+        filter: ["==", ["get", "role"], "start"],
+        layout: {
+          visibility: "none",
+          "text-field": ["get", "id"],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 11, 8, 14, 11, 18, 15, 20, 18],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-anchor": "bottom",
+          "text-offset": [0, -0.6],
+          "text-allow-overlap": false,
+          "text-ignore-placement": false,
+        },
+        paint: {
+          "text-color": "#1e3a8a",
+          "text-halo-color": "rgba(255,255,255,0.95)",
+          "text-halo-width": 1.4,
+        },
+      });
       // Panel rectangles — the module grid filling each row.
       map.addLayer({
         id: "panel-rects-layer",
@@ -2819,6 +2841,7 @@ export default function SiteMapMapLibre({
       show("topology-jumps-layer", topologyOn);
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
+      show("topology-labels-layer", topologyOn);
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);
