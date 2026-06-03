@@ -827,33 +827,35 @@ def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str,
     (geometric span stays available as ``geom_panels`` for QA)."""
     if fitz is None:
         return {"status": "unavailable", "strings": []}
+    panel_paths = [Path(p) for p in pdf_paths if _is_panels_plan(p)]
     electrical_paths = [Path(p) for p in pdf_paths if _is_bhk_electrical_plan(p)]
-    if not electrical_paths:
+    if not panel_paths:
         return {"status": "not_detected", "strings": []}
     panel_rows = panel_geometry.get("panel_rows") or []
     if not panel_rows:
         return {"status": "no_panel_rows", "strings": []}
     try:
-        # New engine: clean green-triangle/red-circle markers on BE-STRINGS
-        # (trees excluded by shape+layer) + leftover start/end pairing so
-        # fragmented routes are not dropped -> all 288 strings, not 276.
-        from .string_topology import reconstruct_topology
-        doc = fitz.open(str(electrical_paths[0]))
-        page = doc[0]
-        label_words = []
-        for w in page.get_text("words") or []:
-            text = str(w[4]).strip()
-            if re.fullmatch(r"\d+\.\d+\.\d+\.\d+", text):
-                label_words.append({"text": text, "x": (float(w[0]) + float(w[2])) / 2, "y": (float(w[1]) + float(w[3])) / 2})
-        result = reconstruct_topology(page, panel_rows, label_words, include_geometry=True)
-        doc.close()
+        # Strings are found on the PANELS plan (E_41), which is far cleaner than
+        # the cable plan: exactly one green start + one red end per string, and
+        # start/end share a panel colour. We pair start->end by colour + row
+        # span and recover panels via a grid-graph flood-fill, so jumps stay
+        # between adjacent rows (no cross-sheet lines). Labels (x.x.x.x live
+        # only on E_20) are translated into the panels-plan frame.
+        from .panel_strings import reconstruct_topology_from_panels
+        d41 = fitz.open(str(panel_paths[0]))
+        e20_doc = fitz.open(str(electrical_paths[0])) if electrical_paths else None
+        e20_page = e20_doc[0] if e20_doc is not None else None
+        result = reconstruct_topology_from_panels(d41[0], panel_rows, e20_page=e20_page, include_geometry=True)
+        d41.close()
+        if e20_doc is not None:
+            e20_doc.close()
         if opt_per_string:
             for s in result.get("strings", []):
                 s["geom_panels"] = s.get("total_panels")
                 s["optimizer_count"] = opt_per_string
                 s["total_panels"] = opt_per_string * 2
         result["status"] = "ok"
-        result["source_file"] = electrical_paths[0].name
+        result["source_file"] = panel_paths[0].name
         return result
     except Exception as exc:
         return {"status": "error", "reason": str(exc), "strings": []}
