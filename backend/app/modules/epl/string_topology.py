@@ -41,7 +41,8 @@ PIER_LAYER_HINT = "S-PLAN-PIER"
 MIN_SIG_LEN = 6.0          # ignore ribbon-width artifacts shorter than this
 MIN_JUMP_LEN = 8.0         # a row-to-row jump segment is at least this long
 VERT_ANGLE_MIN = 60.0      # degrees from horizontal to count as a jump
-MAX_JUMP_ROWS = 4          # a string spans 2-4 NEARBY rows; never bridge more
+MAX_JUMP_ROWS = 2          # one hop crosses 1-2 ADJACENT rows (cable jumps at a pier)
+MAX_STRING_SPAN_ROWS = 4   # a string occupies up to 2-4 nearby rows end-to-end
 RUN_ANGLE_TOL = 14.0       # clustering: max angle delta for parallel edges
 RUN_PERP_TOL = 5.0         # clustering: max perpendicular gap for ribbon edges
 START_MATCH_MAX = 70.0     # green/label-to-route endpoint match radius
@@ -450,8 +451,9 @@ def route_events(runs, start_pt, end_pt, panel_rows, n_rows: int | None = None, 
     for i in range(len(ordered_rows) - 1):
         r_a, r_b = ordered_rows[i], ordered_rows[i + 1]
         if abs(r_a - r_b) > MAX_JUMP_ROWS:
-            # Far-apart rows mean a mis-paired/merged route, not a real jump.
-            # Drawing a connector here produces a bogus cross-sheet line.
+            # A real string snakes through ADJACENT rows (~1 row per hop). A
+            # single hop across 3+ rows means intermediate rows weren't traced
+            # (a mis-trace), so drawing it produces a bogus long diagonal line.
             continue
         jump = jump_index.get((min(r_a, r_b), max(r_a, r_b)))
         if jump:
@@ -676,7 +678,7 @@ def reconstruct_topology(e20_page, panel_rows, label_words: list[dict[str, Any]]
                 d = _dist(g, reds[rdi])
                 if d > MAX_STRING_SPAN:
                     continue
-                if g_rows[a] and r_rows[b] and abs(g_rows[a] - r_rows[b]) > MAX_JUMP_ROWS:
+                if g_rows[a] and r_rows[b] and abs(g_rows[a] - r_rows[b]) > MAX_STRING_SPAN_ROWS:
                     continue
                 cost[a, b] = d
         rows_i, cols_i = linear_sum_assignment(cost)
