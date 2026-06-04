@@ -2842,7 +2842,7 @@ export default function SiteMapMapLibre({
       show("electrical-zones-labels", layerVisible(layers, "zones", false));
       const topologyOn = layerVisible(layers, "string_topology", false);
       show("topology-runs-layer", topologyOn);
-      show("topology-jumps-layer", topologyOn);
+      show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
       show("topology-labels-layer", topologyOn);
