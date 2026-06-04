@@ -795,17 +795,17 @@ def _extract_bhk_topology(pdf_paths: list[str | Path], panel_geometry: dict[str,
     if not panel_rows:
         return {"status": "no_panel_rows", "strings": []}
     try:
-        # Strings are found on the PANELS plan (E_41), which is far cleaner than
-        # the cable plan: exactly one green start + one red end per string, and
-        # start/end share a panel colour. We pair start->end by colour + row
-        # span and recover panels via a grid-graph flood-fill, so jumps stay
-        # between adjacent rows (no cross-sheet lines). Labels (x.x.x.x live
+        # Strings come from the PANELS plan (E_41) via the colour-partition
+        # engine: per colour the panels are exactly 44 x (start markers), so
+        # each green start claims its 44 nearest connected same-colour panels
+        # (capacity-44 region-grow seeded from both the green and the red).
+        # Deterministic, exact -> 288 strings x 44 panels. Labels (x.x.x.x live
         # only on E_20) are translated into the panels-plan frame.
-        from .panel_strings import reconstruct_topology_from_panels
+        from .string_color_detector import detect_strings_topology
         d41 = fitz.open(str(panel_paths[0]))
         e20_doc = fitz.open(str(electrical_paths[0])) if electrical_paths else None
         e20_page = e20_doc[0] if e20_doc is not None else None
-        result = reconstruct_topology_from_panels(d41[0], panel_rows, e20_page=e20_page, include_geometry=True)
+        result = detect_strings_topology(d41[0], panel_rows, e20_page=e20_page, include_geometry=True)
         d41.close()
         if e20_doc is not None:
             e20_doc.close()
