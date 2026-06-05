@@ -1032,9 +1032,11 @@ export default function SiteMapMapLibre({
   }, [stringTopology, imageWidth]);
 
   // String-number label points (rendered by a GPU symbol layer — efficient at
-  // 288+ labels, unlike HTML markers). A single-row string gets ONE point at
-  // its start; a JUMPING (cross-row) string gets one point per row it occupies
-  // (each horizontal run's midpoint), flagged jumping=1 for red-italic styling.
+  // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
+  // so the symbol layer (symbol-placement: line-center) draws the number
+  // ROTATED to read along the row line. One line per row a string occupies, so
+  // jumping (cross-row) strings get the number repeated per row (jumping=1 for
+  // red-italic styling).
   const topologyLabelsGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
     const features: any[] = [];
@@ -1042,22 +1044,27 @@ export default function SiteMapMapLibre({
       const id = String(s?.string ?? "").trim();
       if (!id) continue;
       const jumping = Number(s?.jump_count || 0) >= 1;
-      const pts: [number, number][] = [];
-      if (jumping) {
-        for (const seg of (s?.segments || [])) {
-          if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h") {
-            pts.push([(Number(seg[0]) + Number(seg[2])) / 2, (Number(seg[1]) + Number(seg[3])) / 2]);
-          }
+      const lines: [number, number][][] = [];
+      for (const seg of (s?.segments || [])) {
+        if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h"
+            && (Number(seg[0]) !== Number(seg[2]) || Number(seg[1]) !== Number(seg[3]))) {
+          lines.push([
+            rotatedToLngLat(Number(seg[0]), Number(seg[1]), imageWidth),
+            rotatedToLngLat(Number(seg[2]), Number(seg[3]), imageWidth),
+          ]);
         }
       }
-      if (!pts.length) {
-        const st = s?.start_xy;
-        if (Array.isArray(st) && st.length === 2) pts.push([Number(st[0]), Number(st[1])]);
+      if (!lines.length) {
+        const a = s?.start_xy, b = s?.end_xy;
+        if (Array.isArray(a) && Array.isArray(b)) {
+          lines.push([rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth),
+                      rotatedToLngLat(Number(b[0]), Number(b[1]), imageWidth)]);
+        }
       }
-      for (const [px, py] of pts) {
+      for (const line of lines) {
         features.push({
           type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(px, py, imageWidth) },
+          geometry: { type: "LineString" as const, coordinates: line },
           properties: { id, jumping: jumping ? 1 : 0 },
         });
       }
@@ -2116,6 +2123,7 @@ export default function SiteMapMapLibre({
         source: "topology-labels",
         layout: {
           visibility: "none",
+          "symbol-placement": "line-center",   // draw the number ALONG the row line
           "text-field": ["get", "id"],
           "text-size": ["interpolate", ["linear"], ["zoom"], 11, 8, 14, 11, 18, 15, 20, 18],
           "text-font": [
@@ -2123,7 +2131,7 @@ export default function SiteMapMapLibre({
             ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
             ["literal", ["Open Sans Bold", "Arial Unicode MS Bold"]],
           ],
-          "text-anchor": "center",
+          "text-keep-upright": true,
           "text-allow-overlap": false,
           "text-ignore-placement": false,
         },
