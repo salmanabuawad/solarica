@@ -118,7 +118,6 @@ export default function SiteMapMapLibre({
   const electricalRowMarkersRef = useRef<maplibregl.Marker[]>([]);
   const pierLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   const trackerLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
-  const stringLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   // Ref raised while the corner zoom-square is actively being dragged,
   // so the map click handlers can skip pier / tracker / block clicks
   // under the pointer during a drag.
@@ -1032,6 +1031,40 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [stringTopology, imageWidth]);
 
+  // String-number label points (rendered by a GPU symbol layer — efficient at
+  // 288+ labels, unlike HTML markers). A single-row string gets ONE point at
+  // its start; a JUMPING (cross-row) string gets one point per row it occupies
+  // (each horizontal run's midpoint), flagged jumping=1 for red-italic styling.
+  const topologyLabelsGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    const features: any[] = [];
+    for (const s of stringTopology || []) {
+      const id = String(s?.string ?? "").trim();
+      if (!id) continue;
+      const jumping = Number(s?.jump_count || 0) >= 1;
+      const pts: [number, number][] = [];
+      if (jumping) {
+        for (const seg of (s?.segments || [])) {
+          if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h") {
+            pts.push([(Number(seg[0]) + Number(seg[2])) / 2, (Number(seg[1]) + Number(seg[3])) / 2]);
+          }
+        }
+      }
+      if (!pts.length) {
+        const st = s?.start_xy;
+        if (Array.isArray(st) && st.length === 2) pts.push([Number(st[0]), Number(st[1])]);
+      }
+      for (const [px, py] of pts) {
+        features.push({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(px, py, imageWidth) },
+          properties: { id, jumping: jumping ? 1 : 0 },
+        });
+      }
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [stringTopology, imageWidth]);
+
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
       return { type: "FeatureCollection" as const, features: [] };
@@ -1310,6 +1343,7 @@ export default function SiteMapMapLibre({
       map.addSource("string-end-markers", { type: "geojson", data: stringEndMarkersGeoJSON });
       map.addSource("topology-lines", { type: "geojson", data: topologyLinesGeoJSON });
       map.addSource("topology-markers", { type: "geojson", data: topologyMarkersGeoJSON });
+      map.addSource("topology-labels", { type: "geojson", data: topologyLabelsGeoJSON });
       map.addSource("topology-highlight", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("panel-numbers", { type: "geojson", data: panelNumbersGeoJSON });
       map.addSource("panel-rects", { type: "geojson", data: panelRectsGeoJSON });
@@ -2074,26 +2108,29 @@ export default function SiteMapMapLibre({
           "circle-stroke-width": 1.2,
         },
       });
-      // String-number labels at each route's start.
+      // String-number labels (GPU symbol layer). One per single-row string;
+      // one per row for jumping strings. Jumping strings are RED ITALIC.
       map.addLayer({
         id: "topology-labels-layer",
         type: "symbol",
-        source: "topology-markers",
-        filter: ["==", ["get", "role"], "start"],
+        source: "topology-labels",
         layout: {
           visibility: "none",
           "text-field": ["get", "id"],
           "text-size": ["interpolate", ["linear"], ["zoom"], 11, 8, 14, 11, 18, 15, 20, 18],
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-anchor": "bottom",
-          "text-offset": [0, -0.6],
+          "text-font": [
+            "case", ["==", ["get", "jumping"], 1],
+            ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
+            ["literal", ["Open Sans Bold", "Arial Unicode MS Bold"]],
+          ],
+          "text-anchor": "center",
           "text-allow-overlap": false,
           "text-ignore-placement": false,
         },
         paint: {
-          "text-color": "#1e3a8a",
+          "text-color": ["case", ["==", ["get", "jumping"], 1], "#dc2626", "#1e3a8a"],
           "text-halo-color": "rgba(255,255,255,0.95)",
-          "text-halo-width": 1.4,
+          "text-halo-width": 1.6,
         },
       });
       // Panel rectangles — the module grid filling each row.
@@ -2451,7 +2488,6 @@ export default function SiteMapMapLibre({
         refreshRowLabels();
         refreshElectricalRowLabels();
         refreshTrackerLabels();
-        refreshStringLabels();
       };
       map.on("moveend", refresh);
       map.on("zoomend", refresh);
@@ -2701,6 +2737,7 @@ export default function SiteMapMapLibre({
       (map.getSource("string-end-markers") as GeoJSONSource | undefined)?.setData(stringEndMarkersGeoJSON as any);
       (map.getSource("topology-lines") as GeoJSONSource | undefined)?.setData(topologyLinesGeoJSON as any);
       (map.getSource("topology-markers") as GeoJSONSource | undefined)?.setData(topologyMarkersGeoJSON as any);
+      (map.getSource("topology-labels") as GeoJSONSource | undefined)?.setData(topologyLabelsGeoJSON as any);
       (map.getSource("panel-numbers") as GeoJSONSource | undefined)?.setData(panelNumbersGeoJSON as any);
       (map.getSource("panel-rects") as GeoJSONSource | undefined)?.setData(panelRectsGeoJSON as any);
       (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
@@ -2708,7 +2745,7 @@ export default function SiteMapMapLibre({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2847,7 +2884,8 @@ export default function SiteMapMapLibre({
       show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
-      show("topology-labels-layer", false);   // labels rendered as HTML markers (no glyphs in style)
+      // String numbers show on the strings view (default) OR the routes view.
+      show("topology-labels-layer", stringsOn || topologyOn);
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);
@@ -2903,15 +2941,6 @@ export default function SiteMapMapLibre({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackersOnForLabels, trackerLabelData, mapLabelStride, mapLabelDenseThreshold]);
 
-  // ---- String-number labels — dedicated effect --------------------------
-  // Blue chip per single-row string; red italic chip on every row of a
-  // jumping (cross-row) string. Rebuild when topology data or visibility flips.
-  const topologyOnForLabels = layerVisible(layers, "string_topology", false);
-  const stringsOnForLabels = layerVisible(layers, "string_zones", true);
-  useEffect(() => {
-    refreshStringLabels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topologyOnForLabels, stringsOnForLabels, stringTopology, imageWidth]);
 
   // ---- Block labels — dedicated effect ----------------------------------
   //
@@ -2937,8 +2966,6 @@ export default function SiteMapMapLibre({
     electricalRowMarkersRef.current = [];
     for (const m of trackerLabelMarkersRef.current) m.remove();
     trackerLabelMarkersRef.current = [];
-    for (const m of stringLabelMarkersRef.current) m.remove();
-    stringLabelMarkersRef.current = [];
     for (const m of blockMarkersRef.current) m.remove();
     blockMarkersRef.current = [];
   }
@@ -3093,58 +3120,6 @@ export default function SiteMapMapLibre({
       .sort((a, b) => a - b);
     if (!nums.length) return "";
     return `S.${nums.join(".")}`;
-  }
-
-  // String-number labels. The map style has no glyphs endpoint, so all text is
-  // rendered as HTML-marker chips (like rows/trackers/piers). A normal
-  // single-row string gets ONE blue chip at its start; a JUMPING (cross-row)
-  // string gets a RED ITALIC chip on EVERY row it occupies (one per run).
-  function refreshStringLabels() {
-    const map = mapRef.current;
-    if (!map) return;
-    for (const m of stringLabelMarkersRef.current) m.remove();
-    stringLabelMarkersRef.current = [];
-    // Show string numbers whenever EITHER the electrical strings view
-    // (string_zones, on by default) OR the topology view is visible.
-    if (!layerVisible(layersRef.current, "string_topology", false)
-        && !layerVisible(layersRef.current, "string_zones", true)) return;
-    const iw = imageWidthRef.current;
-    if (!iw || iw <= 0) return;
-    if (map.getZoom() < 11) return;   // unreadable at site overview; avoid clutter
-    const bounds = map.getBounds();
-    const baseCss =
-      "border-radius: 4px; padding: 0 3px; white-space: nowrap; user-select: none; " +
-      "pointer-events: none; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 2px #fff;";
-    for (const s of stringTopologyRef.current || []) {
-      const id = String(s?.string ?? "").trim();
-      if (!id) continue;
-      const jumping = Number(s?.jump_count || 0) >= 1;
-      const pts: [number, number][] = [];
-      if (jumping) {
-        for (const seg of (s?.segments || [])) {
-          if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h") {
-            pts.push([(Number(seg[0]) + Number(seg[2])) / 2, (Number(seg[1]) + Number(seg[3])) / 2]);
-          }
-        }
-      }
-      if (!pts.length) {
-        const st = s?.start_xy;
-        if (Array.isArray(st) && st.length === 2) pts.push([Number(st[0]), Number(st[1])]);
-      }
-      for (const [px, py] of pts) {
-        const ll = rotatedToLngLat(px, py, iw);
-        if (!bounds.contains(ll as any)) continue;
-        const el = document.createElement("div");
-        el.textContent = id;
-        el.style.cssText = jumping
-          ? "font: italic 700 11px Arial, sans-serif; color: #dc2626; " + baseCss
-          : "font: 700 11px Arial, sans-serif; color: #1e3a8a; " + baseCss;
-        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
-          .setLngLat(ll as any)
-          .addTo(map);
-        stringLabelMarkersRef.current.push(marker);
-      }
-    }
   }
 
   function refreshTrackerLabels() {
