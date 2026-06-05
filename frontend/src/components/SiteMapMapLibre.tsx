@@ -1040,32 +1040,30 @@ export default function SiteMapMapLibre({
   const topologyLabelsGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
     const features: any[] = [];
+    const norm = (deg: number) => { while (deg > 90) deg -= 180; while (deg < -90) deg += 180; return deg; };
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
       if (!id) continue;
       const jumping = Number(s?.jump_count || 0) >= 1;
-      const lines: [number, number][][] = [];
+      const runs: [number, number, number, number][] = [];
       for (const seg of (s?.segments || [])) {
         if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h"
             && (Number(seg[0]) !== Number(seg[2]) || Number(seg[1]) !== Number(seg[3]))) {
-          lines.push([
-            rotatedToLngLat(Number(seg[0]), Number(seg[1]), imageWidth),
-            rotatedToLngLat(Number(seg[2]), Number(seg[3]), imageWidth),
-          ]);
+          runs.push([Number(seg[0]), Number(seg[1]), Number(seg[2]), Number(seg[3])]);
         }
       }
-      if (!lines.length) {
+      if (!runs.length) {
         const a = s?.start_xy, b = s?.end_xy;
-        if (Array.isArray(a) && Array.isArray(b)) {
-          lines.push([rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth),
-                      rotatedToLngLat(Number(b[0]), Number(b[1]), imageWidth)]);
-        }
+        if (Array.isArray(a) && Array.isArray(b)) runs.push([Number(a[0]), Number(a[1]), Number(b[0]), Number(b[1])]);
       }
-      for (const line of lines) {
+      for (const [x0, y0, x1, y1] of runs) {
+        const p0 = rotatedToLngLat(x0, y0, imageWidth);
+        const p1 = rotatedToLngLat(x1, y1, imageWidth);
+        const rot = norm(-Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * 180 / Math.PI);
         features.push({
           type: "Feature" as const,
-          geometry: { type: "LineString" as const, coordinates: line },
-          properties: { id, jumping: jumping ? 1 : 0 },
+          geometry: { type: "Point" as const, coordinates: [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2] },
+          properties: { id, jumping: jumping ? 1 : 0, rot: Math.round(rot * 10) / 10 },
         });
       }
     }
@@ -2121,17 +2119,19 @@ export default function SiteMapMapLibre({
         id: "topology-labels-layer",
         type: "symbol",
         source: "topology-labels",
+        minzoom: 12,                           // numbers appear as you zoom in
         layout: {
           visibility: "none",
-          "symbol-placement": "line-center",   // draw the number ALONG the row line
           "text-field": ["get", "id"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 11, 8, 14, 11, 18, 15, 20, 18],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 12, 18, 15, 20, 18],
           "text-font": [
             "case", ["==", ["get", "jumping"], 1],
             ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
             ["literal", ["Open Sans Bold", "Arial Unicode MS Bold"]],
           ],
-          "text-keep-upright": true,
+          // rotate each number to read ALONG its row line
+          "text-rotate": ["get", "rot"],
+          "text-rotation-alignment": "map",
           "text-allow-overlap": false,
           "text-ignore-placement": false,
         },
