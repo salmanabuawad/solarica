@@ -2907,10 +2907,11 @@ export default function SiteMapMapLibre({
   // Blue chip per single-row string; red italic chip on every row of a
   // jumping (cross-row) string. Rebuild when topology data or visibility flips.
   const topologyOnForLabels = layerVisible(layers, "string_topology", false);
+  const stringsOnForLabels = layerVisible(layers, "string_zones", true);
   useEffect(() => {
     refreshStringLabels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topologyOnForLabels, stringTopology, imageWidth]);
+  }, [topologyOnForLabels, stringsOnForLabels, stringTopology, imageWidth]);
 
   // ---- Block labels — dedicated effect ----------------------------------
   //
@@ -3103,9 +3104,13 @@ export default function SiteMapMapLibre({
     if (!map) return;
     for (const m of stringLabelMarkersRef.current) m.remove();
     stringLabelMarkersRef.current = [];
-    if (!layerVisible(layersRef.current, "string_topology", false)) return;
+    // Show string numbers whenever EITHER the electrical strings view
+    // (string_zones, on by default) OR the topology view is visible.
+    if (!layerVisible(layersRef.current, "string_topology", false)
+        && !layerVisible(layersRef.current, "string_zones", true)) return;
     const iw = imageWidthRef.current;
     if (!iw || iw <= 0) return;
+    if (map.getZoom() < 11) return;   // unreadable at site overview; avoid clutter
     const bounds = map.getBounds();
     const baseCss =
       "border-radius: 4px; padding: 0 3px; white-space: nowrap; user-select: none; " +
