@@ -118,6 +118,7 @@ export default function SiteMapMapLibre({
   const electricalRowMarkersRef = useRef<maplibregl.Marker[]>([]);
   const pierLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   const trackerLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
+  const stringLabelMarkersRef = useRef<maplibregl.Marker[]>([]);
   // Ref raised while the corner zoom-square is actively being dragged,
   // so the map click handlers can skip pier / tracker / block clicks
   // under the pointer during a drag.
@@ -2450,6 +2451,7 @@ export default function SiteMapMapLibre({
         refreshRowLabels();
         refreshElectricalRowLabels();
         refreshTrackerLabels();
+        refreshStringLabels();
       };
       map.on("moveend", refresh);
       map.on("zoomend", refresh);
@@ -2845,7 +2847,7 @@ export default function SiteMapMapLibre({
       show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
-      show("topology-labels-layer", topologyOn);
+      show("topology-labels-layer", false);   // labels rendered as HTML markers (no glyphs in style)
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);
@@ -2901,6 +2903,15 @@ export default function SiteMapMapLibre({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trackersOnForLabels, trackerLabelData, mapLabelStride, mapLabelDenseThreshold]);
 
+  // ---- String-number labels — dedicated effect --------------------------
+  // Blue chip per single-row string; red italic chip on every row of a
+  // jumping (cross-row) string. Rebuild when topology data or visibility flips.
+  const topologyOnForLabels = layerVisible(layers, "string_topology", false);
+  useEffect(() => {
+    refreshStringLabels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topologyOnForLabels, stringTopology, imageWidth]);
+
   // ---- Block labels — dedicated effect ----------------------------------
   //
   // Block-label HTML markers are expensive to recreate (DOM + style +
@@ -2925,6 +2936,8 @@ export default function SiteMapMapLibre({
     electricalRowMarkersRef.current = [];
     for (const m of trackerLabelMarkersRef.current) m.remove();
     trackerLabelMarkersRef.current = [];
+    for (const m of stringLabelMarkersRef.current) m.remove();
+    stringLabelMarkersRef.current = [];
     for (const m of blockMarkersRef.current) m.remove();
     blockMarkersRef.current = [];
   }
@@ -3079,6 +3092,54 @@ export default function SiteMapMapLibre({
       .sort((a, b) => a - b);
     if (!nums.length) return "";
     return `S.${nums.join(".")}`;
+  }
+
+  // String-number labels. The map style has no glyphs endpoint, so all text is
+  // rendered as HTML-marker chips (like rows/trackers/piers). A normal
+  // single-row string gets ONE blue chip at its start; a JUMPING (cross-row)
+  // string gets a RED ITALIC chip on EVERY row it occupies (one per run).
+  function refreshStringLabels() {
+    const map = mapRef.current;
+    if (!map) return;
+    for (const m of stringLabelMarkersRef.current) m.remove();
+    stringLabelMarkersRef.current = [];
+    if (!layerVisible(layersRef.current, "string_topology", false)) return;
+    const iw = imageWidthRef.current;
+    if (!iw || iw <= 0) return;
+    const bounds = map.getBounds();
+    const baseCss =
+      "border-radius: 4px; padding: 0 3px; white-space: nowrap; user-select: none; " +
+      "pointer-events: none; text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 2px #fff;";
+    for (const s of stringTopologyRef.current || []) {
+      const id = String(s?.string ?? "").trim();
+      if (!id) continue;
+      const jumping = Number(s?.jump_count || 0) >= 1;
+      const pts: [number, number][] = [];
+      if (jumping) {
+        for (const seg of (s?.segments || [])) {
+          if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h") {
+            pts.push([(Number(seg[0]) + Number(seg[2])) / 2, (Number(seg[1]) + Number(seg[3])) / 2]);
+          }
+        }
+      }
+      if (!pts.length) {
+        const st = s?.start_xy;
+        if (Array.isArray(st) && st.length === 2) pts.push([Number(st[0]), Number(st[1])]);
+      }
+      for (const [px, py] of pts) {
+        const ll = rotatedToLngLat(px, py, iw);
+        if (!bounds.contains(ll as any)) continue;
+        const el = document.createElement("div");
+        el.textContent = id;
+        el.style.cssText = jumping
+          ? "font: italic 700 11px Arial, sans-serif; color: #dc2626; " + baseCss
+          : "font: 700 11px Arial, sans-serif; color: #1e3a8a; " + baseCss;
+        const marker = new maplibregl.Marker({ element: el, anchor: "center" })
+          .setLngLat(ll as any)
+          .addTo(map);
+        stringLabelMarkersRef.current.push(marker);
+      }
+    }
   }
 
   function refreshTrackerLabels() {
