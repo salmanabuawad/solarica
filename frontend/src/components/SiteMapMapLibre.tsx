@@ -2131,11 +2131,11 @@ export default function SiteMapMapLibre({
         id: "topology-labels-layer",
         type: "symbol",
         source: "topology-labels",
-        minzoom: 12,                           // numbers appear as you zoom in
+        minzoom: 9,                            // appear at the same zoom as the other labels
         layout: {
           visibility: "none",
           "text-field": ["get", "id"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 12, 9, 15, 12, 18, 15, 20, 18],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 9, 7, 13, 10, 16, 13, 20, 17],
           "text-font": [
             "case", ["==", ["get", "jumping"], 1],
             ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
