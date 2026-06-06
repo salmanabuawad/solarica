@@ -1062,19 +1062,22 @@ export default function SiteMapMapLibre({
         }
       }
       if (!runs.length) continue;
-      // ONE label per string: place it on the LONGEST run (most room to read),
-      // rotated along that run. Guarantees exactly one clear number per string.
-      let best = runs[0], bestLen = -1;
-      for (const r of runs) {
-        const L = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]);
-        if (L > bestLen) { bestLen = L; best = r; }
+      // Repeat the number ALONG each run so any visible part of the string is
+      // labelled (one label at a string's midpoint is invisible when you look
+      // at its ends). Place ~1 label per ~0.10 deg of run length.
+      for (const [p0, p1] of runs) {
+        const rot = norm(-Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * 180 / Math.PI);
+        const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+        const nlab = Math.max(1, Math.min(4, Math.round(L / 0.10)));
+        for (let i = 0; i < nlab; i++) {
+          const f = nlab === 1 ? 0.5 : (i + 0.5) / nlab;
+          features.push({
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f] },
+            properties: { id, jumping: jumping ? 1 : 0, rot: Math.round(rot * 10) / 10 },
+          });
+        }
       }
-      const rot = norm(-Math.atan2(best[1][1] - best[0][1], best[1][0] - best[0][0]) * 180 / Math.PI);
-      features.push({
-        type: "Feature" as const,
-        geometry: { type: "Point" as const, coordinates: [(best[0][0] + best[1][0]) / 2, (best[0][1] + best[1][1]) / 2] },
-        properties: { id, jumping: jumping ? 1 : 0, rot: Math.round(rot * 10) / 10 },
-      });
     }
     return { type: "FeatureCollection" as const, features };
   }, [stringTopology, imageWidth]);
