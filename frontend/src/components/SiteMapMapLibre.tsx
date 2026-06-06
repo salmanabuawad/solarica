@@ -1045,27 +1045,36 @@ export default function SiteMapMapLibre({
       const id = String(s?.string ?? "").trim();
       if (!id) continue;
       const jumping = Number(s?.jump_count || 0) >= 1;
-      const runs: [number, number, number, number][] = [];
+      // candidate runs (the per-row horizontal runs) in geo coords
+      const runs: [number, number][][] = [];
       for (const seg of (s?.segments || [])) {
         if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h"
             && (Number(seg[0]) !== Number(seg[2]) || Number(seg[1]) !== Number(seg[3]))) {
-          runs.push([Number(seg[0]), Number(seg[1]), Number(seg[2]), Number(seg[3])]);
+          runs.push([rotatedToLngLat(Number(seg[0]), Number(seg[1]), imageWidth),
+                     rotatedToLngLat(Number(seg[2]), Number(seg[3]), imageWidth)]);
         }
       }
       if (!runs.length) {
         const a = s?.start_xy, b = s?.end_xy;
-        if (Array.isArray(a) && Array.isArray(b)) runs.push([Number(a[0]), Number(a[1]), Number(b[0]), Number(b[1])]);
+        if (Array.isArray(a) && Array.isArray(b)) {
+          runs.push([rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth),
+                     rotatedToLngLat(Number(b[0]), Number(b[1]), imageWidth)]);
+        }
       }
-      for (const [x0, y0, x1, y1] of runs) {
-        const p0 = rotatedToLngLat(x0, y0, imageWidth);
-        const p1 = rotatedToLngLat(x1, y1, imageWidth);
-        const rot = norm(-Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * 180 / Math.PI);
-        features.push({
-          type: "Feature" as const,
-          geometry: { type: "Point" as const, coordinates: [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2] },
-          properties: { id, jumping: jumping ? 1 : 0, rot: Math.round(rot * 10) / 10 },
-        });
+      if (!runs.length) continue;
+      // ONE label per string: place it on the LONGEST run (most room to read),
+      // rotated along that run. Guarantees exactly one clear number per string.
+      let best = runs[0], bestLen = -1;
+      for (const r of runs) {
+        const L = Math.hypot(r[1][0] - r[0][0], r[1][1] - r[0][1]);
+        if (L > bestLen) { bestLen = L; best = r; }
       }
+      const rot = norm(-Math.atan2(best[1][1] - best[0][1], best[1][0] - best[0][0]) * 180 / Math.PI);
+      features.push({
+        type: "Feature" as const,
+        geometry: { type: "Point" as const, coordinates: [(best[0][0] + best[1][0]) / 2, (best[0][1] + best[1][1]) / 2] },
+        properties: { id, jumping: jumping ? 1 : 0, rot: Math.round(rot * 10) / 10 },
+      });
     }
     return { type: "FeatureCollection" as const, features };
   }, [stringTopology, imageWidth]);
