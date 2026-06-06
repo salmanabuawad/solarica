@@ -2505,6 +2505,14 @@ export default function SiteMapMapLibre({
       // useEffects (`refreshPierLabels` / `refreshRowLabels` /
       // `refreshBlockLabels`), so we don't fire them again here —
       // doing so caused a double-render flicker on first paint.
+      // The panel grid + pier fills are added AFTER the topology layers, so
+      // they'd cover the string-number labels. Lift the topology routes,
+      // markers and (last, so it ends up on top) the number labels above them.
+      for (const lyr of ["topology-runs-layer", "topology-jumps-layer", "topology-highlight-layer",
+                          "topology-start-layer", "topology-end-layer", "topology-labels-layer"]) {
+        if (map.getLayer(lyr)) map.moveLayer(lyr);
+      }
+
       const refresh = () => {
         refreshPierLabels();
         refreshRowLabels();
