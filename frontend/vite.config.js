@@ -6,6 +6,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // TEMPORARY: ship a self-destroying service worker. Older builds cached a
+      // heavy bundle that froze the main thread, so those clients could never
+      // run the auto-update reload and stayed stuck on stale JS. A
+      // self-destroying SW unregisters itself and wipes its caches from the SW
+      // thread (which isn't frozen), forcing every client back to fresh network
+      // loads. Re-enable the normal offline PWA once all clients are recovered.
+      selfDestroying: true,
       // autoUpdate: a new service worker installs silently and activates on
       // the next navigation. Combined with the skipWaiting / reload logic
       // in main.tsx, visible tabs reload automatically when a new build
