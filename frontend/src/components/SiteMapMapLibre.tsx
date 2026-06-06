@@ -2132,8 +2132,10 @@ export default function SiteMapMapLibre({
           // rotate each number to read ALONG its row line
           "text-rotate": ["get", "rot"],
           "text-rotation-alignment": "map",
-          "text-allow-overlap": false,
-          "text-ignore-placement": false,
+          // always render every string's number (no collision hiding) once
+          // zoomed in past minzoom
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
         },
         paint: {
           "text-color": ["case", ["==", ["get", "jumping"], 1], "#dc2626", "#1e3a8a"],
