@@ -985,18 +985,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     if (stringPiers.length > 0) visibleKeys.add("string_piers");
     if (baseTrackers.length > 0) visibleKeys.add("base_trackers");
     if (panelBaseRows.length > 0) visibleKeys.add("panels");
-    if (electricalZones.length > 0) visibleKeys.add("zones");
-    if (electricalZones.length > 0 || inverters.length > 0) visibleKeys.add("inverters");
-    if (electricalZones.length > 0 || dccbs.length > 0) visibleKeys.add("dccb");
-    if ((optionalFeatures?.cameras || optionalFeatures?.security_devices) && securityDevices.length > 0) {
-      visibleKeys.add("security_cameras");
-    }
-    if (optionalFeatures?.weather_station && weatherStations.length > 0) {
-      visibleKeys.add("weather_station");
-    }
-    if (optionalFeatures?.weather_sensors && weatherSensors.length > 0) {
-      visibleKeys.add("weather_sensors");
-    }
+    // Hidden from the toggle bar by request: Zones, Inverters, DC (DCCB),
+    // Security cameras, Weather station, Sensors. The data still loads; these
+    // overlays are just not user-toggleable to keep the bar focused on the
+    // string-execution layers.
     return layers.filter((layer) => visibleKeys.has(layer.key));
   }, [baseTrackers.length, blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, panelBaseRows.length, piers.length, securityDevices.length, stringPiers.length, stringTopology.length, trackers.length, weatherSensors.length, weatherStations.length]);
   const mobileMainMapToggles = useMemo(() => {
@@ -1091,52 +1083,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     const bg = STATUS_BG[p.data?.status] || "#ffffff";
     return { backgroundColor: bg };
   };
-
-  // Export the currently displayed grid (respecting filter + sort + columns)
-  // to PDF via the browser print engine. Data comes from the ag-grid API, and
-  // rendering through the browser gives correct RTL + Arabic/Hebrew shaping
-  // that a client-side PDF lib cannot do without bundling Unicode fonts.
-  const exportGridToPdf = useCallback((title: string) => {
-    const api: any = pierGridApiRef.current;
-    if (!api) return;
-    const cols: any[] = (api.getAllDisplayedColumns?.() || []).filter((c: any) => c.getColDef?.()?.field);
-    if (!cols.length) return;
-    const esc = (s: any) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const headers = cols.map((c) => esc(c.getColDef().headerName || c.getColId()));
-    const bodyRows: string[] = [];
-    api.forEachNodeAfterFilterAndSort((node: any) => {
-      if (!node?.data) return;
-      const cells = cols.map((c) => {
-        const cd = c.getColDef();
-        let v = node.data[cd.field];
-        if (cd.valueFormatter) { try { v = cd.valueFormatter({ value: v, data: node.data, colDef: cd }); } catch { /* ignore */ } }
-        return `<td>${esc(v == null ? "" : v)}</td>`;
-      });
-      bodyRows.push(`<tr>${cells.join("")}</tr>`);
-    });
-    const dir = isRtl ? "rtl" : "ltr";
-    const align = isRtl ? "right" : "left";
-    const when = new Date().toLocaleString();
-    const html = `<!doctype html><html dir="${dir}" lang="${i18n.language}"><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>
-  body{font-family:Arial,"Segoe UI","Noto Sans Hebrew","Noto Sans Arabic",sans-serif;margin:22px;color:#0f172a}
-  h1{font-size:17px;margin:0 0 4px}
-  .meta{font-size:11px;color:#64748b;margin-bottom:12px}
-  table{border-collapse:collapse;width:100%;font-size:10.5px}
-  th,td{border:1px solid #cbd5e1;padding:4px 6px;text-align:${align};white-space:nowrap}
-  th{background:#0f172a;color:#fff}
-  tr:nth-child(even) td{background:#f1f5f9}
-  @media print{th,tr:nth-child(even) td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head>
-<body onload="setTimeout(function(){window.print()},150)">
-  <h1>${esc(title)}</h1>
-  <div class="meta">${esc(t("strings.project"))}: ${esc(projectId || "")} &middot; ${esc(t("strings.generated"))}: ${esc(when)} &middot; ${bodyRows.length}</div>
-  <table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${bodyRows.join("")}</tbody></table>
-</body></html>`;
-    const w = window.open("", "_blank");
-    if (!w) { setError("Pop-up blocked — allow pop-ups to export the PDF."); return; }
-    w.document.open(); w.document.write(html); w.document.close();
-  }, [isRtl, t, i18n.language, projectId]);
 
   // ag-grid caches rendered cells/headers; refresh them when the UI language
   // changes so translated status labels + headers update in place.
@@ -1944,13 +1890,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   ? `${topologyGridRows.length.toLocaleString()} ${t("strings.title")}`
                   : `${electricalPhysicalRows.length.toLocaleString()} physical rows`}
               </span>
-              <button
-                onClick={() => exportGridToPdf(eplGridTab === "routes" ? t("strings.exportTitle") : t("strings.title"))}
-                title={t("strings.exportPdf")}
-                style={{ marginInlineStart: "auto", fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <span aria-hidden>🖨️</span> {t("strings.exportPdf")}
-              </button>
             </div>
             {eplGridTab === "routes" && stringTopology.length > 0 && (
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
