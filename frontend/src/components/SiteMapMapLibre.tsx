@@ -963,6 +963,10 @@ export default function SiteMapMapLibre({
     const features: any[] = [];
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
+      // Colour each route by its execution status (volt-tested = green, etc.)
+      // so the route map reflects field progress, not just topology.
+      const status = normalizeStringStatus(stringStatuses[id]);
+      const statusColor = STRING_STATUS_COLORS[status] || "#f97316";
       for (const seg of s?.segments || []) {
         if (!Array.isArray(seg) || seg.length < 5) continue;
         const [x0, y0, x1, y1, kind] = seg;
@@ -977,12 +981,12 @@ export default function SiteMapMapLibre({
             type: "LineString" as const,
             coordinates: [rotatedToLngLat(a[0], a[1], imageWidth), rotatedToLngLat(b[0], b[1], imageWidth)],
           },
-          properties: { id, kind: isJump ? "jump" : "run" },
+          properties: { id, kind: isJump ? "jump" : "run", status, status_color: statusColor },
         });
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, panelBaseRows, imageWidth]);
+  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses]);
 
   const stringPiersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -2084,7 +2088,7 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "kind"], "run"],
         layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
         paint: {
-          "line-color": "#f97316",
+          "line-color": ["coalesce", ["get", "status_color"], "#f97316"],
           "line-opacity": 0.95,
           "line-width": ["interpolate", ["linear"], ["zoom"], 0, 1.0, 8, 1.6, 14, 2.4, 18, 3.4],
         },
@@ -3749,7 +3753,7 @@ function StringStatusModal({
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{stringInfo.id}</div>
             <div style={{ fontSize: 12, color: "#64748b" }}>
-              Row {stringInfo.row || "-"} · Panels {stringInfo.startPanelLabel || "-"} to {stringInfo.endPanelLabel || "-"}
+              {t("strings.popup.rowPanels", { row: stringInfo.row || "-", from: stringInfo.startPanelLabel || "-", to: stringInfo.endPanelLabel || "-" })}
             </div>
           </div>
         </div>
@@ -3784,11 +3788,11 @@ function StringStatusModal({
         </div>
         <div style={{ marginTop: 14, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>
-            Comment
+            {t("strings.popup.comment")}
           </label>
           <textarea
             value={comment}
-            placeholder="Add comment..."
+            placeholder={t("strings.popup.addComment")}
             onChange={(e) => {
               setComment(e.target.value);
               onCommentChange(e.target.value);

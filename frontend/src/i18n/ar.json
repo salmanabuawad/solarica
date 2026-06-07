@@ -213,7 +213,12 @@
     "blocks": "الكتل",
     "blockLabels": "أرقام الكتل",
     "inverters": "العاكسات",
-    "dccb": "لوحة DC"
+    "dccb": "لوحة DC",
+    "strings": "السلاسل",
+    "stringRoutes": "مسارات السلاسل",
+    "stringPiers": "أعمدة السلاسل",
+    "panels": "الألواح",
+    "zones": "المناطق"
   },
   "statusEvent": {
     "title": "تغيير الحالة إلى {{status}}",
@@ -250,6 +255,25 @@
       "verified": "مُتحقَّق",
       "weighted": "مُرجَّح",
       "blocked": "محظورة"
+    },
+    "routesTab": "مسارات السلاسل",
+    "rowsTab": "الصفوف الفعلية",
+    "search": "بحث في السلاسل…",
+    "searchRows": "بحث في الصفوف…",
+    "popup": {
+      "comment": "تعليق",
+      "addComment": "أضف تعليقاً…",
+      "rowPanels": "الصف {{row}} · الألواح {{from}} إلى {{to}}"
+    },
+    "rowsCol": {
+      "row": "الصف",
+      "zone": "المنطقة",
+      "stringNumbers": "أرقام السلاسل",
+      "strings": "السلاسل",
+      "optimizers": "المُحسِّنات",
+      "optimizerPattern": "نمط المُحسِّنات",
+      "modules": "الوحدات",
+      "splitStrings": "السلاسل المقسّمة"
     }
   }
 }

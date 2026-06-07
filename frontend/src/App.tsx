@@ -225,12 +225,12 @@ const LAYER_LABEL_KEYS: Record<string, string> = {
   trackers:    "layers.trackers",
   blocks:      "layers.blocks",
   blockLabels: "layers.blockLabels",  // unused in the toolbar; kept for compat
-  string_zones: "Strings",
-  string_topology: "String routes",
-  string_piers: "Piers",
-  base_trackers: "Trackers",
-  panels: "Panels",
-  zones: "Zones",
+  string_zones: "layers.strings",
+  string_topology: "layers.stringRoutes",
+  string_piers: "layers.stringPiers",
+  base_trackers: "layers.trackers",
+  panels: "layers.panels",
+  zones: "layers.zones",
   inverters:   "layers.inverters",
   dccb:        "layers.dccb",
   security_cameras: "Security cameras",
@@ -1267,8 +1267,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           {activeTab === "mapgrid" && electricalDetailsMode && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, padding: 10, borderRadius: 10, background: "rgba(15,23,42,0.45)", border: "1px solid rgba(148,163,184,0.25)" }}>
               {[
-                ["String Zones", electricalSummary?.string_zones],
-                ["Strings", electricalSummary?.strings],
+                [t("field.stringZones"), electricalSummary?.string_zones],
+                [t("strings.title"), electricalSummary?.strings],
                 ["Optimizers", electricalSummary?.optimizers],
                 ["Modules", electricalSummary?.modules],
               ].map(([label, value]) => (
@@ -1648,8 +1648,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         {!compact && (electricalDetailsMode ? (
           <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "repeat(4, 1fr)", gap: "8px 20px", marginBottom: 10, padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc", fontSize: 13 }}>
             {[
-              ["String Zones", electricalSummary?.string_zones],
-              ["Strings", electricalSummary?.strings],
+              [t("field.stringZones"), electricalSummary?.string_zones],
+              [t("strings.title"), electricalSummary?.strings],
               ["Optimizers", electricalSummary?.optimizers],
               ["Modules", electricalSummary?.modules],
             ].map(([label, value]) => (
@@ -1881,14 +1881,14 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
               {stringTopology.length > 0 && (
                 <div style={{ display: "flex", gap: 6 }}>
-                  <Pill active={eplGridTab === "routes"} onClick={() => setEplGridTab("routes")}>String routes</Pill>
-                  <Pill active={eplGridTab === "rows"} onClick={() => setEplGridTab("rows")}>Physical rows</Pill>
+                  <Pill active={eplGridTab === "routes"} onClick={() => setEplGridTab("routes")}>{t("strings.routesTab")}</Pill>
+                  <Pill active={eplGridTab === "rows"} onClick={() => setEplGridTab("rows")}>{t("strings.rowsTab")}</Pill>
                 </div>
               )}
               <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
                 {eplGridTab === "routes" && stringTopology.length > 0
                   ? `${topologyGridRows.length.toLocaleString()} ${t("strings.title")}`
-                  : `${electricalPhysicalRows.length.toLocaleString()} physical rows`}
+                  : `${electricalPhysicalRows.length.toLocaleString()} ${t("strings.rowsTab")}`}
               </span>
             </div>
             {eplGridTab === "routes" && stringTopology.length > 0 && (
@@ -1946,7 +1946,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 ]}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
-                quickFilterPlaceholder="Search strings..."
+                quickFilterPlaceholder={t("strings.search")}
                 getRowId={(p: any) => p.data?.id}
                 getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
                 onCellValueChanged={(e: any) => {
@@ -1961,18 +1961,18 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <SimpleGrid
                 rows={electricalPhysicalRows}
                 columns={[
-                  { field: "physical_row", headerName: "Row", width: 90, type: "numericColumn" },
-                  { field: "zones", headerName: "Zone", width: 100 },
-                  { field: "string_pattern", headerName: "String Numbers", width: 160 },
-                  { field: "string_count", headerName: "Strings", width: 110, type: "numericColumn" },
-                  { field: "optimizer_count", headerName: "Optimizers", width: 130, type: "numericColumn" },
-                  { field: "optimizer_pattern", headerName: "Optimizer Pattern", minWidth: 240, flex: 1 },
-                  { field: "module_count", headerName: "Modules", width: 120, type: "numericColumn" },
-                  { field: "split_strings", headerName: "Split Strings", width: 160 },
+                  { field: "physical_row", headerName: t("strings.rowsCol.row"), width: 90, type: "numericColumn" },
+                  { field: "zones", headerName: t("strings.rowsCol.zone"), width: 100 },
+                  { field: "string_pattern", headerName: t("strings.rowsCol.stringNumbers"), width: 160 },
+                  { field: "string_count", headerName: t("strings.rowsCol.strings"), width: 110, type: "numericColumn" },
+                  { field: "optimizer_count", headerName: t("strings.rowsCol.optimizers"), width: 130, type: "numericColumn" },
+                  { field: "optimizer_pattern", headerName: t("strings.rowsCol.optimizerPattern"), minWidth: 240, flex: 1 },
+                  { field: "module_count", headerName: t("strings.rowsCol.modules"), width: 120, type: "numericColumn" },
+                  { field: "split_strings", headerName: t("strings.rowsCol.splitStrings"), width: 160 },
                 ]}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
-                quickFilterPlaceholder="Search electrical rows..."
+                quickFilterPlaceholder={t("strings.searchRows")}
                 getRowId={(p: any) => p.data?.id}
                 gridApiRef={pierGridApiRef}
               />
@@ -2121,9 +2121,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               {/* Summary cards */}
               <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "repeat(4, 1fr)", gap: "8px 20px", fontSize: 13 }}>
                 {[
-                  ["Inverters", e.inverters],
-                  ["DCCB", e.dccb?.toLocaleString?.() ?? e.dccb],
-                  ["String Groups", e.string_groups],
+                  [t("field.inverters"), e.inverters],
+                  [t("field.dccb"), e.dccb?.toLocaleString?.() ?? e.dccb],
+                  [t("field.stringGroups"), e.string_groups],
                   ["Total Strings", e.total_strings?.toLocaleString?.() ?? e.total_strings],
                   ["Total Modules", e.total_modules?.toLocaleString?.() ?? e.total_modules],
                   ["Output (MW)", e.total_output_mw],

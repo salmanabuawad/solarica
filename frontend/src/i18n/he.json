@@ -213,7 +213,12 @@
     "blocks": "בלוקים",
     "blockLabels": "מספרי בלוקים",
     "inverters": "ממירים",
-    "dccb": "לוח DC"
+    "dccb": "לוח DC",
+    "strings": "מחרוזות",
+    "stringRoutes": "מסלולי מחרוזת",
+    "stringPiers": "עמודי מחרוזת",
+    "panels": "פאנלים",
+    "zones": "אזורים"
   },
   "statusEvent": {
     "title": "שינוי סטטוס ל‑{{status}}",
@@ -250,6 +255,25 @@
       "verified": "מאומת",
       "weighted": "משוקלל",
       "blocked": "חסומים"
+    },
+    "routesTab": "מסלולי מחרוזת",
+    "rowsTab": "שורות פיזיות",
+    "search": "חיפוש מחרוזות…",
+    "searchRows": "חיפוש שורות…",
+    "popup": {
+      "comment": "הערה",
+      "addComment": "הוסף הערה…",
+      "rowPanels": "שורה {{row}} · פאנלים {{from}} עד {{to}}"
+    },
+    "rowsCol": {
+      "row": "שורה",
+      "zone": "אזור",
+      "stringNumbers": "מספרי מחרוזת",
+      "strings": "מחרוזות",
+      "optimizers": "אופטימייזרים",
+      "optimizerPattern": "תבנית אופטימייזרים",
+      "modules": "מודולים",
+      "splitStrings": "מחרוזות מפוצלות"
     }
   }
 }

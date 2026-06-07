@@ -220,7 +220,12 @@
     "blocks": "Blocks",
     "blockLabels": "Block numbers",
     "inverters": "Inverters",
-    "dccb": "DCCB"
+    "dccb": "DCCB",
+    "strings": "Strings",
+    "stringRoutes": "String routes",
+    "stringPiers": "String piers",
+    "panels": "Panels",
+    "zones": "Zones"
   },
   "statusEvent": {
     "title": "Change status to {{status}}",
@@ -257,6 +262,25 @@
       "verified": "verified",
       "weighted": "weighted",
       "blocked": "blocked"
+    },
+    "routesTab": "String routes",
+    "rowsTab": "Physical rows",
+    "search": "Search strings…",
+    "searchRows": "Search rows…",
+    "popup": {
+      "comment": "Comment",
+      "addComment": "Add comment…",
+      "rowPanels": "Row {{row}} · Panels {{from}} to {{to}}"
+    },
+    "rowsCol": {
+      "row": "Row",
+      "zone": "Zone",
+      "stringNumbers": "String Numbers",
+      "strings": "Strings",
+      "optimizers": "Optimizers",
+      "optimizerPattern": "Optimizer Pattern",
+      "modules": "Modules",
+      "splitStrings": "Split Strings"
     }
   }
 }
