@@ -978,17 +978,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const mapLayerToggles = useMemo(() => {
     const visibleKeys = new Set<string>(["row_labels"]);
     if (piers.length > 0) visibleKeys.add("piers");
-    if (trackers.length > 0) visibleKeys.add("trackers");
     if (blocks.length > 0) visibleKeys.add("blocks");
     if (electricalZones.length > 0) visibleKeys.add("string_zones");
     if (stringTopology.length > 0) visibleKeys.add("string_topology");
     if (stringPiers.length > 0) visibleKeys.add("string_piers");
-    if (baseTrackers.length > 0) visibleKeys.add("base_trackers");
     if (panelBaseRows.length > 0) visibleKeys.add("panels");
-    // Hidden from the toggle bar by request: Zones, Inverters, DC (DCCB),
-    // Security cameras, Weather station, Sensors. The data still loads; these
-    // overlays are just not user-toggleable to keep the bar focused on the
-    // string-execution layers.
+    // Hidden from the toggle bar by request: Trackers (both trackers and
+    // base_trackers), Zones, Inverters, DC (DCCB), Security cameras, Weather
+    // station, Sensors. The data still loads; these overlays are just not
+    // user-toggleable to keep the bar focused on the string-execution layers.
     return layers.filter((layer) => visibleKeys.has(layer.key));
   }, [baseTrackers.length, blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, panelBaseRows.length, piers.length, securityDevices.length, stringPiers.length, stringTopology.length, trackers.length, weatherSensors.length, weatherStations.length]);
   const mobileMainMapToggles = useMemo(() => {
