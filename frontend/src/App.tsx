@@ -192,14 +192,16 @@ function FilterChipBar({
 // comes from the `layers.*` i18n keys each render (see the useMemo in
 // AppMain) so the checkboxes switch language with the rest of the app.
 const INITIAL_LAYERS = [
-  // Defaults: only Piers is on at first paint. Row numbers, Trackers,
-  // and Blocks are off so a fresh map is uncluttered. The user's
-  // toggle state is then persisted to localStorage by the App.tsx
-  // useEffect below, so once they enable a layer it survives refreshes.
+  // Defaults at first paint: the string-execution layers (Row numbers,
+  // Strings, String routes) plus Piers (data-gated — only renders when a
+  // project actually has piers). Asset overlays (inverters, DCCB, cameras,
+  // weather) default OFF so a fresh strings map is uncluttered. The user's
+  // toggle state is persisted to localStorage by the useEffect below, so any
+  // layer they enable survives refreshes.
   { key: "row_labels",  label: "Row numbers", visible: true },
   { key: "piers",       label: "Piers",       visible: true },
   { key: "string_zones", label: "String zones", visible: true },
-  { key: "string_topology", label: "String routes", visible: false },
+  { key: "string_topology", label: "String routes", visible: true },
   { key: "string_piers", label: "Piers", visible: false },
   { key: "base_trackers", label: "Trackers", visible: false },
   { key: "panels", label: "Panels", visible: false },
@@ -211,11 +213,11 @@ const INITIAL_LAYERS = [
   // still reads `blockLabels` for the marker visibility but the App
   // layer-to-map shim below mirrors `blocks` → `blockLabels`.
   { key: "blocks",      label: "Blocks",      visible: false },
-  { key: "inverters", label: "Inverters", visible: true },
-  { key: "dccb",      label: "DCCB",      visible: true },
-  { key: "security_cameras", label: "Security cameras", visible: true },
-  { key: "weather_station", label: "Weather station", visible: true },
-  { key: "weather_sensors", label: "Sensors", visible: true },
+  { key: "inverters", label: "Inverters", visible: false },
+  { key: "dccb",      label: "DCCB",      visible: false },
+  { key: "security_cameras", label: "Security cameras", visible: false },
+  { key: "weather_station", label: "Weather station", visible: false },
+  { key: "weather_sensors", label: "Sensors", visible: false },
 ];
 const LAYER_LABEL_KEYS: Record<string, string> = {
   row_labels:  "layers.rowNumbers",
@@ -963,7 +965,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setLayers((prev) => {
       let changed = false;
       const next = prev.map((layer) => {
-        if ((layer.key === "row_labels" || layer.key === "string_zones") && !layer.visible) {
+        if ((layer.key === "row_labels" || layer.key === "string_zones" || layer.key === "string_topology") && !layer.visible) {
           changed = true;
           return { ...layer, visible: true };
         }
@@ -1983,13 +1985,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     editable: true, singleClickEdit: true,
                     cellEditor: "agSelectCellEditor",
                     cellEditorParams: { values: STRING_STATUS_ORDER },
-                    refData: STRING_STATUS_ORDER.reduce((a: any, k) => { a[k] = t(`strings.status.${k}`); return a; }, {}),
                     valueFormatter: (p: any) => t(`strings.status.${normStringStatus(p.value)}`),
                     cellRenderer: (p: any) => {
                       const code = normStringStatus(p.value);
                       const m = STRING_STATUS_META[code];
-                      const label = t(`strings.status.${code}`);
-                      return `<span style="display:inline-flex;align-items:center;gap:6px;font-weight:600;color:${m.color}"><span style="font-size:14px">${m.icon}</span>${label}</span>`;
+                      return (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: m.color }}>
+                          <span style={{ fontSize: 14, lineHeight: 1 }}>{m.icon}</span>
+                          {t(`strings.status.${code}`)}
+                        </span>
+                      );
                     },
                   },
                   { field: "start_row", headerName: t("strings.col.startRow"), width: 110, type: "numericColumn" },
