@@ -275,5 +275,10 @@
       "modules": "الوحدات",
       "splitStrings": "السلاسل المقسّمة"
     }
+  },
+  "grid": {
+    "selectAll": "تحديد الكل",
+    "blank": "فارغ",
+    "noResults": "لا نتائج"
   }
 }

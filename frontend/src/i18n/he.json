@@ -176,8 +176,8 @@
     "dcZones": "אזורי DC",
     "stringZones": "אזורי סטרינג",
     "panelsModules": "פאנלים / מודולים",
-    "optimizers": "אופטימייזרים",
-    "optimizersPerString": "אופטימייזרים / סטרינג",
+    "optimizers": "אופטימזירים",
+    "optimizersPerString": "אופטימזירים / סטרינג",
     "transformers": "שנאים",
     "acZones": "אזורי AC",
     "batteries": "סוללות",
@@ -214,9 +214,9 @@
     "blockLabels": "מספרי בלוקים",
     "inverters": "ממירים",
     "dccb": "לוח DC",
-    "strings": "מחרוזות",
-    "stringRoutes": "מסלולי מחרוזת",
-    "stringPiers": "עמודי מחרוזת",
+    "strings": "סטרינגים",
+    "stringRoutes": "מסלולי סטרינג",
+    "stringPiers": "עמודי סטרינג",
     "panels": "פאנלים",
     "zones": "אזורים"
   },
@@ -228,25 +228,25 @@
     "descRequired": "יש להזין תיאור."
   },
   "strings": {
-    "title": "מחרוזות",
+    "title": "סטרינגים",
     "exportPdf": "ייצוא ל‑PDF",
-    "exportTitle": "דוח סטטוס מחרוזות",
+    "exportTitle": "דוח סטטוס סטרינגים",
     "generated": "הופק",
     "project": "פרויקט",
     "col": {
-      "string": "מחרוזת",
+      "string": "סטרינג",
       "status": "סטטוס",
       "startRow": "שורת התחלה",
       "endRow": "שורת סיום",
       "startPanels": "פאנלים בהתחלה",
       "jumpPanels": "פאנלי מעבר",
       "endPanels": "פאנלים בסיום",
-      "optimizers": "אופטימייזרים",
+      "optimizers": "אופטימזירים",
       "panels": "פאנלים"
     },
     "status": {
       "new": "חדש",
-      "opt_attached": "אופטימייזרים הותקנו",
+      "opt_attached": "אופטימזירים הותקנו",
       "panels_connected": "פאנלים חוברו",
       "volt_tested": "נבדק מתח",
       "blocked": "חסום"
@@ -256,9 +256,9 @@
       "weighted": "משוקלל",
       "blocked": "חסומים"
     },
-    "routesTab": "מסלולי מחרוזת",
+    "routesTab": "מסלולי סטרינג",
     "rowsTab": "שורות פיזיות",
-    "search": "חיפוש מחרוזות…",
+    "search": "חיפוש סטרינגים…",
     "searchRows": "חיפוש שורות…",
     "popup": {
       "comment": "הערה",
@@ -268,12 +268,17 @@
     "rowsCol": {
       "row": "שורה",
       "zone": "אזור",
-      "stringNumbers": "מספרי מחרוזת",
-      "strings": "מחרוזות",
-      "optimizers": "אופטימייזרים",
-      "optimizerPattern": "תבנית אופטימייזרים",
+      "stringNumbers": "מספרי סטרינג",
+      "strings": "סטרינגים",
+      "optimizers": "אופטימזירים",
+      "optimizerPattern": "תבנית אופטימזירים",
       "modules": "מודולים",
-      "splitStrings": "מחרוזות מפוצלות"
+      "splitStrings": "סטרינגים מפוצלים"
     }
+  },
+  "grid": {
+    "selectAll": "בחר הכל",
+    "blank": "ריקים",
+    "noResults": "אין תוצאות"
   }
 }

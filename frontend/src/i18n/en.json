@@ -282,5 +282,10 @@
       "modules": "Modules",
       "splitStrings": "Split Strings"
     }
+  },
+  "grid": {
+    "selectAll": "Select all",
+    "blank": "Blanks",
+    "noResults": "No results"
   }
 }

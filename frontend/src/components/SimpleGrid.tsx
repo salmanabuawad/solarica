@@ -2,6 +2,7 @@ import { AgGridReact } from "ag-grid-react";
 import { themeQuartz } from "ag-grid-community";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useResponsive } from "../hooks/useResponsive";
+import ExcelLikeFilter from "./grid/ExcelLikeFilter";
 
 function setQuickFilter(api, value) {
   if (!api) return;
@@ -44,11 +45,11 @@ export default function SimpleGrid({
   const defaultColDef = useMemo(() => ({
     resizable: true,
     sortable: true,
-    // Column-menu filters (opens via the funnel icon on hover). Floating
-    // filters below every header are disabled intentionally — they make the
-    // header noisy; users filter via the menu and see active filters as
+    // Excel-style filter (checkbox value list + search + OK/Cancel), matching
+    // the buildingsmanager project. Opens from the column header menu. Floating
+    // filters stay off so the header isn't noisy; active filters still show as
     // chips above the grid (rendered by the caller).
-    filter: !isMobile,
+    filter: ExcelLikeFilter,
     floatingFilter: false,
     // Header truncation fallback: if a custom headerTooltip isn't set,
     // fall back to the headerName itself so hover still reveals the full
