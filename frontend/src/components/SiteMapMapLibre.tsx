@@ -36,26 +36,40 @@ import {
 const DEG_PER_PT = 0.001;
 const pt2lng = (pt: number) => pt * DEG_PER_PT;
 const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
-const STRING_STATUSES = ["new", "completed", "verified"] as const;
+// String Status Engine — 5-state MVP. Shared status presentation.
+const STRING_STATUSES = ["new", "opt_attached", "panels_connected", "volt_tested", "blocked"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   new: "New",
-  completed: "Completed",
-  verified: "Verified",
+  opt_attached: "Optimizers mounted",
+  panels_connected: "Panels connected",
+  volt_tested: "Volt tested",
+  blocked: "Blocked",
 };
 const STRING_STATUS_ICONS: Record<string, string> = {
   new: "○",
-  completed: "✓",
-  verified: "★",
+  opt_attached: "🔧",
+  panels_connected: "▦",
+  volt_tested: "⚡",
+  blocked: "⛔",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
-  new: "#64748b",
-  completed: "#16a34a",
-  verified: "#2563eb",
+  new: "#9ca3af",
+  opt_attached: "#3b82f6",
+  panels_connected: "#eab308",
+  volt_tested: "#16a34a",
+  blocked: "#dc2626",
+};
+const STRING_STATUS_BG: Record<string, string> = {
+  new: "#f3f4f6",
+  opt_attached: "#dbeafe",
+  panels_connected: "#fef9c3",
+  volt_tested: "#dcfce7",
+  blocked: "#fee2e2",
 };
 
 function normalizeStringStatus(status: any) {
   const s = String(status || "new").toLowerCase();
-  return STRING_STATUSES.includes(s as any) ? s : "new";
+  return (STRING_STATUSES as readonly string[]).includes(s) ? s : "new";
 }
 
 function rotatedToLngLat(
@@ -3763,7 +3777,7 @@ function StringStatusModal({
                 <span style={{ color: STRING_STATUS_COLORS[status], fontSize: 17, width: 20 }}>
                   {STRING_STATUS_ICONS[status]}
                 </span>
-                <span>{STRING_STATUS_LABELS[status]}</span>
+                <span>{t(`strings.status.${status}`, STRING_STATUS_LABELS[status])}</span>
               </button>
             );
           })}

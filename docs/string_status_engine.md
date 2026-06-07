@@ -13,15 +13,27 @@ BHK reference: 8.2 MWp · 12,672 modules · 6,336 optimizers · **288 strings** 
 
 ## 1. Status model (MVP — exactly 5)
 
-| # | Status | Code | Colour | Meaning |
-|---|---|---|---|---|
-| 1 | NEW | `NEW` | Gray `#9ca3af` | In EPL, no field work |
-| 2 | Optimizers attached | `OPT_ATTACHED` | Blue `#3b82f6` | Optimizers mounted, panels not connected |
-| 3 | Panel‑optimizers connected | `PANELS_CONNECTED` | Yellow `#eab308` | Physically assembled, voltage pending |
-| 4 | Volt tested | `VOLT_TESTED` | Green `#16a34a` | Voltage measured + passed |
-| 5 | Blocked | `BLOCKED` | Red `#dc2626` | Execution stopped, needs action (from any state) |
+| # | Status | Code | Colour | Icon (glyph / lucide) | Meaning |
+|---|---|---|---|---|---|
+| 1 | NEW | `NEW` | Gray `#9ca3af` | ○ / `circle-dashed` | In EPL, no field work |
+| 2 | Optimizers mounted | `OPT_ATTACHED` | Blue `#3b82f6` | 🔧 / `wrench` | Optimizers mounted, panels not connected |
+| 3 | Panel‑optimizers connected | `PANELS_CONNECTED` | Yellow `#eab308` | ▦ / `layout-grid` | Physically assembled, voltage pending |
+| 4 | Volt tested | `VOLT_TESTED` | Green `#16a34a` | ⚡ / `zap` (✓ pass) | Voltage measured + passed |
+| 5 | Blocked | `BLOCKED` | Red `#dc2626` | ⛔ / `octagon-x` | Execution stopped, needs action (from any state) |
 
-Each string has **one and only one** active status. `BLOCKED` records the state it interrupted (`pre_block_status`) so resolution restores context.
+Each status has a **colour, an icon, and a label** — used consistently everywhere (map markers, grid chips, dashboards, mobile buttons). Each string has **one and only one** active status. `BLOCKED` records the state it interrupted (`pre_block_status`) so resolution restores context.
+
+Single source of truth for status presentation (frontend constant):
+
+```ts
+export const STATUS_META = {
+  NEW:              { label: "New",              color: "#9ca3af", bg: "#f3f4f6", icon: "circle-dashed" },
+  OPT_ATTACHED:     { label: "Optimizers mounted", color: "#3b82f6", bg: "#dbeafe", icon: "wrench" },
+  PANELS_CONNECTED: { label: "Panels connected", color: "#eab308", bg: "#fef9c3", icon: "layout-grid" },
+  VOLT_TESTED:      { label: "Volt tested",      color: "#16a34a", bg: "#dcfce7", icon: "zap" },
+  BLOCKED:          { label: "Blocked",          color: "#dc2626", bg: "#fee2e2", icon: "octagon-x" },
+} as const;
+```
 
 ## 2. State machine
 
@@ -159,7 +171,11 @@ Default weights (configurable per contract): NEW 0, OPT 0.33, PANELS 0.66, VOLT 
 ## 6. Map + grid rendering
 
 - **Map:** a `string_status` fill/line layer keyed by `status` → the 5 colours (expression `match ['get','status'] ...`). Reuse the string geometry already on the map; box‑select + bulk status from the existing toolbar.
-- **Grid:** add a **Status** column (coloured chip) + filter; row‑grouped view:
+- **Grid:** **Status** column = icon + coloured chip + label; **the whole row background is tinted by status** (`STATUS_META[status].bg`), BLOCKED rows red. ag‑grid `getRowStyle`/`rowClassRules`:
+  ```ts
+  getRowStyle: p => ({ background: STATUS_META[p.data.status]?.bg ?? "#fff" })
+  ```
+  Plus status filter + row‑grouped view:
   ```
   Row 45:  S.1.5.1 🟢  S.1.5.2 🟢  S.1.5.3 🟡  S.1.5.4 🔵  S.1.5.5 🔴
   ```
@@ -207,4 +223,24 @@ Each phase is shippable and additive; future states (IV_CURVE, QA, COMMISSIONED)
 
 ---
 
-*Next: implement Phase 0 + Phase 1 (status model end‑to‑end on the map/grid), reusing the pier‑status infrastructure.*
+## 11. Implementation status (shipped — MVP build)
+
+Built directly on the existing `string_records` table (no separate seed step needed — strings are keyed by their `x.x.x.x` code, joined to the EPL topology on read).
+
+**Backend (`backend/app/main.py`)** — live:
+- 5‑state model: `STRING_STATUS_VALUES = {new, opt_attached, panels_connected, volt_tested, blocked}`, plus `STRING_STATUS_ALLOWED` (transition table), `STRING_STATUS_WEIGHT`, `PAYMENT_ELIGIBLE_STATUS="volt_tested"`.
+- Schema (auto‑ensured on startup, each DDL run separately): `string_records.pre_block_status` column + `string_status_history`, `string_voltage_test`, `string_blocker` tables (+ indexes, partial index on open blockers).
+- Routes:
+  - `PUT  /api/projects/{pid}/strings/{sid}/status` — sets status, stores `pre_block_status` on block, writes a history row. (Manual picker may set any state; guided flows drive canonical transitions.)
+  - `POST /api/projects/{pid}/strings/{sid}/voltage-test` — records expected/measured/result (+GPS, technician); auto‑PASS within 5% tolerance; on PASS auto‑sets `volt_tested` + history.
+  - `POST /api/projects/{pid}/strings/{sid}/blocker` — opens a blocker, sets `blocked`, saves `pre_block_status`, history.
+  - `POST /api/projects/{pid}/string-blockers/{bid}/resolve` — closes blocker, restores `pre_block_status` (or `resume_to`), history.
+  - `GET  /api/projects/{pid}/strings/progress` — total, by_status, pct, **verified %** (volt_tested share), **weighted %**, payment_eligible count, open_blockers, by_row, by_zone.
+
+**Frontend** — live:
+- Shared 5‑state presentation (`STRING_STATUS_META`: label/icon/color/bg) in `App.tsx` and `SiteMapMapLibre.tsx`.
+- Map: string lines + markers coloured by status; click‑to‑inspect popup status picker shows all 5 states with icons.
+- Strings grid (Details → String routes): **Status column** (icon + label chip, single‑click dropdown editor) and **row background coloured by status** (red = blocked), wired to `handleStringStatusChange` (optimistic + offline queue).
+- **Verified‑Progress strip** above the grid: stacked progress bar, `⚡ verified %`, weighted %, blocked count, and per‑status count chips.
+
+**Pending (next increments):** role dashboards (§6), Payment Intelligence contract view (§7), mobile QR/barcode + numeric voltage pad (§9), re‑enable PWA offline shell (currently self‑destructing), and persisting EPL strings into a dedicated `string` table if richer per‑string fields are needed.

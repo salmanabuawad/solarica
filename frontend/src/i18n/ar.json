@@ -196,5 +196,35 @@
     "descriptionPH": "لماذا تم رفض هذا العمود؟",
     "attachments": "صور / فيديو",
     "descRequired": "يرجى إدخال وصف."
+  },
+  "strings": {
+    "title": "السلاسل",
+    "exportPdf": "تصدير PDF",
+    "exportTitle": "تقرير حالة السلاسل",
+    "generated": "تم الإنشاء",
+    "project": "المشروع",
+    "col": {
+      "string": "السلسلة",
+      "status": "الحالة",
+      "startRow": "صف البداية",
+      "endRow": "صف النهاية",
+      "startPanels": "ألواح البداية",
+      "jumpPanels": "ألواح القفز",
+      "endPanels": "ألواح النهاية",
+      "optimizers": "المُحسِّنات",
+      "panels": "الألواح"
+    },
+    "status": {
+      "new": "جديد",
+      "opt_attached": "تم تركيب المُحسِّنات",
+      "panels_connected": "تم توصيل الألواح",
+      "volt_tested": "تم اختبار الجهد",
+      "blocked": "محظور"
+    },
+    "progress": {
+      "verified": "مُتحقَّق",
+      "weighted": "مُرجَّح",
+      "blocked": "محظورة"
+    }
   }
 }

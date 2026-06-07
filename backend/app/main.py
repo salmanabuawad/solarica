@@ -940,23 +940,75 @@ def _startup_pier_status_events() -> None:
 ATTACHMENT_MAX_SIZE_MB = 25
 ATTACHMENT_MIME_PREFIXES = ("image/", "video/")
 STRING_IMAGE_MAX_SIZE_MB = 12
-STRING_STATUS_VALUES = {"new", "completed", "verified"}
+# --- String Status Engine (5-state MVP) ----------------------------------
+# NEW -> OPT_ATTACHED -> PANELS_CONNECTED -> VOLT_TESTED ; BLOCKED from any.
+STRING_STATUS_VALUES = {"new", "opt_attached", "panels_connected", "volt_tested", "blocked"}
+STRING_STATUS_ALLOWED = {
+    "new":              {"opt_attached", "blocked"},
+    "opt_attached":     {"panels_connected", "blocked", "new"},
+    "panels_connected": {"volt_tested", "blocked", "opt_attached"},
+    "volt_tested":      {"blocked", "panels_connected"},
+    # resolving a blocker can restore any prior state
+    "blocked":          {"new", "opt_attached", "panels_connected", "volt_tested"},
+}
+# state used to weight Verified Progress (configurable per contract)
+STRING_STATUS_WEIGHT = {"new": 0.0, "opt_attached": 0.33, "panels_connected": 0.66, "volt_tested": 1.0, "blocked": 0.0}
+PAYMENT_ELIGIBLE_STATUS = "volt_tested"
 STRING_RECORDS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS string_records (
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   string_id  TEXT NOT NULL,
   status     TEXT NOT NULL DEFAULT 'new',
+  pre_block_status TEXT,
   comment    TEXT NOT NULL DEFAULT '',
   images     JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (project_id, string_id)
 );
+ALTER TABLE string_records ADD COLUMN IF NOT EXISTS pre_block_status TEXT;
+CREATE TABLE IF NOT EXISTS string_status_history (
+  id          BIGSERIAL PRIMARY KEY,
+  project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  string_id   TEXT NOT NULL,
+  from_status TEXT,
+  to_status   TEXT NOT NULL,
+  actor       TEXT,
+  note        TEXT,
+  gps_lat     NUMERIC, gps_lng NUMERIC,
+  changed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_ssh_proj_string ON string_status_history(project_id, string_id);
+CREATE TABLE IF NOT EXISTS string_voltage_test (
+  id          BIGSERIAL PRIMARY KEY,
+  project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  string_id   TEXT NOT NULL,
+  expected_voltage NUMERIC, measured_voltage NUMERIC,
+  result      TEXT, technician TEXT,
+  gps_lat     NUMERIC, gps_lng NUMERIC,
+  tested_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS string_blocker (
+  id          BIGSERIAL PRIMARY KEY,
+  project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  string_id   TEXT NOT NULL,
+  category    TEXT, severity TEXT DEFAULT 'medium', reason TEXT,
+  state       TEXT NOT NULL DEFAULT 'open',
+  created_by  TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_by TEXT, resolved_at TIMESTAMPTZ, resolution_note TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_blocker_open ON string_blocker(project_id, string_id) WHERE state='open';
 """
 
 
 def _ensure_string_records_schema() -> None:
+    # Execute each DDL statement separately: psycopg3's extended-protocol
+    # execute() does not reliably run multiple semicolon-separated statements
+    # in one call. None of these statements contain a ';' inside a literal,
+    # so a simple split is safe.
+    statements = [s.strip() for s in STRING_RECORDS_SCHEMA_SQL.split(";") if s.strip()]
     with db_store.get_conn() as conn, conn.cursor() as cur:
-        cur.execute(STRING_RECORDS_SCHEMA_SQL)
+        for stmt in statements:
+            cur.execute(stmt)
         conn.commit()
 
 
@@ -1000,25 +1052,182 @@ def api_get_string_records(project_id: str):
     return {"strings": {r["string_id"]: _normalize_string_record(r) for r in rows}}
 
 
+def _string_current_status(cur, uu: str, string_id: str):
+    cur.execute("SELECT status, pre_block_status FROM string_records WHERE project_id=%s AND string_id=%s", (uu, string_id))
+    r = cur.fetchone()
+    return (r["status"] if r else "new"), (r.get("pre_block_status") if r else None)
+
+
+def _string_history(cur, uu: str, string_id: str, frm, to, actor=None, note=None, gps=None):
+    g = gps or {}
+    cur.execute(
+        "INSERT INTO string_status_history (project_id, string_id, from_status, to_status, actor, note, gps_lat, gps_lng)"
+        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+        (uu, string_id, frm, to, actor, note, g.get("lat"), g.get("lng")),
+    )
+
+
 @app.put("/api/projects/{project_id}/strings/{string_id}/status")
 def api_update_string_status(project_id: str, string_id: str, body: dict = Body(...)):
     uu = _require_project_uuid(project_id)
-    status = str(body.get("status") or "new").lower()
-    if status not in STRING_STATUS_VALUES:
+    to = str(body.get("status") or "new").lower()
+    if to not in STRING_STATUS_VALUES:
         raise HTTPException(400, f"Invalid string status. Must be one of: {sorted(STRING_STATUS_VALUES)}")
+    actor, note, gps = body.get("actor"), body.get("note"), body.get("gps")
+    # MVP: the manual picker may set any of the 5 states; the guided flows
+    # (voltage-test, blocker, resolve) drive the canonical transitions. The
+    # allowed-transition table (STRING_STATUS_ALLOWED) is kept for those.
     with db_store.get_conn() as conn, conn.cursor() as cur:
+        frm, pre = _string_current_status(cur, uu, string_id)
+        pre_block = frm if (to == "blocked" and frm != "blocked") else (pre if to == "blocked" else None)
         cur.execute(
             """
-            INSERT INTO string_records (project_id, string_id, status)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (project_id, string_id) DO UPDATE SET status = EXCLUDED.status, updated_at = NOW()
+            INSERT INTO string_records (project_id, string_id, status, pre_block_status)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (project_id, string_id) DO UPDATE SET
+              status = EXCLUDED.status, pre_block_status = EXCLUDED.pre_block_status, updated_at = NOW()
             RETURNING status, comment, images, updated_at
             """,
-            (uu, string_id, status),
+            (uu, string_id, to, pre_block),
         )
         row = cur.fetchone()
+        if to != frm:
+            _string_history(cur, uu, string_id, frm, to, actor, note, gps)
         conn.commit()
     return {"string_id": string_id, **_normalize_string_record(row)}
+
+
+@app.post("/api/projects/{project_id}/strings/{string_id}/voltage-test")
+def api_string_voltage_test(project_id: str, string_id: str, body: dict = Body(...)):
+    uu = _require_project_uuid(project_id)
+    expected = body.get("expected_voltage")
+    measured = body.get("measured_voltage")
+    result = str(body.get("result") or "").upper()
+    if result not in ("PASS", "FAIL"):
+        try:
+            result = "PASS" if (expected and measured and abs(float(measured) - float(expected)) <= 0.05 * float(expected)) else "FAIL"
+        except Exception:
+            result = "FAIL"
+    tech, gps = body.get("technician") or body.get("actor"), body.get("gps") or {}
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO string_voltage_test (project_id,string_id,expected_voltage,measured_voltage,result,technician,gps_lat,gps_lng)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, tested_at",
+            (uu, string_id, expected, measured, result, tech, gps.get("lat"), gps.get("lng")),
+        )
+        vt = cur.fetchone()
+        new_status = None
+        if result == "PASS":
+            frm, _ = _string_current_status(cur, uu, string_id)
+            cur.execute(
+                "INSERT INTO string_records (project_id,string_id,status) VALUES (%s,%s,'volt_tested')"
+                " ON CONFLICT (project_id,string_id) DO UPDATE SET status='volt_tested', pre_block_status=NULL, updated_at=NOW()",
+                (uu, string_id),
+            )
+            _string_history(cur, uu, string_id, frm, "volt_tested", tech, f"voltage {measured}V {result}", gps)
+            new_status = "volt_tested"
+        conn.commit()
+    return {"string_id": string_id, "result": result, "test_id": vt["id"], "status": new_status}
+
+
+@app.post("/api/projects/{project_id}/strings/{string_id}/blocker")
+def api_string_blocker(project_id: str, string_id: str, body: dict = Body(...)):
+    uu = _require_project_uuid(project_id)
+    cat, sev, reason = body.get("category"), body.get("severity") or "medium", body.get("reason")
+    actor, gps = body.get("created_by") or body.get("actor"), body.get("gps") or {}
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO string_blocker (project_id,string_id,category,severity,reason,created_by)"
+            " VALUES (%s,%s,%s,%s,%s,%s) RETURNING id, created_at",
+            (uu, string_id, cat, sev, reason, actor),
+        )
+        b = cur.fetchone()
+        frm, pre = _string_current_status(cur, uu, string_id)
+        keep_pre = frm if frm != "blocked" else pre
+        cur.execute(
+            "INSERT INTO string_records (project_id,string_id,status,pre_block_status) VALUES (%s,%s,'blocked',%s)"
+            " ON CONFLICT (project_id,string_id) DO UPDATE SET status='blocked', pre_block_status=%s, updated_at=NOW()",
+            (uu, string_id, keep_pre, keep_pre),
+        )
+        if frm != "blocked":
+            _string_history(cur, uu, string_id, frm, "blocked", actor, reason, gps)
+        conn.commit()
+    return {"string_id": string_id, "blocker_id": b["id"], "status": "blocked"}
+
+
+@app.post("/api/projects/{project_id}/string-blockers/{blocker_id}/resolve")
+def api_resolve_string_blocker(project_id: str, blocker_id: int, body: dict = Body(default={})):
+    uu = _require_project_uuid(project_id)
+    note, actor, resume = body.get("note"), body.get("resolved_by") or body.get("actor"), body.get("resume_to")
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT string_id FROM string_blocker WHERE id=%s AND project_id=%s", (blocker_id, uu))
+        br = cur.fetchone()
+        if not br:
+            raise HTTPException(404, "Blocker not found")
+        sid = br["string_id"]
+        cur.execute("UPDATE string_blocker SET state='resolved', resolved_by=%s, resolved_at=NOW(), resolution_note=%s WHERE id=%s",
+                    (actor, note, blocker_id))
+        frm, pre = _string_current_status(cur, uu, sid)
+        to = str(resume or pre or "new").lower()
+        if to not in STRING_STATUS_VALUES:
+            to = "new"
+        cur.execute(
+            "INSERT INTO string_records (project_id,string_id,status,pre_block_status) VALUES (%s,%s,%s,NULL)"
+            " ON CONFLICT (project_id,string_id) DO UPDATE SET status=EXCLUDED.status, pre_block_status=NULL, updated_at=NOW()",
+            (uu, sid, to),
+        )
+        _string_history(cur, uu, sid, frm, to, actor, f"blocker resolved: {note or ''}", None)
+        conn.commit()
+    return {"string_id": sid, "status": to}
+
+
+@app.get("/api/projects/{project_id}/strings/progress")
+def api_string_progress(project_id: str):
+    uu = _require_project_uuid(project_id)
+    meta = db_store.get_project_metadata(uu)
+    topo = ((((meta.get("summary") or {}).get("strings_optimizers") or {}).get("map_data") or {}).get("layers") or {}).get("string_topology") or []
+    info = {}
+    for s in topo:
+        c = s.get("string")
+        if not c:
+            continue
+        parts = str(c).split(".")
+        info[c] = {"rows": [r.get("physical_row") for r in (s.get("rows") or [])],
+                   "zone": ".".join(parts[:3]) if len(parts) >= 3 else c}
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT string_id, status FROM string_records WHERE project_id=%s", (uu,))
+        st = {r["string_id"]: r["status"] for r in cur.fetchall()}
+        cur.execute("SELECT COUNT(*) AS n FROM string_blocker WHERE project_id=%s AND state='open'", (uu,))
+        open_blk = cur.fetchone()["n"]
+    codes = list(info.keys()) or list(st.keys())
+    total = len(codes)
+    by_status = {k: 0 for k in STRING_STATUS_VALUES}
+    by_row, by_zone = {}, {}
+    blank = lambda: {k: 0 for k in STRING_STATUS_VALUES}
+    for c in codes:
+        s = st.get(c, "new")
+        if s not in by_status:
+            s = "new"
+        by_status[s] += 1
+        z = info.get(c, {}).get("zone")
+        if z:
+            by_zone.setdefault(z, blank())[s] += 1
+        for rw in info.get(c, {}).get("rows") or []:
+            if rw is not None:
+                by_row.setdefault(rw, blank())[s] += 1
+    weighted = sum(STRING_STATUS_WEIGHT.get(s, 0) * n for s, n in by_status.items())
+    verified = by_status.get("volt_tested", 0)
+    return {
+        "total": total,
+        "by_status": by_status,
+        "pct": {k: round(100 * v / total, 1) if total else 0 for k, v in by_status.items()},
+        "verified_progress_pct": round(100 * verified / total, 1) if total else 0,
+        "weighted_progress_pct": round(100 * weighted / total, 1) if total else 0,
+        "payment_eligible": verified,
+        "open_blockers": open_blk,
+        "by_row": [{"row": k, **v} for k, v in sorted(by_row.items())],
+        "by_zone": [{"zone": k, **v} for k, v in sorted(by_zone.items())],
+    }
 
 
 @app.put("/api/projects/{project_id}/strings/{string_id}/comment")

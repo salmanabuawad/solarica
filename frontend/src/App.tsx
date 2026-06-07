@@ -27,6 +27,22 @@ import { userPrefs } from "./userPrefs";
 // doesn't pay for it until the user opens the Map tab.
 const SiteMapMapLibre = lazy(() => import("./components/SiteMapMapLibre"));
 
+// String Status Engine — 5-state presentation (kept in sync with
+// SiteMapMapLibre + backend STRING_STATUS_VALUES). Defined here too so the
+// strings grid colours rows without pulling in the heavy lazy map chunk.
+const STRING_STATUS_META: Record<string, { label: string; icon: string; color: string; bg: string }> = {
+  new: { label: "New", icon: "○", color: "#9ca3af", bg: "#f3f4f6" },
+  opt_attached: { label: "Optimizers", icon: "🔧", color: "#3b82f6", bg: "#dbeafe" },
+  panels_connected: { label: "Panels connected", icon: "▦", color: "#eab308", bg: "#fef9c3" },
+  volt_tested: { label: "Volt tested", icon: "⚡", color: "#16a34a", bg: "#dcfce7" },
+  blocked: { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
+};
+const STRING_STATUS_ORDER = ["new", "opt_attached", "panels_connected", "volt_tested", "blocked"];
+const normStringStatus = (s: any) => {
+  const v = String(s || "new").toLowerCase();
+  return STRING_STATUS_META[v] ? v : "new";
+};
+
 const STATUS_OPTIONS = ["New", "In Progress", "Implemented", "Approved", "Rejected", "Fixed"] as const;
 
 // Shared style for the compact topbar icon buttons (buildings-manager
@@ -724,9 +740,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         .filter((e: any) => e.type === "exit_row")
         .map((e: any) => `R${e.physical_row}: ${fmtPair(e.between_panels)}`)
         .join("   ");
+      const code = s?.string || "";
       return {
         id: String(s?.string || `str-${s?.ribbon_idx ?? idx}`),
         string: s?.string || "(unlabeled)",
+        status: code ? normStringStatus(stringStatuses[code]) : "new",
         start_row: start?.physical_row ?? "",
         end_row: end?.physical_row ?? "",
         start_panels: fmtPair(start?.between_panels),
@@ -737,7 +755,25 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         optimizer_count: s?.optimizer_count ?? "",
       };
     });
-  }, [stringTopology]);
+  }, [stringTopology, stringStatuses]);
+
+  // Verified-Progress rollup for the strings grid: status counts + the
+  // weighted progress % (new=0, optimizers=⅓, panels=⅔, volt-tested=1,
+  // blocked contributes 0). "Verified" = the volt-tested share only.
+  const stringProgress = useMemo(() => {
+    const weight: Record<string, number> = { new: 0, opt_attached: 1 / 3, panels_connected: 2 / 3, volt_tested: 1, blocked: 0 };
+    const counts: Record<string, number> = { new: 0, opt_attached: 0, panels_connected: 0, volt_tested: 0, blocked: 0 };
+    for (const r of topologyGridRows) counts[r.status] = (counts[r.status] || 0) + 1;
+    const total = topologyGridRows.length || 0;
+    const weighted = STRING_STATUS_ORDER.reduce((a, k) => a + (weight[k] || 0) * counts[k], 0);
+    return {
+      total,
+      counts,
+      verifiedPct: total ? Math.round((100 * counts.volt_tested) / total) : 0,
+      weightedPct: total ? Math.round((100 * weighted) / total) : 0,
+      blocked: counts.blocked,
+    };
+  }, [topologyGridRows]);
 
   const electricalZoneRows = useMemo(() => {
     const metadata = stringOptimizerModel?.metadata || {};
@@ -1053,6 +1089,60 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     const bg = STATUS_BG[p.data?.status] || "#ffffff";
     return { backgroundColor: bg };
   };
+
+  // Export the currently displayed grid (respecting filter + sort + columns)
+  // to PDF via the browser print engine. Data comes from the ag-grid API, and
+  // rendering through the browser gives correct RTL + Arabic/Hebrew shaping
+  // that a client-side PDF lib cannot do without bundling Unicode fonts.
+  const exportGridToPdf = useCallback((title: string) => {
+    const api: any = pierGridApiRef.current;
+    if (!api) return;
+    const cols: any[] = (api.getAllDisplayedColumns?.() || []).filter((c: any) => c.getColDef?.()?.field);
+    if (!cols.length) return;
+    const esc = (s: any) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const headers = cols.map((c) => esc(c.getColDef().headerName || c.getColId()));
+    const bodyRows: string[] = [];
+    api.forEachNodeAfterFilterAndSort((node: any) => {
+      if (!node?.data) return;
+      const cells = cols.map((c) => {
+        const cd = c.getColDef();
+        let v = node.data[cd.field];
+        if (cd.valueFormatter) { try { v = cd.valueFormatter({ value: v, data: node.data, colDef: cd }); } catch { /* ignore */ } }
+        return `<td>${esc(v == null ? "" : v)}</td>`;
+      });
+      bodyRows.push(`<tr>${cells.join("")}</tr>`);
+    });
+    const dir = isRtl ? "rtl" : "ltr";
+    const align = isRtl ? "right" : "left";
+    const when = new Date().toLocaleString();
+    const html = `<!doctype html><html dir="${dir}" lang="${i18n.language}"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<style>
+  body{font-family:Arial,"Segoe UI","Noto Sans Hebrew","Noto Sans Arabic",sans-serif;margin:22px;color:#0f172a}
+  h1{font-size:17px;margin:0 0 4px}
+  .meta{font-size:11px;color:#64748b;margin-bottom:12px}
+  table{border-collapse:collapse;width:100%;font-size:10.5px}
+  th,td{border:1px solid #cbd5e1;padding:4px 6px;text-align:${align};white-space:nowrap}
+  th{background:#0f172a;color:#fff}
+  tr:nth-child(even) td{background:#f1f5f9}
+  @media print{th,tr:nth-child(even) td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head>
+<body onload="setTimeout(function(){window.print()},150)">
+  <h1>${esc(title)}</h1>
+  <div class="meta">${esc(t("strings.project"))}: ${esc(projectId || "")} &middot; ${esc(t("strings.generated"))}: ${esc(when)} &middot; ${bodyRows.length}</div>
+  <table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${bodyRows.join("")}</tbody></table>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) { setError("Pop-up blocked — allow pop-ups to export the PDF."); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }, [isRtl, t, i18n.language, projectId]);
+
+  // ag-grid caches rendered cells/headers; refresh them when the UI language
+  // changes so translated status labels + headers update in place.
+  useEffect(() => {
+    const api: any = pierGridApiRef.current;
+    if (!api) return;
+    try { api.refreshHeader(); api.refreshCells({ force: true }); } catch { /* ignore */ }
+  }, [i18n.language]);
 
   // Grouped nav: top-level project tabs + a "Configurations" section with children.
   interface NavItem { key: string; label: string; }
@@ -1849,27 +1939,78 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               )}
               <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
                 {eplGridTab === "routes" && stringTopology.length > 0
-                  ? `${topologyGridRows.length.toLocaleString()} strings`
+                  ? `${topologyGridRows.length.toLocaleString()} ${t("strings.title")}`
                   : `${electricalPhysicalRows.length.toLocaleString()} physical rows`}
               </span>
+              <button
+                onClick={() => exportGridToPdf(eplGridTab === "routes" ? t("strings.exportTitle") : t("strings.title"))}
+                title={t("strings.exportPdf")}
+                style={{ marginInlineStart: "auto", fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                <span aria-hidden>🖨️</span> {t("strings.exportPdf")}
+              </button>
             </div>
+            {eplGridTab === "routes" && stringTopology.length > 0 && (
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 220, height: 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                  {STRING_STATUS_ORDER.map((k) => {
+                    const n = stringProgress.counts[k] || 0;
+                    if (!n) return null;
+                    const pct = (100 * n) / (stringProgress.total || 1);
+                    return <div key={k} title={`${t(`strings.status.${k}`)}: ${n}`} style={{ width: `${pct}%`, background: STRING_STATUS_META[k].color }} />;
+                  })}
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>{stringProgress.weightedPct}% {t("strings.progress.weighted")}</span>
+                {stringProgress.blocked > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", whiteSpace: "nowrap" }}>⛔ {stringProgress.blocked} {t("strings.progress.blocked")}</span>
+                )}
+                {STRING_STATUS_ORDER.map((k) => (
+                  <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                    {STRING_STATUS_META[k].icon} {stringProgress.counts[k] || 0}
+                  </span>
+                ))}
+              </div>
+            )}
             {eplGridTab === "routes" && stringTopology.length > 0 ? (
               <SimpleGrid
                 rows={topologyGridRows}
                 columns={[
-                  { field: "string", headerName: "String", width: 130, pinned: "left" },
-                  { field: "start_row", headerName: "Start row", width: 110, type: "numericColumn" },
-                  { field: "end_row", headerName: "End row", width: 110, type: "numericColumn" },
-                  { field: "start_panels", headerName: "Start panels", width: 130 },
-                  { field: "jump_panels", headerName: "Jump panels", minWidth: 200, flex: 1 },
-                  { field: "end_panels", headerName: "End panels", width: 130 },
-                  { field: "optimizer_count", headerName: "Optimizers", width: 120, type: "numericColumn" },
-                  { field: "total_panels", headerName: "Panels", width: 100, type: "numericColumn" },
+                  { field: "string", headerName: t("strings.col.string"), width: 130, pinned: "left" },
+                  {
+                    field: "status", headerName: t("strings.col.status"), width: 184, pinned: "left",
+                    headerTooltip: t("strings.col.status"),
+                    editable: true, singleClickEdit: true,
+                    cellEditor: "agSelectCellEditor",
+                    cellEditorParams: { values: STRING_STATUS_ORDER },
+                    refData: STRING_STATUS_ORDER.reduce((a: any, k) => { a[k] = t(`strings.status.${k}`); return a; }, {}),
+                    valueFormatter: (p: any) => t(`strings.status.${normStringStatus(p.value)}`),
+                    cellRenderer: (p: any) => {
+                      const code = normStringStatus(p.value);
+                      const m = STRING_STATUS_META[code];
+                      const label = t(`strings.status.${code}`);
+                      return `<span style="display:inline-flex;align-items:center;gap:6px;font-weight:600;color:${m.color}"><span style="font-size:14px">${m.icon}</span>${label}</span>`;
+                    },
+                  },
+                  { field: "start_row", headerName: t("strings.col.startRow"), width: 110, type: "numericColumn" },
+                  { field: "end_row", headerName: t("strings.col.endRow"), width: 110, type: "numericColumn" },
+                  { field: "start_panels", headerName: t("strings.col.startPanels"), width: 130 },
+                  { field: "jump_panels", headerName: t("strings.col.jumpPanels"), minWidth: 200, flex: 1 },
+                  { field: "end_panels", headerName: t("strings.col.endPanels"), width: 130 },
+                  { field: "optimizer_count", headerName: t("strings.col.optimizers"), width: 120, type: "numericColumn" },
+                  { field: "total_panels", headerName: t("strings.col.panels"), width: 100, type: "numericColumn" },
                 ]}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
                 quickFilterPlaceholder="Search strings..."
                 getRowId={(p: any) => p.data?.id}
+                getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
+                onCellValueChanged={(e: any) => {
+                  if (e?.colDef?.field !== "status") return;
+                  const code = e.data?.string;
+                  if (!code || code === "(unlabeled)") return;
+                  handleStringStatusChange(code, String(e.newValue));
+                }}
                 gridApiRef={pierGridApiRef}
               />
             ) : (

@@ -196,5 +196,35 @@
     "descriptionPH": "מדוע נדחה העמוד?",
     "attachments": "תמונות / וידאו",
     "descRequired": "יש להזין תיאור."
+  },
+  "strings": {
+    "title": "מחרוזות",
+    "exportPdf": "ייצוא ל‑PDF",
+    "exportTitle": "דוח סטטוס מחרוזות",
+    "generated": "הופק",
+    "project": "פרויקט",
+    "col": {
+      "string": "מחרוזת",
+      "status": "סטטוס",
+      "startRow": "שורת התחלה",
+      "endRow": "שורת סיום",
+      "startPanels": "פאנלים בהתחלה",
+      "jumpPanels": "פאנלי מעבר",
+      "endPanels": "פאנלים בסיום",
+      "optimizers": "אופטימייזרים",
+      "panels": "פאנלים"
+    },
+    "status": {
+      "new": "חדש",
+      "opt_attached": "אופטימייזרים הותקנו",
+      "panels_connected": "פאנלים חוברו",
+      "volt_tested": "נבדק מתח",
+      "blocked": "חסום"
+    },
+    "progress": {
+      "verified": "מאומת",
+      "weighted": "משוקלל",
+      "blocked": "חסומים"
+    }
   }
 }

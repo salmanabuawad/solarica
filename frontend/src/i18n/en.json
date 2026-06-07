@@ -203,5 +203,35 @@
     "descriptionPH": "Why was this pier rejected?",
     "attachments": "Photos / video",
     "descRequired": "Please enter a description."
+  },
+  "strings": {
+    "title": "Strings",
+    "exportPdf": "Export PDF",
+    "exportTitle": "String Status Report",
+    "generated": "Generated",
+    "project": "Project",
+    "col": {
+      "string": "String",
+      "status": "Status",
+      "startRow": "Start row",
+      "endRow": "End row",
+      "startPanels": "Start panels",
+      "jumpPanels": "Jump panels",
+      "endPanels": "End panels",
+      "optimizers": "Optimizers",
+      "panels": "Panels"
+    },
+    "status": {
+      "new": "New",
+      "opt_attached": "Optimizers mounted",
+      "panels_connected": "Panels connected",
+      "volt_tested": "Volt tested",
+      "blocked": "Blocked"
+    },
+    "progress": {
+      "verified": "verified",
+      "weighted": "weighted",
+      "blocked": "blocked"
+    }
   }
 }
