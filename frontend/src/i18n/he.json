@@ -135,7 +135,13 @@
     "validation": "אימות",
     "parse": "פרס",
     "parsing": "מנתח…",
-    "selectOrCreate": "בחרו או צרו פרויקט כדי להעלות קבצים."
+    "selectOrCreate": "בחרו או צרו פרויקט כדי להעלות קבצים.",
+    "zonesRows": "אזורים / שורות",
+    "piersTrackers": "עמודים / טרקרים",
+    "dcZone": "אזור DC",
+    "acZone": "אזור AC",
+    "storageZone": "אזור אחסון",
+    "camerasSecurity": "מצלמות / אבטחה"
   },
   "field": {
     "project": "פרויקט",
@@ -162,7 +168,26 @@
     "length": "אורך (מ׳)",
     "width": "רוחב (מ׳)",
     "pitch": "מרווח (מ׳)",
-    "tolerance": "סף סטייה"
+    "tolerance": "סף סטייה",
+    "zonesSections": "אזורים / מקטעים",
+    "physicalRows": "שורות פיזיות",
+    "rowsWithWork": "שורות עם עבודה",
+    "trackerRows": "שורות טרקר",
+    "dcZones": "אזורי DC",
+    "stringZones": "אזורי סטרינג",
+    "panelsModules": "פאנלים / מודולים",
+    "optimizers": "אופטימייזרים",
+    "optimizersPerString": "אופטימייזרים / סטרינג",
+    "transformers": "שנאים",
+    "acZones": "אזורי AC",
+    "batteries": "סוללות",
+    "storageZones": "אזורי אחסון",
+    "pcsInverters": "PCS / ממירים",
+    "capacityMwh": "קיבולת (MWh)",
+    "cameras": "מצלמות",
+    "cameraZones": "אזורי מצלמות",
+    "networkDevices": "התקני רשת",
+    "parseScope": "היקף ניתוח"
   },
   "users": {
     "title": "משתמשים",

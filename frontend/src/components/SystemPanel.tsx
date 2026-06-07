@@ -418,57 +418,57 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
             <MetaField label={t("field.nextracker")} value={plantInfo?.nextracker_model} />
           </MetaGrid>
 
-          <SectionTitle>Zones / Rows</SectionTitle>
+          <SectionTitle>{t("sp.zonesRows")}</SectionTitle>
           <MetaGrid compact={compact}>
-            <MetaField label="Zones / Sections" value={formatMetaValue(zoneCount)} />
-            <MetaField label="Physical Rows" value={formatMetaValue(physicalRowCount)} />
-            <MetaField label="Rows With Work" value={formatMetaValue(rowsWithWork)} />
+            <MetaField label={t("field.zonesSections")} value={formatMetaValue(zoneCount)} />
+            <MetaField label={t("field.physicalRows")} value={formatMetaValue(physicalRowCount)} />
+            <MetaField label={t("field.rowsWithWork")} value={formatMetaValue(rowsWithWork)} />
             <MetaField label={t("field.blocks")} value={formatMetaValue(project.block_count)} />
           </MetaGrid>
 
-          <SectionTitle>Piers / Trackers</SectionTitle>
+          <SectionTitle>{t("sp.piersTrackers")}</SectionTitle>
           <MetaGrid compact={compact}>
             <MetaField label={t("field.piers")} value={formatMetaValue(project.pier_count)} />
             <MetaField label={t("field.trackers")} value={formatMetaValue(project.tracker_count)} />
-            <MetaField label="Tracker Rows" value={formatMetaValue(trackerRowCount)} />
+            <MetaField label={t("field.trackerRows")} value={formatMetaValue(trackerRowCount)} />
             <MetaField label={t("field.blocks")} value={formatMetaValue(project.block_count)} />
           </MetaGrid>
 
-          <SectionTitle>DC Zone</SectionTitle>
+          <SectionTitle>{t("sp.dcZone")}</SectionTitle>
           <MetaGrid compact={compact}>
-            <MetaField label="DC Zones" value={formatMetaValue(firstDefined(plantInfo?.dc_zones, zoneCount))} />
-            <MetaField label="String Zones" value={formatMetaValue(zoneCount)} />
-            <MetaField label="Panels / Modules" value={formatMetaValue(panelCount)} />
+            <MetaField label={t("field.dcZones")} value={formatMetaValue(firstDefined(plantInfo?.dc_zones, zoneCount))} />
+            <MetaField label={t("field.stringZones")} value={formatMetaValue(zoneCount)} />
+            <MetaField label={t("field.panelsModules")} value={formatMetaValue(panelCount)} />
             <MetaField label={t("field.totalStrings")} value={formatMetaValue(stringCount)} />
-            <MetaField label="Optimizers" value={formatMetaValue(optimizerCount)} />
+            <MetaField label={t("field.optimizers")} value={formatMetaValue(optimizerCount)} />
             <MetaField label={t("field.dccb")} value={formatMetaValue(plantInfo?.dccb)} />
             <MetaField label={t("field.modulesPerString")} value={formatMetaValue(modulesPerString)} />
-            <MetaField label="Optimizers / String" value={formatMetaValue(optimizersPerString)} />
+            <MetaField label={t("field.optimizersPerString")} value={formatMetaValue(optimizersPerString)} />
             <MetaField label={t("field.stringGroups")} value={formatMetaValue(plantInfo?.string_groups)} />
           </MetaGrid>
 
-          <SectionTitle>AC Zone</SectionTitle>
+          <SectionTitle>{t("sp.acZone")}</SectionTitle>
           <MetaGrid compact={compact}>
             <MetaField label={t("field.inverters")} value={plantInfo?.inverters} />
-            <MetaField label="Transformers" value={formatMetaValue(firstDefined(plantInfo?.transformers, project.transformer_count))} />
+            <MetaField label={t("field.transformers")} value={formatMetaValue(firstDefined(plantInfo?.transformers, project.transformer_count))} />
             <MetaField label={t("field.totalOutput")} value={plantInfo?.total_output_mw} />
-            <MetaField label="AC Zones" value={formatMetaValue(firstDefined(plantInfo?.ac_zones, project.ac_zone_count))} />
+            <MetaField label={t("field.acZones")} value={formatMetaValue(firstDefined(plantInfo?.ac_zones, project.ac_zone_count))} />
           </MetaGrid>
 
-          <SectionTitle>Storage Zone</SectionTitle>
+          <SectionTitle>{t("sp.storageZone")}</SectionTitle>
           <MetaGrid compact={compact}>
-            <MetaField label="Batteries" value={formatMetaValue(firstDefined(plantInfo?.batteries, project.battery_count))} />
-            <MetaField label="Storage Zones" value={formatMetaValue(firstDefined(plantInfo?.storage_zones, project.storage_zone_count))} />
-            <MetaField label="PCS / Inverters" value={formatMetaValue(firstDefined(plantInfo?.pcs, project.pcs_count))} />
-            <MetaField label="Capacity (MWh)" value={formatMetaValue(firstDefined(plantInfo?.storage_capacity_mwh, project.storage_capacity_mwh))} />
+            <MetaField label={t("field.batteries")} value={formatMetaValue(firstDefined(plantInfo?.batteries, project.battery_count))} />
+            <MetaField label={t("field.storageZones")} value={formatMetaValue(firstDefined(plantInfo?.storage_zones, project.storage_zone_count))} />
+            <MetaField label={t("field.pcsInverters")} value={formatMetaValue(firstDefined(plantInfo?.pcs, project.pcs_count))} />
+            <MetaField label={t("field.capacityMwh")} value={formatMetaValue(firstDefined(plantInfo?.storage_capacity_mwh, project.storage_capacity_mwh))} />
           </MetaGrid>
 
-          <SectionTitle>Cameras / Security</SectionTitle>
+          <SectionTitle>{t("sp.camerasSecurity")}</SectionTitle>
           <MetaGrid compact={compact}>
-            <MetaField label="Cameras" value={formatMetaValue(firstDefined(plantInfo?.cameras, project.camera_count))} />
-            <MetaField label="Camera Zones" value={formatMetaValue(firstDefined(plantInfo?.camera_zones, project.camera_zone_count))} />
-            <MetaField label="Network Devices" value={formatMetaValue(firstDefined(plantInfo?.network_devices, project.network_device_count))} />
-            <MetaField label="Parse Scope" value={project.parse_scope} />
+            <MetaField label={t("field.cameras")} value={formatMetaValue(firstDefined(plantInfo?.cameras, project.camera_count))} />
+            <MetaField label={t("field.cameraZones")} value={formatMetaValue(firstDefined(plantInfo?.camera_zones, project.camera_zone_count))} />
+            <MetaField label={t("field.networkDevices")} value={formatMetaValue(firstDefined(plantInfo?.network_devices, project.network_device_count))} />
+            <MetaField label={t("field.parseScope")} value={project.parse_scope} />
           </MetaGrid>
 
           <SectionTitle>{t("sp.module")}</SectionTitle>

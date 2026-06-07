@@ -142,7 +142,13 @@
     "validation": "Validation",
     "parse": "Parse",
     "parsing": "Parsing…",
-    "selectOrCreate": "Select or create a project to upload files."
+    "selectOrCreate": "Select or create a project to upload files.",
+    "zonesRows": "Zones / Rows",
+    "piersTrackers": "Piers / Trackers",
+    "dcZone": "DC Zone",
+    "acZone": "AC Zone",
+    "storageZone": "Storage Zone",
+    "camerasSecurity": "Cameras / Security"
   },
   "field": {
     "project": "Project",
@@ -169,7 +175,26 @@
     "length": "Length (m)",
     "width": "Width (m)",
     "pitch": "Pitch (m)",
-    "tolerance": "Tolerance"
+    "tolerance": "Tolerance",
+    "zonesSections": "Zones / Sections",
+    "physicalRows": "Physical Rows",
+    "rowsWithWork": "Rows With Work",
+    "trackerRows": "Tracker Rows",
+    "dcZones": "DC Zones",
+    "stringZones": "String Zones",
+    "panelsModules": "Panels / Modules",
+    "optimizers": "Optimizers",
+    "optimizersPerString": "Optimizers / String",
+    "transformers": "Transformers",
+    "acZones": "AC Zones",
+    "batteries": "Batteries",
+    "storageZones": "Storage Zones",
+    "pcsInverters": "PCS / Inverters",
+    "capacityMwh": "Capacity (MWh)",
+    "cameras": "Cameras",
+    "cameraZones": "Camera Zones",
+    "networkDevices": "Network Devices",
+    "parseScope": "Parse Scope"
   },
   "users": {
     "title": "Users",

@@ -135,7 +135,13 @@
     "validation": "التحقق",
     "parse": "تحليل",
     "parsing": "جاري التحليل…",
-    "selectOrCreate": "اختر أو أنشئ مشروعاً لرفع الملفات."
+    "selectOrCreate": "اختر أو أنشئ مشروعاً لرفع الملفات.",
+    "zonesRows": "المناطق / الصفوف",
+    "piersTrackers": "الأعمدة / المتتبعات",
+    "dcZone": "منطقة DC",
+    "acZone": "منطقة AC",
+    "storageZone": "منطقة التخزين",
+    "camerasSecurity": "الكاميرات / الأمن"
   },
   "field": {
     "project": "المشروع",
@@ -162,7 +168,26 @@
     "length": "الطول (م)",
     "width": "العرض (م)",
     "pitch": "التباعد (م)",
-    "tolerance": "التفاوت"
+    "tolerance": "التفاوت",
+    "zonesSections": "المناطق / الأقسام",
+    "physicalRows": "الصفوف الفعلية",
+    "rowsWithWork": "الصفوف قيد العمل",
+    "trackerRows": "صفوف المتتبع",
+    "dcZones": "مناطق DC",
+    "stringZones": "مناطق السلاسل",
+    "panelsModules": "الألواح / الوحدات",
+    "optimizers": "المُحسِّنات",
+    "optimizersPerString": "المُحسِّنات / سلسلة",
+    "transformers": "المحولات",
+    "acZones": "مناطق AC",
+    "batteries": "البطاريات",
+    "storageZones": "مناطق التخزين",
+    "pcsInverters": "PCS / العاكسات",
+    "capacityMwh": "السعة (MWh)",
+    "cameras": "الكاميرات",
+    "cameraZones": "مناطق الكاميرات",
+    "networkDevices": "أجهزة الشبكة",
+    "parseScope": "نطاق التحليل"
   },
   "users": {
     "title": "المستخدمون",
