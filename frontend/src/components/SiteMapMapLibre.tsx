@@ -113,6 +113,7 @@ export default function SiteMapMapLibre({
   onBlockClick,
   onTrackerClick,
   onPierClick,
+  canEdit = true,
   onStringStatusChange,
   onStringImageAdd,
   onStringCommentChange,
@@ -3569,6 +3570,7 @@ export default function SiteMapMapLibre({
           }}
           onImageAdd={(file) => onStringImageAdd?.(selectedString.id, file)}
           onCommentChange={(comment) => onStringCommentChange?.(selectedString.id, comment)}
+          canEdit={canEdit}
           onClose={() => setSelectedString(null)}
         />
       )}
@@ -3685,12 +3687,14 @@ function StringStatusModal({
   onStatusChange,
   onImageAdd,
   onCommentChange,
+  canEdit = true,
   onClose,
 }: {
   stringInfo: any;
   onStatusChange: (status: string) => void;
   onImageAdd: (file: File) => void;
   onCommentChange: (comment: string) => void;
+  canEdit?: boolean;
   onClose: () => void;
 }) {
   const currentStatus = normalizeStringStatus(stringInfo?.status);
@@ -3763,9 +3767,10 @@ function StringStatusModal({
             return (
               <button
                 key={status}
-                onClick={() => onStatusChange(status)}
+                disabled={!canEdit}
+                onClick={canEdit ? () => onStatusChange(status) : undefined}
                 style={{
-                  display: "flex",
+                  display: (!canEdit && !active) ? "none" : "flex",
                   alignItems: "center",
                   gap: 10,
                   padding: "10px 12px",
@@ -3774,7 +3779,7 @@ function StringStatusModal({
                   background: active ? "#f8fafc" : "#fff",
                   color: active ? "#0f172a" : "#334155",
                   fontWeight: active ? 800 : 600,
-                  cursor: "pointer",
+                  cursor: canEdit ? "pointer" : "default",
                   textAlign: "left",
                 }}
               >
@@ -3793,7 +3798,9 @@ function StringStatusModal({
           <textarea
             value={comment}
             placeholder={t("strings.popup.addComment")}
+            readOnly={!canEdit}
             onChange={(e) => {
+              if (!canEdit) return;
               setComment(e.target.value);
               onCommentChange(e.target.value);
             }}

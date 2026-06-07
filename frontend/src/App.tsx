@@ -264,6 +264,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   // On phones AND tablets (iPad portrait, iPad landscape @ 1024 is treated
   // as desktop) we use a slide-out sidebar instead of a permanent one.
   const compact = isMobile || isTablet;
+  // Read-only ("viewer") users can see everything but change nothing. The
+  // backend also blocks all writes for this role; this just hides/disables
+  // the controls so the UI matches.
+  const canEdit = authUser.role !== "viewer";
   const isRtl = i18n.language === "he" || i18n.language === "ar";
   const { online, pending, syncing, refreshPending } = useOnlineStatus();
   const [showSyncQueue, setShowSyncQueue] = useState(false);
@@ -371,7 +375,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   useEffect(() => {
     if (!compact || mobileHomeAppliedRef.current) return;
     mobileHomeAppliedRef.current = true;
+    // Phone/tablet home screen: the strings table (Details → grid view).
     setActiveTab("mapgrid");
+    setMode("grid");
+    setEplGridTab("routes");
   }, [compact]);
 
   // Clear selection whenever the active project changes so we don't carry
@@ -1700,7 +1707,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         {/* Bulk status toolbar — visible when piers are selected. One
             row even on phones: "N piers" abbreviation, smaller font,
             no wrap (the row scrolls horizontally if absolutely needed). */}
-        {selectedPierCodes.size > 0 && (
+        {canEdit && selectedPierCodes.size > 0 && (
           <div style={{
             display: "flex", alignItems: "center", gap: 6, padding: "6px 10px",
             marginBottom: 8, borderRadius: 8, background: "#eff6ff",
@@ -1844,6 +1851,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     setSelectedTracker(full || t || null);
                   }}
                   onPierClick={handlePierClick}
+                  canEdit={canEdit}
                   onStringStatusChange={handleStringStatusChange}
                   onStringImageAdd={handleStringImageAdd}
                   onStringCommentChange={handleStringCommentChange}
@@ -1919,7 +1927,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   {
                     field: "status", headerName: t("strings.col.status"), width: 184, pinned: "left",
                     headerTooltip: t("strings.col.status"),
-                    editable: true, singleClickEdit: true,
+                    editable: canEdit, singleClickEdit: canEdit,
                     cellEditor: "agSelectCellEditor",
                     cellEditorParams: { values: STRING_STATUS_ORDER },
                     valueFormatter: (p: any) => t(`strings.status.${normStringStatus(p.value)}`),
@@ -2021,7 +2029,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 {
                   field: "status", headerName: "Status", headerTooltip: "Click a cell to change status",
                   cellRenderer: StatusPill, cellClass: "status-cell",
-                  editable: true, singleClickEdit: true,
+                  editable: canEdit, singleClickEdit: canEdit,
                   cellEditor: "agSelectCellEditor",
                   cellEditorParams: { values: [...STATUS_OPTIONS] },
                 },
@@ -2052,7 +2060,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   headerTooltip: "Click a cell to change status",
                   width: 92,
                   cellRenderer: StatusPill, cellClass: "status-cell",
-                  editable: true, singleClickEdit: true,
+                  editable: canEdit, singleClickEdit: canEdit,
                   cellEditor: "agSelectCellEditor",
                   cellEditorParams: { values: [...STATUS_OPTIONS] },
                   pinned: "right",

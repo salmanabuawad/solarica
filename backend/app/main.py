@@ -148,7 +148,11 @@ def _project_access_ids(username: str) -> set[str]:
 
 
 def _can_access_project(auth_data: dict, project_id: str) -> bool:
-    if auth_data.get("role") == "admin":
+    # admin manages everything; viewer is global read-only (write methods are
+    # already blocked for viewers in the auth middleware), so it can view any
+    # project without per-project grants. editor/electric stay scoped to their
+    # assigned projects.
+    if auth_data.get("role") in ("admin", "viewer"):
         return True
     return project_id in _project_access_ids(str(auth_data.get("username") or ""))
 
@@ -183,6 +187,9 @@ def _verify_token(token: str) -> Optional[dict]:
 
 
 _PUBLIC_API_PATHS = {"/api/auth/login"}
+# Write methods are blocked for read-only ("viewer") users at the middleware
+# layer, so the whole API is read-only for them regardless of which endpoint.
+_WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
 @app.middleware("http")
@@ -195,6 +202,8 @@ async def _auth_middleware(request: Request, call_next):
         data = _verify_token(auth[7:]) if auth.startswith("Bearer ") else None
         if not data:
             return JSONResponse({"detail": "Not authenticated"}, status_code=401)
+        if request.method in _WRITE_METHODS and data.get("role") == "viewer":
+            return JSONResponse({"detail": "Read-only user — changes are not allowed."}, status_code=403)
         project_match = re.match(r"^/api/(?:epl/|security/)?projects/([^/]+)", path)
         if project_match:
             project_id = unquote(project_match.group(1))
