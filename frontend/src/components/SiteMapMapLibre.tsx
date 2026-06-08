@@ -1349,19 +1349,51 @@ export default function SiteMapMapLibre({
     // synchronous redraw so the WebGL drawing buffer is fresh, then snapshot.
     if (captureRef) {
       captureRef.current = () => {
-        const m = mapRef.current;
+        const m: any = mapRef.current;
         if (!m) return null;
+        const canRatio =
+          typeof m.getPixelRatio === "function" &&
+          typeof m.setPixelRatio === "function";
+        const baseRatio =
+          (canRatio ? m.getPixelRatio() : window.devicePixelRatio || 1) || 1;
+        let raised = false;
         try {
-          if (typeof (m as any).redraw === "function") (m as any).redraw();
+          if (canRatio) {
+            // Render at up to 3× the on-screen resolution for a crisp PDF,
+            // but keep the largest drawing-buffer edge under ~7600px so we
+            // never hit the 8192 GL renderbuffer limit.
+            const cv0 = m.getCanvas();
+            const maxBufEdge = Math.max(cv0.width, cv0.height, 1);
+            const upscale = Math.max(1, Math.min(3, 7600 / maxBufEdge));
+            const target = baseRatio * upscale;
+            if (target > baseRatio + 0.01) {
+              m.setPixelRatio(target);
+              raised = true;
+            }
+          }
+          // Force a synchronous render so the (possibly resized) WebGL buffer
+          // holds a fresh frame before we read it back.
+          if (typeof m.redraw === "function") m.redraw();
+          const cv = m.getCanvas();
+          return {
+            dataUrl: cv.toDataURL("image/png"),
+            width: cv.width,
+            height: cv.height,
+          };
         } catch {
-          /* redraw is best-effort; preserveDrawingBuffer still holds last frame */
+          /* fall through — return null so the caller can fall back */
+          return null;
+        } finally {
+          // Always restore the on-screen pixel ratio.
+          if (raised && canRatio) {
+            try {
+              m.setPixelRatio(baseRatio);
+              if (typeof m.redraw === "function") m.redraw();
+            } catch {
+              /* best-effort restore */
+            }
+          }
         }
-        const cv = m.getCanvas();
-        return {
-          dataUrl: cv.toDataURL("image/png"),
-          width: cv.width,
-          height: cv.height,
-        };
       };
     }
     map.addControl(
