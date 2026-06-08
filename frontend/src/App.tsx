@@ -1851,7 +1851,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           </div>
         )}
 
-        {compact && (
+        {compact && mode === "map" && (
           <div style={{ display: "grid", gap: 8, marginBottom: 8 }}>
             <LayerTogglePanel
               layers={mobileMainMapToggles.map((l) => ({ ...l, label: t(LAYER_LABEL_KEYS[l.key] || l.label) }))}
