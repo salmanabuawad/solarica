@@ -1913,7 +1913,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   // markers on the map.
                   layers={(() => {
                     const blocksOn = layers.find((l) => l.key === "blocks")?.visible ?? false;
-                    return [...layers, { key: "blockLabels", label: "Block labels", visible: blocksOn }];
+                    // Layers whose toggle was removed from the bar are not
+                    // user-controllable, so force them OFF on the map (a stale
+                    // localStorage visible:true must not resurrect them).
+                    const FORCED_OFF = new Set(["zones", "inverters", "dccb", "security_cameras", "weather_station", "weather_sensors", "trackers", "base_trackers"]);
+                    const eff = layers.map((l) => FORCED_OFF.has(l.key) ? { ...l, visible: false } : l);
+                    return [...eff, { key: "blockLabels", label: "Block labels", visible: blocksOn }];
                   })()}
                   onBlockClick={() => {}}
                   onTrackerClick={(t: any) => {
