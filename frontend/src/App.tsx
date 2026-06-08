@@ -1743,7 +1743,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               })}
             </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>{stringProgress.weightedPct}% {t("strings.progress.weighted")}</span>
             {stringProgress.blocked > 0 && (
               <span style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", whiteSpace: "nowrap" }}>⛔ {stringProgress.blocked} {t("strings.progress.blocked")}</span>
             )}
