@@ -302,6 +302,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [stringStatuses, setStringStatuses] = useState<Record<string, string>>({});
   const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
   const [stringComments, setStringComments] = useState<Record<string, string>>({});
+  const [imgModal, setImgModal] = useState<{ code: string; images: string[] } | null>(null);
   const [layers, setLayers] = useState(() => {
     // Restore per-layer visibility from localStorage so the user's
     // checkbox toggles survive refreshes. Falls back to INITIAL_LAYERS
@@ -750,12 +751,18 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         .map((e: any) => `R${e.physical_row}: ${fmtPair(e.between_panels)}`)
         .join("   ");
       const code = s?.string || "";
+      const sr = start?.physical_row;
+      const er = end?.physical_row;
+      const row = (sr != null && er != null && sr !== er) ? `${sr}–${er}` : (sr ?? er ?? "");
       return {
         id: String(s?.string || `str-${s?.ribbon_idx ?? idx}`),
         string: s?.string || "(unlabeled)",
+        row,
         status: code ? normStringStatus(stringStatuses[code]) : "new",
-        start_row: start?.physical_row ?? "",
-        end_row: end?.physical_row ?? "",
+        comment: code ? (stringComments[code] || "") : "",
+        images: code ? (stringImages[code] || []) : [],
+        start_row: sr ?? "",
+        end_row: er ?? "",
         start_panels: fmtPair(start?.between_panels),
         jump_panels: jumpPanels,
         end_panels: fmtPair(end?.between_panels),
@@ -764,7 +771,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         optimizer_count: s?.optimizer_count ?? "",
       };
     });
-  }, [stringTopology, stringStatuses]);
+  }, [stringTopology, stringStatuses, stringComments, stringImages]);
 
   // Verified-Progress rollup for the strings grid: status counts + the
   // weighted progress % (new=0, optimizers=⅓, panels=⅔, volt-tested=1,
@@ -1923,9 +1930,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <SimpleGrid
                 rows={topologyGridRows}
                 columns={[
-                  { field: "string", headerName: t("strings.col.string"), width: 130, pinned: "left" },
+                  { field: "string", headerName: t("strings.col.string"), width: 140, pinned: "left" },
+                  { field: "row", headerName: t("strings.rowsCol.row"), width: 90 },
                   {
-                    field: "status", headerName: t("strings.col.status"), width: 184, pinned: "left",
+                    field: "status", headerName: t("strings.col.status"), width: 184,
                     headerTooltip: t("strings.col.status"),
                     editable: canEdit, singleClickEdit: canEdit,
                     cellEditor: "agSelectCellEditor",
@@ -1942,13 +1950,28 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                       );
                     },
                   },
-                  { field: "start_row", headerName: t("strings.col.startRow"), width: 110, type: "numericColumn" },
-                  { field: "end_row", headerName: t("strings.col.endRow"), width: 110, type: "numericColumn" },
-                  { field: "start_panels", headerName: t("strings.col.startPanels"), width: 130 },
-                  { field: "jump_panels", headerName: t("strings.col.jumpPanels"), minWidth: 200, flex: 1 },
-                  { field: "end_panels", headerName: t("strings.col.endPanels"), width: 130 },
-                  { field: "optimizer_count", headerName: t("strings.col.optimizers"), width: 120, type: "numericColumn" },
-                  { field: "total_panels", headerName: t("strings.col.panels"), width: 100, type: "numericColumn" },
+                  {
+                    field: "comment", headerName: t("strings.popup.comment"), minWidth: 220, flex: 1,
+                    editable: canEdit, singleClickEdit: false,
+                    cellEditor: "agLargeTextCellEditor",
+                    cellEditorPopup: true,
+                    cellEditorParams: { maxLength: 1000, rows: 5, cols: 44 },
+                  },
+                  {
+                    field: "images", headerName: t("strings.col.images"), width: 110, sortable: false, filter: false,
+                    valueGetter: (p: any) => (Array.isArray(p.data?.images) ? p.data.images.length : 0),
+                    cellRenderer: (p: any) => {
+                      const imgs = Array.isArray(p.data?.images) ? p.data.images : [];
+                      if (!imgs.length) return <span style={{ color: "#cbd5e1" }}>—</span>;
+                      return (
+                        <a
+                          href="#"
+                          onClick={(ev) => { ev.preventDefault(); setImgModal({ code: String(p.data?.string || ""), images: imgs }); }}
+                          style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none", cursor: "pointer" }}
+                        >📷 {imgs.length}</a>
+                      );
+                    },
+                  },
                 ]}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
@@ -1956,10 +1979,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 getRowId={(p: any) => p.data?.id}
                 getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
                 onCellValueChanged={(e: any) => {
-                  if (e?.colDef?.field !== "status") return;
                   const code = e.data?.string;
                   if (!code || code === "(unlabeled)") return;
-                  handleStringStatusChange(code, String(e.newValue));
+                  if (e?.colDef?.field === "status") handleStringStatusChange(code, String(e.newValue));
+                  else if (e?.colDef?.field === "comment") handleStringCommentChange(code, String(e.newValue ?? ""));
                 }}
                 gridApiRef={pierGridApiRef}
               />
@@ -2262,6 +2285,30 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         />
       )}
       {busy && <BusyOverlay message={busy} />}
+      {imgModal && (
+        <div
+          onClick={() => setImgModal(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, padding: 16, maxWidth: "92vw", maxHeight: "88vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.4)", direction: isRtl ? "rtl" : "ltr" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>{imgModal.code} · {imgModal.images.length} 📷</div>
+              <button onClick={() => setImgModal(null)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>✕</button>
+            </div>
+            {imgModal.images.length === 0 ? (
+              <div style={{ color: "#94a3b8", padding: 20 }}>—</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+                {imgModal.images.map((src, i) => (
+                  <a key={i} href={src} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+                    <img src={src} alt={`${imgModal.code} ${i + 1}`} style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {statusEvent && projectId && (
         <StatusChangeModal
