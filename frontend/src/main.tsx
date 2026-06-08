@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import { registerSW } from "virtual:pwa-register";
 import App from "./App";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./i18n/i18n";
 import "./index.css";
 
@@ -52,5 +53,5 @@ if (typeof window !== "undefined") {
 }
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode><App /></React.StrictMode>
+  <React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>
 );

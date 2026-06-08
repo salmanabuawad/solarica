@@ -2854,13 +2854,23 @@ export default function SiteMapMapLibre({
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
+      // getLayer() reads map.style internally; if the style isn't ready yet
+      // (early load) or has been torn down it throws "Cannot read properties of
+      // undefined (reading 'getLayer')", which—without an error boundary—blanks
+      // the whole app. Wait until the style is loaded before touching layers.
+      if (!map.style || (typeof (map as any).isStyleLoaded === "function" && !(map as any).isStyleLoaded())) {
+        setTimeout(() => apply(), 60);
+        return;
+      }
       const show = (id: string, visible: boolean) => {
-        if (map.getLayer(id)) {
-          map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
-        } else {
-          // Layer not created yet (style still loading) — retry briefly.
-          setTimeout(() => apply(), 50);
-        }
+        try {
+          if (map.getLayer(id)) {
+            map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+          } else {
+            // Layer not created yet — retry briefly.
+            setTimeout(() => apply(), 50);
+          }
+        } catch { /* style churned mid-apply; a later run re-applies */ }
       };
       const piersOn = layerVisible(layers, "piers");
       const blocksOn = layerVisible(layers, "blocks");
