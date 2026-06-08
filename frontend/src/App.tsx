@@ -1026,14 +1026,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     return layers.filter((layer) => visibleKeys.has(layer.key));
   }, [baseTrackers.length, blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, panelBaseRows.length, piers.length, securityDevices.length, stringPiers.length, stringTopology.length, trackers.length, weatherSensors.length, weatherStations.length]);
   const mobileMainMapToggles = useMemo(() => {
-    // Keep the mobile toggle bar in sync with the new base-map / topology
-    // layers (Panels, Trackers, String routes, Piers) so they're not
-    // desktop-only.
-    const keys = new Set([
-      "row_labels", "string_zones", "string_topology",
-      "panels", "base_trackers", "string_piers", "zones",
-    ]);
-    return mapLayerToggles.filter((layer) => keys.has(layer.key));
+    // Final phone/tablet layer set: Row numbers, Strings, String routes,
+    // Panels — in that order. Nothing else appears on the mobile toggle bar.
+    const order = ["row_labels", "string_zones", "string_topology", "panels"];
+    return order
+      .map((k) => mapLayerToggles.find((l) => l.key === k))
+      .filter(Boolean) as typeof mapLayerToggles;
   }, [mapLayerToggles]);
 
   // Grid rows: apply block/tracker filters, then optionally restrict to
