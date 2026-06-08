@@ -14,6 +14,7 @@
   "dependencies": {
     "ag-grid-community": "^33.2.4",
     "ag-grid-react": "^33.2.4",
+    "exceljs": "^4.4.0",
     "i18next": "^23.16.4",
     "idb": "^8.0.3",
     "maplibre-gl": "^5.22.0",

@@ -1177,14 +1177,64 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   );
 
   const closeMobileSidebar = () => setSidebarOpen(false);
-  const exportCurrentGrid = () => {
-    const api = pierGridApiRef.current;
-    if (!api || typeof api.exportDataAsCsv !== "function") return;
-    const today = new Date().toISOString().slice(0, 10);
-    api.exportDataAsCsv({
-      fileName: `${electricalDetailsMode ? "string-zones" : "piers"}-${projectId || "export"}-${today}.csv`,
-      onlySelectedAllPages: false,
-    });
+  const exportCurrentGrid = async () => {
+    const api: any = pierGridApiRef.current;
+    if (!api) return;
+    const cols: any[] = (api.getAllDisplayedColumns?.() || []).filter((c: any) => c.getColDef?.()?.field);
+    if (!cols.length) return;
+    const isStrings = electricalDetailsMode && eplGridTab === "routes";
+    const toArgb = (hex: string) => "FF" + String(hex || "#ffffff").replace("#", "").toUpperCase().slice(0, 6);
+    try {
+      const mod: any = await import("exceljs/dist/exceljs.min.js");
+      const ExcelJS = mod.default ?? mod;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet("Export", { views: [{ rightToLeft: isRtl, state: "frozen", ySplit: 1 }] });
+      ws.columns = cols.map((c: any) => ({
+        header: c.getColDef().headerName || c.getColId(),
+        key: c.getColId(),
+        width: Math.max(10, Math.min(48, Math.round((c.getActualWidth?.() || 120) / 7))),
+      }));
+      const head = ws.getRow(1);
+      head.eachCell((cell: any) => {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
+        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+      });
+      api.forEachNodeAfterFilterAndSort((node: any) => {
+        if (!node?.data) return;
+        const d = node.data;
+        const bg = toArgb(isStrings
+          ? (STRING_STATUS_META[normStringStatus(d.status)]?.bg || "#ffffff")
+          : (d.status ? (STATUS_BG[d.status] || "#ffffff") : "#ffffff"));
+        const values = cols.map((c: any) => {
+          const cd = c.getColDef();
+          let v = d[cd.field];
+          if (typeof cd.valueGetter === "function") { try { v = cd.valueGetter({ data: d, colDef: cd, node, getValue: (f: string) => d[f] }); } catch { /* ignore */ } }
+          if (typeof cd.valueFormatter === "function") { try { v = cd.valueFormatter({ value: v, data: d, colDef: cd, node }); } catch { /* ignore */ } }
+          return v == null ? "" : v;
+        });
+        const row = ws.addRow(values);
+        row.eachCell({ includeEmpty: true }, (cell: any) => {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+          cell.border = {
+            top: { style: "thin", color: { argb: "FFE2E8F0" } }, bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+            left: { style: "thin", color: { argb: "FFE2E8F0" } }, right: { style: "thin", color: { argb: "FFE2E8F0" } },
+          };
+        });
+      });
+      const buf = await wb.xlsx.writeBuffer();
+      const today = new Date().toISOString().slice(0, 10);
+      const name = `${isStrings ? "strings" : (electricalDetailsMode ? "string-zones" : "piers")}-${projectId || "export"}-${today}.xlsx`;
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    }
   };
 
   const sidebar = (
