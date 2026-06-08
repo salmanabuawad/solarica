@@ -1729,6 +1729,31 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
       {/* ---- TAB: Details (Grid / Map) ---- */}
       <div style={{ display: activeTab === "mapgrid" ? "block" : "none" }}>
+        {/* Verified-Progress dashboard for strings — sits ABOVE the Grid/Map
+            toggle + layout so it's the first thing seen, in both views and on
+            mobile. */}
+        {electricalDetailsMode && stringTopology.length > 0 && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap", padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc" }}>
+            <div style={{ flex: 1, minWidth: 220, height: 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#fff" }}>
+              {STRING_STATUS_ORDER.map((k) => {
+                const n = stringProgress.counts[k] || 0;
+                if (!n) return null;
+                const pct = (100 * n) / (stringProgress.total || 1);
+                return <div key={k} title={`${t(`strings.status.${k}`)}: ${n}`} style={{ width: `${pct}%`, background: STRING_STATUS_META[k].color }} />;
+              })}
+            </div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>{stringProgress.weightedPct}% {t("strings.progress.weighted")}</span>
+            {stringProgress.blocked > 0 && (
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", whiteSpace: "nowrap" }}>⛔ {stringProgress.blocked} {t("strings.progress.blocked")}</span>
+            )}
+            {STRING_STATUS_ORDER.map((k) => (
+              <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                {STRING_STATUS_META[k].icon} {stringProgress.counts[k] || 0}
+              </span>
+            ))}
+          </div>
+        )}
         {/* Status dashboard — total piers + breakdown by status. Lives
             above the Grid/Map toggle so the operator sees the rollout
             at a glance regardless of which view they're in. */}
@@ -1984,28 +2009,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   : `${electricalPhysicalRows.length.toLocaleString()} ${t("strings.rowsTab")}`}
               </span>
             </div>
-            {eplGridTab === "routes" && stringTopology.length > 0 && (
-              <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 220, height: 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#f8fafc" }}>
-                  {STRING_STATUS_ORDER.map((k) => {
-                    const n = stringProgress.counts[k] || 0;
-                    if (!n) return null;
-                    const pct = (100 * n) / (stringProgress.total || 1);
-                    return <div key={k} title={`${t(`strings.status.${k}`)}: ${n}`} style={{ width: `${pct}%`, background: STRING_STATUS_META[k].color }} />;
-                  })}
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#475569", whiteSpace: "nowrap" }}>{stringProgress.weightedPct}% {t("strings.progress.weighted")}</span>
-                {stringProgress.blocked > 0 && (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", whiteSpace: "nowrap" }}>⛔ {stringProgress.blocked} {t("strings.progress.blocked")}</span>
-                )}
-                {STRING_STATUS_ORDER.map((k) => (
-                  <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
-                    {STRING_STATUS_META[k].icon} {stringProgress.counts[k] || 0}
-                  </span>
-                ))}
-              </div>
-            )}
             {eplGridTab === "routes" && stringTopology.length > 0 ? (
               <SimpleGrid
                 rows={topologyGridRows}
