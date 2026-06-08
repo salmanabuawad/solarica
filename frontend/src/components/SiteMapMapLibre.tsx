@@ -2898,24 +2898,25 @@ export default function SiteMapMapLibre({
       show("trackers-line", trackersOn);
       show("trackers-selected", trackersOn);
       const stringsOn = layerVisible(layers, "string_zones", true);
-        const zonesOn = layerVisible(layers, "zones", false);
-        show("electrical-zone-bands-fill", zonesOn);
-        show("electrical-zone-bands-outline", zonesOn);
-      show("electrical-string-lines", stringsOn);
-      // Legacy split-string connector: linked the two rows a string number
-      // appears on, but drew a long line across the sheet when those rows
-      // were far apart (a string only spans 2-4 nearby rows). Superseded by
-      // the topology routes/jumps -> hidden.
+      const topologyOn = layerVisible(layers, "string_topology", false);
+      const zonesOn = layerVisible(layers, "zones", false);
+      show("electrical-zone-bands-fill", zonesOn);
+      show("electrical-zone-bands-outline", zonesOn);
+      // "Strings" layer = string NUMBER + status icon (coloured) only — no line
+      // segments, no start/end dots, no panel labels. The line geometry is the
+      // "String routes" (topology) layer's job. When routes are also on, the
+      // number comes from the route label so it isn't drawn twice.
+      show("electrical-string-lines", false);
       show("electrical-string-row-jumps", false);
-      show("string-start-markers-layer", stringsOn);
-      show("string-end-markers-layer", stringsOn);
-      show("electrical-string-starts", stringsOn);
-      show("electrical-string-ends", stringsOn);
+      show("string-start-markers-layer", false);
+      show("string-end-markers-layer", false);
+      show("electrical-string-starts", false);
+      show("electrical-string-ends", false);
       show("electrical-string-labels", false);
-      show("electrical-string-point-labels", stringsOn);
+      show("electrical-string-point-labels", stringsOn && !topologyOn);
       show("electrical-string-status-icons", stringsOn);
-      show("electrical-string-start-panel-labels", stringsOn);
-      show("electrical-string-end-panel-labels", stringsOn);
+      show("electrical-string-start-panel-labels", false);
+      show("electrical-string-end-panel-labels", false);
       const hasPanelBase = (panelBaseRows || []).length > 0;
       show("panel-base-rows-layer", hasPanelBase);
       const panelsOn = layerVisible(layers, "panels", false);
@@ -2928,13 +2929,12 @@ export default function SiteMapMapLibre({
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));
-      const topologyOn = layerVisible(layers, "string_topology", false);
+      // "String routes" layer = the full route: lines + endpoints + numbers.
       show("topology-runs-layer", topologyOn);
       show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
-      // String numbers show on the strings view (default) OR the routes view.
-      show("topology-labels-layer", stringsOn || topologyOn);
+      show("topology-labels-layer", topologyOn);
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);

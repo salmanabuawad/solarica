@@ -305,6 +305,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [stringComments, setStringComments] = useState<Record<string, string>>({});
   const [stringVoltages, setStringVoltages] = useState<Record<string, number | null>>({});
   const [imgModal, setImgModal] = useState<{ code: string } | null>(null);
+  const [stringModal, setStringModal] = useState<{ code: string } | null>(null);
   const [layers, setLayers] = useState(() => {
     // Restore per-layer visibility from localStorage so the user's
     // checkbox toggles survive refreshes. Falls back to INITIAL_LAYERS
@@ -2076,6 +2077,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 quickFilterPlaceholder={t("strings.search")}
                 getRowId={(p: any) => p.data?.id}
                 getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
+                autoSizeColumns
+                onRowDoubleClick={(d: any) => { const code = d?.string; if (code && code !== "(unlabeled)") setStringModal({ code }); }}
                 onCellValueChanged={(e: any) => {
                   const code = e.data?.string;
                   if (!code || code === "(unlabeled)") return;
@@ -2384,6 +2387,61 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         />
       )}
       {busy && <BusyOverlay message={busy} />}
+      {stringModal && (() => {
+        const code = stringModal.code;
+        const info = topologyGridRows.find((r: any) => r.string === code);
+        const status = normStringStatus(stringStatuses[code]);
+        const voltage = stringVoltages[code];
+        const vNum = (voltage == null || (voltage as any) === "") ? null : Number(voltage);
+        const vOk = vNum != null && !isNaN(vNum) && vNum >= 22 && vNum <= 23;
+        const imgs = stringImages[code] || [];
+        return (
+          <div onClick={() => setStringModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} dir={isRtl ? "rtl" : "ltr"} style={{ background: "#fff", borderRadius: 12, padding: 18, width: "min(440px, 94vw)", maxHeight: "88vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{code}</div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>{t("strings.rowsCol.row")} {info?.row ?? "-"} · {info?.multi_row ? t("strings.type.multi") : t("strings.type.one")}</div>
+                </div>
+                <button onClick={() => setStringModal(null)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>✕</button>
+              </div>
+              <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+                {STRING_STATUS_ORDER.map((k) => {
+                  const m = STRING_STATUS_META[k]; const active = k === status;
+                  if (!canEdit && !active) return null;
+                  return (
+                    <button key={k} disabled={!canEdit} onClick={canEdit ? () => handleStringStatusChange(code, k) : undefined}
+                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: active ? `2px solid ${m.color}` : "1px solid #dbe4ee", background: active ? m.bg : "#fff", fontWeight: active ? 800 : 600, cursor: canEdit ? "pointer" : "default", textAlign: isRtl ? "right" : "left" }}>
+                      <span style={{ color: m.color, fontSize: 17, width: 20 }}>{m.icon}</span>
+                      <span>{t(`strings.status.${k}`)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.voltage")}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input type="number" step="0.01" defaultValue={vNum ?? ""} readOnly={!canEdit}
+                    onBlur={canEdit ? (e) => { const raw = e.target.value; const n = raw === "" ? null : Math.round(parseFloat(raw) * 100) / 100; handleStringVoltageChange(code, (n != null && !isNaN(n)) ? n : null); } : undefined}
+                    style={{ width: 130, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }} />
+                  <span style={{ fontWeight: 700, color: vNum == null ? "#94a3b8" : (vOk ? "#16a34a" : "#dc2626") }}>
+                    {vNum == null ? "—" : `${vNum.toFixed(2)} V${vOk ? "" : " ⚠ " + t("strings.voltageBad")}`}
+                  </span>
+                </div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.popup.comment")}</label>
+                <textarea defaultValue={stringComments[code] || ""} readOnly={!canEdit} placeholder={t("strings.popup.addComment")}
+                  onBlur={canEdit ? (e) => handleStringCommentChange(code, e.target.value) : undefined}
+                  style={{ width: "100%", minHeight: 70, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14, boxSizing: "border-box", resize: "vertical" }} />
+              </div>
+              <button onClick={() => setImgModal({ code })} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 600 }}>
+                📷 {t("strings.col.images")} ({imgs.length})
+              </button>
+            </div>
+          </div>
+        );
+      })()}
       {imgModal && (
         <Suspense fallback={null}>
           <StringImagesModal

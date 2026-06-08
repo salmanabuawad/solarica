@@ -20,6 +20,8 @@ export default function SimpleGrid({
   columns,
   height = 240,
   onRowClick,
+  onRowDoubleClick,
+  autoSizeColumns = false,
   enableQuickFilter = false,
   quickFilterPlaceholder = "Search...",
   pagination = false,
@@ -174,6 +176,8 @@ export default function SimpleGrid({
             }
           }}
           onRowClicked={(e) => onRowClick?.(e.data)}
+          onRowDoubleClicked={(e) => onRowDoubleClick?.(e.data)}
+          onFirstDataRendered={(e) => { if (autoSizeColumns) { try { e.api.autoSizeAllColumns(); } catch { /* ignore */ } } }}
           onCellValueChanged={onCellValueChanged}
           stopEditingWhenCellsLoseFocus={stopEditingWhenCellsLoseFocus}
           onSelectionChanged={(e) => {
