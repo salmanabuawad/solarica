@@ -32,10 +32,15 @@ const StringImagesModal = lazy(() => import("./components/StringImagesModal"));
 // String Status Engine — 5-state presentation (kept in sync with
 // SiteMapMapLibre + backend STRING_STATUS_VALUES). Defined here too so the
 // strings grid colours rows without pulling in the heavy lazy map chunk.
+// Colours follow the work progression so the rollout reads at a glance:
+//   New (neutral grey) → Optimizers mounted (amber) → Panels connected (blue)
+//   → Volt tested (green = verified) → Blocked (red). Icons are picked to be
+//   self-explanatory: ○ empty, 🔩 hardware mounted, 🔌 connected, ⚡ voltage,
+//   ⛔ blocked.
 const STRING_STATUS_META: Record<string, { label: string; icon: string; color: string; bg: string }> = {
-  new: { label: "New", icon: "○", color: "#9ca3af", bg: "#f3f4f6" },
-  opt_attached: { label: "Optimizers", icon: "🔧", color: "#3b82f6", bg: "#dbeafe" },
-  panels_connected: { label: "Panels connected", icon: "▦", color: "#eab308", bg: "#fef9c3" },
+  new: { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
+  opt_attached: { label: "Optimizers", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
+  panels_connected: { label: "Panels connected", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
   volt_tested: { label: "Volt tested", icon: "⚡", color: "#16a34a", bg: "#dcfce7" },
   blocked: { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
@@ -2159,6 +2164,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 gridApiRef={pierGridApiRef}
               />
             )}
+          </div>
+        ) : piers.length === 0 ? (
+          // Before the project bundle finishes loading, both `piers` and the
+          // electrical zone rows are empty, so electricalDetailsMode is false
+          // and we'd otherwise fall through to the (always-empty) pier grid —
+          // which is what flashed as the phone "home" screen. Show a neutral
+          // loading placeholder until the real data (strings) arrives.
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)", color: "#94a3b8", fontSize: 14 }}>
+            {t("app.loading", "Loading…")}
           </div>
         ) : (
           <div>

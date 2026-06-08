@@ -45,24 +45,26 @@ const STRING_STATUS_LABELS: Record<string, string> = {
   volt_tested: "Volt tested",
   blocked: "Blocked",
 };
+// Kept in sync with App.tsx STRING_STATUS_META. On the map the status COLOUR
+// (route line + markers) is the primary signal; the icon is a secondary cue.
 const STRING_STATUS_ICONS: Record<string, string> = {
   new: "○",
-  opt_attached: "🔧",
-  panels_connected: "▦",
+  opt_attached: "🔩",
+  panels_connected: "🔌",
   volt_tested: "⚡",
   blocked: "⛔",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
-  new: "#9ca3af",
-  opt_attached: "#3b82f6",
-  panels_connected: "#eab308",
+  new: "#64748b",
+  opt_attached: "#f59e0b",
+  panels_connected: "#2563eb",
   volt_tested: "#16a34a",
   blocked: "#dc2626",
 };
 const STRING_STATUS_BG: Record<string, string> = {
-  new: "#f3f4f6",
-  opt_attached: "#dbeafe",
-  panels_connected: "#fef9c3",
+  new: "#f1f5f9",
+  opt_attached: "#fef3c7",
+  panels_connected: "#dbeafe",
   volt_tested: "#dcfce7",
   blocked: "#fee2e2",
 };
