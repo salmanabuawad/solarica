@@ -43,7 +43,13 @@ export default function SimpleGrid({
   const applyingExternalSelection = useRef(false);
 
   const defaultColDef = useMemo(() => ({
-    resizable: true,
+    // Columns are FIXED to the layout defined in the field_configurations
+    // table (order/visibility/pin/width applied by applyFieldConfigs in the
+    // caller). Users can't resize or drag-reorder them — only the admin's
+    // field-configuration screen changes the layout. Sorting + filtering still
+    // act on the data.
+    resizable: false,
+    suppressMovable: true,
     sortable: true,
     // Excel-style filter (checkbox value list + search + OK/Cancel), matching
     // the buildingsmanager project. Opens from the column header menu. Floating
@@ -108,6 +114,8 @@ export default function SimpleGrid({
           rowData={rows}
           columnDefs={columns}
           defaultColDef={defaultColDef}
+          suppressMovableColumns
+          suppressDragLeaveHidesColumns
           animateRows
           enableRtl={isRtl}
           rowSelection={{
