@@ -1539,15 +1539,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           zIndex: 10,
           flexShrink: 0,
         }}>
-          {compact && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open menu"
-              style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 10px", fontSize: 18, cursor: "pointer", color: "#0f172a", minWidth: 44, minHeight: 44 }}
-            >
-              ☰
-            </button>
-          )}
           {compact && activeTab === "mapgrid" && (
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
