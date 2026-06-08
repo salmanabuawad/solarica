@@ -148,13 +148,17 @@ def _project_access_ids(username: str) -> set[str]:
 
 
 def _can_access_project(auth_data: dict, project_id: str) -> bool:
-    # admin manages everything; viewer is global read-only (write methods are
-    # already blocked for viewers in the auth middleware), so it can view any
-    # project without per-project grants. editor/electric stay scoped to their
-    # assigned projects.
-    if auth_data.get("role") in ("admin", "viewer"):
+    role = auth_data.get("role")
+    if role == "admin":
         return True
-    return project_id in _project_access_ids(str(auth_data.get("username") or ""))
+    ids = _project_access_ids(str(auth_data.get("username") or ""))
+    if ids:
+        # Explicit per-project grants → scoped to exactly those projects
+        # (e.g. a viewer assigned only to BHK sees only BHK).
+        return project_id in ids
+    # No grants: a viewer is global read-only (writes are blocked in the auth
+    # middleware); editor/electric require an explicit project grant.
+    return role == "viewer"
 
 
 def _sign_token(user: str, role: str = "viewer") -> str:

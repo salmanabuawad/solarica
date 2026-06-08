@@ -1513,7 +1513,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <img
               src="/logo.png"
               alt="Solarica"
-              onClick={() => setSidebarOpen(true)}
+              onClick={authUser.role === "admin" ? () => setSidebarOpen(true) : undefined}
               style={{
                 display: "block",
                 height: "auto",
@@ -1521,7 +1521,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 // stretches to whatever the phone gives us.
                 width: "100%",
                 maxWidth: "none",
-                cursor: "pointer",
+                // Only admins can open the slide-out menu (nav/settings); other
+                // roles are locked to the view they're on.
+                cursor: authUser.role === "admin" ? "pointer" : "default",
               }}
             />
           </div>
