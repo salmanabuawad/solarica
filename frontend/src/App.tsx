@@ -1178,13 +1178,45 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
   const closeMobileSidebar = () => setSidebarOpen(false);
   const exportCurrentGrid = () => {
-    const api = pierGridApiRef.current;
-    if (!api || typeof api.exportDataAsCsv !== "function") return;
-    const today = new Date().toISOString().slice(0, 10);
-    api.exportDataAsCsv({
-      fileName: `${electricalDetailsMode ? "string-zones" : "piers"}-${projectId || "export"}-${today}.csv`,
-      onlySelectedAllPages: false,
+    const api: any = pierGridApiRef.current;
+    if (!api) return;
+    const cols: any[] = (api.getAllDisplayedColumns?.() || []).filter((c: any) => c.getColDef?.()?.field);
+    if (!cols.length) return;
+    const isStrings = electricalDetailsMode && eplGridTab === "routes";
+    const esc = (s: any) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const headers = cols.map((c) => esc(c.getColDef().headerName || c.getColId()));
+    const rowsHtml: string[] = [];
+    api.forEachNodeAfterFilterAndSort((node: any) => {
+      if (!node?.data) return;
+      const d = node.data;
+      // Row background = status colour (strings → STRING_STATUS_META.bg,
+      // piers → STATUS_BG), so the Excel file mirrors the grid.
+      const bg = isStrings
+        ? (STRING_STATUS_META[normStringStatus(d.status)]?.bg || "#ffffff")
+        : (d.status ? (STATUS_BG[d.status] || "#ffffff") : "#ffffff");
+      const cells = cols.map((c) => {
+        const cd = c.getColDef();
+        let v = d[cd.field];
+        if (typeof cd.valueGetter === "function") { try { v = cd.valueGetter({ data: d, colDef: cd, node, getValue: (f: string) => d[f] }); } catch { /* ignore */ } }
+        if (typeof cd.valueFormatter === "function") { try { v = cd.valueFormatter({ value: v, data: d, colDef: cd, node }); } catch { /* ignore */ } }
+        return `<td style="background-color:${bg}">${esc(v)}</td>`;
+      });
+      rowsHtml.push(`<tr>${cells.join("")}</tr>`);
     });
+    const html = `<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head>`
+      + `<body><table dir="${isRtl ? "rtl" : "ltr"}" border="1" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px">`
+      + `<thead><tr style="background-color:#0f172a;color:#ffffff;font-weight:bold">${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`
+      + `<tbody>${rowsHtml.join("")}</tbody></table></body></html>`;
+    const today = new Date().toISOString().slice(0, 10);
+    const name = `${isStrings ? "strings" : (electricalDetailsMode ? "string-zones" : "piers")}-${projectId || "export"}-${today}.xls`;
+    const blob = new Blob(["﻿" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
   };
 
   const sidebar = (
