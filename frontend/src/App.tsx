@@ -1554,8 +1554,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   onClick={exportCurrentGrid}
                   title={t("details.exportExcel", "Export to Excel")}
                   aria-label={t("details.exportExcel", "Export to Excel")}
-                  style={{ background: "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 15, fontWeight: 700, cursor: "pointer", minHeight: 40, whiteSpace: "nowrap" }}
-                >⤓ XLS</button>
+                  style={{ background: "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 40, whiteSpace: "nowrap" }}
+                >⤓ {t("details.exportExcel", "Export to Excel")}</button>
               )}
               <LanguageSwitcher />
             </div>
@@ -2064,7 +2064,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                       );
                     },
                   },
-                ], stringsFieldConfigs)}
+                ], stringsFieldConfigs, 1, isRtl)}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
                 quickFilterPlaceholder={t("strings.search")}
@@ -2185,7 +2185,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               // On phones, render every column at 70 % of its
               // configured pixel width so more columns fit per
               // viewport. Desktop keeps the configured widths verbatim.
-              ], piersFieldConfigs, compact ? 0.7 : 1)}
+              ], piersFieldConfigs, compact ? 0.7 : 1, isRtl)}
               height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
               enableQuickFilter
               quickFilterPlaceholder="Search piers..."

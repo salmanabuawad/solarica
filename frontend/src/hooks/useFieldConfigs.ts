@@ -48,8 +48,15 @@ export function applyFieldConfigs(
   cols: any[],
   configs: FieldConfigMap | null,
   widthMultiplier: number = 1,
+  rtl: boolean = false,
 ): any[] {
-  if (!configs || Object.keys(configs).length === 0) return cols;
+  // In RTL the visual "start" is the right edge, so a left-pinned column should
+  // pin right (and vice-versa). enableRtl reverses the centre columns; this
+  // flips the pinned ones to match.
+  const flipPin = (p: any) => rtl ? (p === "left" ? "right" : p === "right" ? "left" : p) : p;
+  if (!configs || Object.keys(configs).length === 0) {
+    return rtl ? cols.map((c) => (c.pinned ? { ...c, pinned: flipPin(c.pinned) } : c)) : cols;
+  }
 
   const transform = (col: any): any | null => {
     if (col.children) {
@@ -58,12 +65,13 @@ export function applyFieldConfigs(
       return { ...col, children: kids };
     }
     const cfg = configs[col.field];
-    if (!cfg) return col;
+    if (!cfg) return col.pinned ? { ...col, pinned: flipPin(col.pinned) } : col;
     if (cfg.visible === false) return null;
     const merged: any = { ...col };
     if (cfg.display_name) merged.headerName = cfg.display_name;
-    if (cfg.pin_side) merged.pinned = cfg.pin_side;
+    if (cfg.pin_side) merged.pinned = flipPin(cfg.pin_side);
     else if (cfg.pin_side === null && col.pinned) merged.pinned = undefined;
+    else if (col.pinned) merged.pinned = flipPin(col.pinned);
     if (cfg.width != null) {
       // Scale the configured width by the multiplier (used on mobile
       // to render columns at e.g. 70 % of the desktop width). Floored
