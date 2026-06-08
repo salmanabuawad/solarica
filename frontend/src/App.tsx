@@ -1560,6 +1560,31 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             />
           </div>
         )}
+        {/* Phone/tablet: electrical summary stats pinned right under the logo,
+            above the controls toolbar — always-visible headline totals. */}
+        {compact && activeTab === "mapgrid" && electricalDetailsMode && (
+          <div style={{
+            flexShrink: 0,
+            background: "#ffffff",
+            borderBottom: "1px solid #e2e8f0",
+            padding: "8px 12px",
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: "2px 8px",
+          }}>
+            {[
+              [t("field.stringZones"), electricalSummary?.string_zones],
+              [t("strings.title"), electricalSummary?.strings],
+              ["Optimizers", electricalSummary?.optimizers],
+              ["Modules", electricalSummary?.modules],
+            ].map(([label, value]) => (
+              <div key={String(label)} style={{ minWidth: 0, textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#64748b", marginBottom: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+                <div style={{ fontWeight: 800, fontSize: 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
+              </div>
+            ))}
+          </div>
+        )}
         {/* Top bar: project selector + hamburger (mobile/tablet) */}
         <div style={{
           display: "flex", alignItems: "center", gap: 10, padding: compact ? "10px 16px" : "14px 20px",
@@ -1768,12 +1793,13 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
       {/* ---- TAB: Details (Grid / Map) ---- */}
       <div style={{ display: activeTab === "mapgrid" ? "block" : "none" }}>
-        {/* Electrical summary stats (string zones / strings / optimizers /
-            modules) — a single row on every screen size, sitting at the very
-            top of the Details tab. For non-electrical projects the pier-status
-            rollup takes its place (desktop only). */}
-        {electricalDetailsMode ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: compact ? "4px 8px" : "8px 20px", marginBottom: 10, padding: compact ? 10 : 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc", fontSize: 13 }}>
+        {/* Desktop: electrical summary stats (string zones / strings /
+            optimizers / modules) one row above the progress bar; pier-status
+            rollup for non-electrical projects. On phone/tablet this card is
+            rendered as a fixed banner directly under the logo instead (see the
+            compact stats strip in <main>), so it's skipped here. */}
+        {!compact && (electricalDetailsMode ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px 20px", marginBottom: 10, padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc", fontSize: 13 }}>
             {[
               [t("field.stringZones"), electricalSummary?.string_zones],
               [t("strings.title"), electricalSummary?.strings],
@@ -1781,15 +1807,14 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               ["Modules", electricalSummary?.modules],
             ].map(([label, value]) => (
               <div key={String(label)} style={{ minWidth: 0 }}>
-                <div style={{ fontSize: compact ? 10 : 11, color: "#64748b", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-                <div style={{ fontWeight: 700, fontSize: compact ? 14 : 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
+                <div style={{ fontSize: 11, color: "#64748b", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
               </div>
             ))}
           </div>
         ) : (
-          // Pier-status rollup stays desktop-only.
-          !compact && <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
-        )}
+          <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
+        ))}
         {/* Verified-Progress dashboard for strings — below the totals, above
             the Grid/Map toggle so it's seen in both views and on mobile. */}
         {electricalDetailsMode && stringTopology.length > 0 && (
