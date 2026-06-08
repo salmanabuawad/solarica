@@ -1,6 +1,6 @@
 import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, getStringRecords, updateStringStatus, updateStringComment, addStringImage, deleteStringImage, type AuthUser } from "./api";
+import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, getStringRecords, updateStringStatus, updateStringComment, updateStringVoltage, addStringImage, deleteStringImage, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
@@ -303,6 +303,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [stringStatuses, setStringStatuses] = useState<Record<string, string>>({});
   const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
   const [stringComments, setStringComments] = useState<Record<string, string>>({});
+  const [stringVoltages, setStringVoltages] = useState<Record<string, number | null>>({});
   const [imgModal, setImgModal] = useState<{ code: string } | null>(null);
   const [layers, setLayers] = useState(() => {
     // Restore per-layer visibility from localStorage so the user's
@@ -394,6 +395,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       setStringStatuses({});
       setStringImages({});
       setStringComments({});
+      setStringVoltages({});
       return;
     }
     let ignore = false;
@@ -404,16 +406,19 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         const statuses: Record<string, string> = {};
         const images: Record<string, string[]> = {};
         const comments: Record<string, string> = {};
+        const voltages: Record<string, number | null> = {};
         for (const [stringId, record] of Object.entries(records) as any) {
           statuses[stringId] = String(record?.status || "new");
           images[stringId] = Array.isArray(record?.images)
             ? record.images.map((img: any) => typeof img === "string" ? img : img?.url).filter(Boolean)
             : [];
           comments[stringId] = String(record?.comment || "");
+          voltages[stringId] = (record?.voltage ?? null);
         }
         setStringStatuses(statuses);
         setStringImages(images);
         setStringComments(comments);
+        setStringVoltages(voltages);
       })
       .catch(() => {
         if (!ignore) {
@@ -458,6 +463,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       return next;
     });
     updateStringComment(projectId, stringId, comment).catch((e: any) => setError(String(e?.message || e)));
+  }, [projectId]);
+
+  const handleStringVoltageChange = useCallback((stringId: string, voltage: number | null) => {
+    if (!stringId || !projectId) return;
+    setStringVoltages((prev) => ({ ...prev, [stringId]: voltage }));
+    updateStringVoltage(projectId, stringId, voltage).catch((e: any) => setError(String(e?.message || e)));
   }, [projectId]);
 
   useEffect(() => {
@@ -768,6 +779,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         row,
         multi_row: multiRow,
         status: code ? normStringStatus(stringStatuses[code]) : "new",
+        voltage: code ? (stringVoltages[code] ?? null) : null,
         comment: code ? (stringComments[code] || "") : "",
         images: code ? (stringImages[code] || []) : [],
         start_row: sr ?? "",
@@ -780,7 +792,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         optimizer_count: s?.optimizer_count ?? "",
       };
     });
-  }, [stringTopology, stringStatuses, stringComments, stringImages]);
+  }, [stringTopology, stringStatuses, stringComments, stringImages, stringVoltages]);
 
   // Verified-Progress rollup for the strings grid: status counts + the
   // weighted progress % (new=0, optimizers=⅓, panels=⅔, volt-tested=1,
@@ -1142,6 +1154,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   // Field configs for each grid. Loaded once; used to reorder / hide /
   // relabel / pin columns before passing them into ag-grid.
   const piersFieldConfigs = useFieldConfigs("piers-list");
+  const stringsFieldConfigs = useFieldConfigs("strings-list");
   const devicesBomFieldConfigs = useFieldConfigs("devices-bom");
   const devicesPierSpecsFieldConfigs = useFieldConfigs("devices-pier-specs");
 
@@ -1938,7 +1951,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             {eplGridTab === "routes" && stringTopology.length > 0 ? (
               <SimpleGrid
                 rows={topologyGridRows}
-                columns={[
+                columns={applyFieldConfigs([
                   { field: "string", headerName: t("strings.col.string"), width: 140, pinned: "left" },
                   { field: "row", headerName: t("strings.rowsCol.row"), width: 90 },
                   {
@@ -1964,6 +1977,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     valueGetter: (p: any) => p.data?.multi_row ? t("strings.type.multi") : t("strings.type.one"),
                   },
                   {
+                    field: "voltage", headerName: t("strings.col.voltage"), width: 110, type: "numericColumn",
+                    editable: canEdit, singleClickEdit: canEdit,
+                    valueFormatter: (p: any) => (p.value == null || p.value === "" ? "" : `${p.value} V`),
+                    valueParser: (p: any) => { const n = parseFloat(p.newValue); return isNaN(n) ? null : n; },
+                  },
+                  {
                     field: "comment", headerName: t("strings.popup.comment"), minWidth: 220, flex: 1,
                     editable: canEdit, singleClickEdit: false,
                     cellEditor: "agLargeTextCellEditor",
@@ -1984,7 +2003,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                       );
                     },
                   },
-                ]}
+                ], stringsFieldConfigs)}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
                 quickFilterPlaceholder={t("strings.search")}
@@ -1995,6 +2014,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   if (!code || code === "(unlabeled)") return;
                   if (e?.colDef?.field === "status") handleStringStatusChange(code, String(e.newValue));
                   else if (e?.colDef?.field === "comment") handleStringCommentChange(code, String(e.newValue ?? ""));
+                  else if (e?.colDef?.field === "voltage") handleStringVoltageChange(code, (e.newValue == null || e.newValue === "") ? null : Number(e.newValue));
                 }}
                 gridApiRef={pierGridApiRef}
               />

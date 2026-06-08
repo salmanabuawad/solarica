@@ -244,7 +244,8 @@
       "optimizers": "אופטימזירים",
       "panels": "פאנלים",
       "images": "תמונות",
-      "type": "סוג"
+      "type": "סוג",
+      "voltage": "מתח"
     },
     "type": { "one": "שורה אחת", "multi": "רב-שורתי" },
     "img": { "upload": "העלאה", "delete": "מחיקה", "view": "צפייה", "none": "אין תמונות", "confirmDelete": "למחוק את התמונה?" },

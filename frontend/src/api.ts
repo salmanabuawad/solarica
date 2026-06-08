@@ -473,6 +473,15 @@ export async function updateStringComment(pid: string, stringId: string, comment
   });
 }
 
+export async function updateStringVoltage(pid: string, stringId: string, voltage: number | null): Promise<any> {
+  if (!isOnline()) throw new OfflineError("String voltage updates need a connection.");
+  return j<any>(`${API}/api/projects/${pid}/strings/${encodeURIComponent(stringId)}/voltage`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ voltage }),
+  });
+}
+
 export async function addStringImage(pid: string, stringId: string, file: File): Promise<any> {
   if (!isOnline()) throw new OfflineError("String images need a connection.");
   const body = new FormData();

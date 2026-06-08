@@ -244,7 +244,8 @@
       "optimizers": "المُحسِّنات",
       "panels": "الألواح",
       "images": "صور",
-      "type": "النوع"
+      "type": "النوع",
+      "voltage": "الجهد"
     },
     "type": { "one": "صف واحد", "multi": "متعدد الصفوف" },
     "img": { "upload": "رفع", "delete": "حذف", "view": "عرض", "none": "لا صور", "confirmDelete": "حذف هذه الصورة؟" },

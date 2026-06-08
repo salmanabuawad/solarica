@@ -383,6 +383,15 @@ FIELD_CONFIG_SEEDS: dict[str, list[dict]] = {
         {"field_name": "block_code",         "display_name": "Block",         "column_order": 9,  "visible": False,                      "width": 58},
         {"field_name": "row_type",           "display_name": "Row Type",      "column_order": 10, "visible": False,                      "width": 76},
     ],
+    "strings-list": [
+        {"field_name": "string",      "display_name": "String",  "column_order": 1, "visible": True, "pin_side": "left"},
+        {"field_name": "row",         "display_name": "Row",     "column_order": 2, "visible": True},
+        {"field_name": "status",      "display_name": "Status",  "column_order": 3, "visible": True},
+        {"field_name": "string_type", "display_name": "Type",    "column_order": 4, "visible": True},
+        {"field_name": "voltage",     "display_name": "Voltage", "column_order": 5, "visible": True},
+        {"field_name": "comment",     "display_name": "Comment", "column_order": 6, "visible": True},
+        {"field_name": "images",      "display_name": "Images",  "column_order": 7, "visible": True},
+    ],
     "devices-bom": [
         {"field_name": "part_no",      "display_name": "Part No",    "column_order": 1, "visible": True},
         {"field_name": "device_type",  "display_name": "Device Type","column_order": 2, "visible": True},
@@ -969,12 +978,14 @@ CREATE TABLE IF NOT EXISTS string_records (
   string_id  TEXT NOT NULL,
   status     TEXT NOT NULL DEFAULT 'new',
   pre_block_status TEXT,
+  voltage    NUMERIC,
   comment    TEXT NOT NULL DEFAULT '',
   images     JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (project_id, string_id)
 );
 ALTER TABLE string_records ADD COLUMN IF NOT EXISTS pre_block_status TEXT;
+ALTER TABLE string_records ADD COLUMN IF NOT EXISTS voltage NUMERIC;
 CREATE TABLE IF NOT EXISTS string_status_history (
   id          BIGSERIAL PRIMARY KEY,
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -1041,8 +1052,10 @@ def _string_records_dir(project_id: str) -> Path:
 
 
 def _normalize_string_record(row: dict) -> dict:
+    v = row.get("voltage")
     return {
         "status": row.get("status") or "new",
+        "voltage": float(v) if v is not None else None,
         "comment": row.get("comment") or "",
         "images": row.get("images") or [],
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
@@ -1054,7 +1067,7 @@ def api_get_string_records(project_id: str):
     uu = _require_project_uuid(project_id)
     with db_store.get_conn() as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT string_id, status, comment, images, updated_at FROM string_records WHERE project_id = %s ORDER BY string_id",
+            "SELECT string_id, status, voltage, comment, images, updated_at FROM string_records WHERE project_id = %s ORDER BY string_id",
             (uu,),
         )
         rows = cur.fetchall()
@@ -1252,6 +1265,29 @@ def api_update_string_comment(project_id: str, string_id: str, body: dict = Body
             RETURNING status, comment, images, updated_at
             """,
             (uu, string_id, comment),
+        )
+        row = cur.fetchone()
+        conn.commit()
+    return {"string_id": string_id, **_normalize_string_record(row)}
+
+
+@app.put("/api/projects/{project_id}/strings/{string_id}/voltage")
+def api_update_string_voltage(project_id: str, string_id: str, body: dict = Body(...)):
+    uu = _require_project_uuid(project_id)
+    raw = body.get("voltage")
+    try:
+        voltage = float(raw) if raw not in (None, "") else None
+    except (TypeError, ValueError):
+        voltage = None
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO string_records (project_id, string_id, voltage)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (project_id, string_id) DO UPDATE SET voltage = EXCLUDED.voltage, updated_at = NOW()
+            RETURNING status, voltage, comment, images, updated_at
+            """,
+            (uu, string_id, voltage),
         )
         row = cur.fetchone()
         conn.commit()
