@@ -1643,7 +1643,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           </button>}
         </div>
 
-        <div style={{ padding: compact ? "12px 14px 24px" : "16px 24px 32px", flex: 1, minWidth: 0, boxSizing: "border-box", maxWidth: "100%", minHeight: 0, overflowY: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ padding: compact ? "12px 18px 24px" : "16px 32px 32px", flex: 1, minWidth: 0, boxSizing: "border-box", maxWidth: "100%", minHeight: 0, overflowY: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {error && <div style={{ color: "#b91c1c", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 13 }}>{error}</div>}
 
       {/* ---- TAB: Config (upload/parse + display settings) ---- */}

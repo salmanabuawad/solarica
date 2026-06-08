@@ -385,12 +385,12 @@ FIELD_CONFIG_SEEDS: dict[str, list[dict]] = {
     ],
     "strings-list": [
         {"field_name": "string",      "display_name": "String",  "column_order": 1, "visible": True, "pin_side": "left"},
-        {"field_name": "row",         "display_name": "Row",     "column_order": 2, "visible": True},
-        {"field_name": "status",      "display_name": "Status",  "column_order": 3, "visible": True},
-        {"field_name": "string_type", "display_name": "Type",    "column_order": 4, "visible": True},
-        {"field_name": "voltage",     "display_name": "Voltage", "column_order": 5, "visible": True},
-        {"field_name": "comment",     "display_name": "Comment", "column_order": 6, "visible": True},
-        {"field_name": "images",      "display_name": "Images",  "column_order": 7, "visible": True},
+        {"field_name": "status",      "display_name": "Status",  "column_order": 2, "visible": True},
+        {"field_name": "comment",     "display_name": "Comment", "column_order": 3, "visible": True},
+        {"field_name": "images",      "display_name": "Images",  "column_order": 4, "visible": True},
+        {"field_name": "row",         "display_name": "Row",     "column_order": 5, "visible": True},
+        {"field_name": "voltage",     "display_name": "Voltage", "column_order": 6, "visible": True},
+        {"field_name": "string_type", "display_name": "Type",    "column_order": 7, "visible": True},
     ],
     "devices-bom": [
         {"field_name": "part_no",      "display_name": "Part No",    "column_order": 1, "visible": True},
