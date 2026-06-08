@@ -1768,9 +1768,30 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
       {/* ---- TAB: Details (Grid / Map) ---- */}
       <div style={{ display: activeTab === "mapgrid" ? "block" : "none" }}>
-        {/* Verified-Progress dashboard for strings — sits ABOVE the Grid/Map
-            toggle + layout so it's the first thing seen, in both views and on
-            mobile. */}
+        {/* Electrical summary stats (string zones / strings / optimizers /
+            modules) — a single row on every screen size, sitting at the very
+            top of the Details tab. For non-electrical projects the pier-status
+            rollup takes its place (desktop only). */}
+        {electricalDetailsMode ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: compact ? "4px 8px" : "8px 20px", marginBottom: 10, padding: compact ? 10 : 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc", fontSize: 13 }}>
+            {[
+              [t("field.stringZones"), electricalSummary?.string_zones],
+              [t("strings.title"), electricalSummary?.strings],
+              ["Optimizers", electricalSummary?.optimizers],
+              ["Modules", electricalSummary?.modules],
+            ].map(([label, value]) => (
+              <div key={String(label)} style={{ minWidth: 0 }}>
+                <div style={{ fontSize: compact ? 10 : 11, color: "#64748b", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+                <div style={{ fontWeight: 700, fontSize: compact ? 14 : 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          // Pier-status rollup stays desktop-only.
+          !compact && <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
+        )}
+        {/* Verified-Progress dashboard for strings — below the totals, above
+            the Grid/Map toggle so it's seen in both views and on mobile. */}
         {electricalDetailsMode && stringTopology.length > 0 && (
           <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap", padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc" }}>
             <div style={{ flex: 1, minWidth: 220, height: 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#fff" }}>
@@ -1788,30 +1809,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               </span>
             ))}
           </div>
-        )}
-        {/* Status dashboard — total piers + breakdown by status. Lives
-            above the Grid/Map toggle so the operator sees the rollout
-            at a glance regardless of which view they're in. */}
-        {electricalDetailsMode ? (
-          // Electrical summary stats (string zones / strings / optimizers /
-          // modules). Shown on desktop AND phone/tablet — 4-up on desktop,
-          // 2×2 on compact.
-          <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr 1fr" : "repeat(4, 1fr)", gap: compact ? "6px 14px" : "8px 20px", marginBottom: 10, padding: compact ? 10 : 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc", fontSize: 13 }}>
-            {[
-              [t("field.stringZones"), electricalSummary?.string_zones],
-              [t("strings.title"), electricalSummary?.strings],
-              ["Optimizers", electricalSummary?.optimizers],
-              ["Modules", electricalSummary?.modules],
-            ].map(([label, value]) => (
-              <div key={String(label)}>
-                <div style={{ fontSize: compact ? 10 : 11, color: "#64748b", marginBottom: 2 }}>{label}</div>
-                <div style={{ fontWeight: 700, fontSize: compact ? 14 : 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          // Pier-status rollup stays desktop-only.
-          !compact && <StatusDashboard piers={piers} pierStatuses={pierStatuses} />
         )}
 
         {/* Grid/Map toggle + Export-to-Excel on the same row. The
