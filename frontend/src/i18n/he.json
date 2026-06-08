@@ -248,6 +248,7 @@
       "voltage": "מתח"
     },
     "type": { "one": "שורה אחת", "multi": "רב-שורתי" },
+    "voltageBad": "לא תקין",
     "img": { "upload": "העלאה", "delete": "מחיקה", "view": "צפייה", "none": "אין תמונות", "confirmDelete": "למחוק את התמונה?" },
     "status": {
       "new": "חדש",

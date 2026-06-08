@@ -1977,10 +1977,20 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     valueGetter: (p: any) => p.data?.multi_row ? t("strings.type.multi") : t("strings.type.one"),
                   },
                   {
-                    field: "voltage", headerName: t("strings.col.voltage"), width: 110, type: "numericColumn",
+                    field: "voltage", headerName: t("strings.col.voltage"), width: 150, type: "numericColumn",
                     editable: canEdit, singleClickEdit: canEdit,
-                    valueFormatter: (p: any) => (p.value == null || p.value === "" ? "" : `${p.value} V`),
-                    valueParser: (p: any) => { const n = parseFloat(p.newValue); return isNaN(n) ? null : n; },
+                    valueParser: (p: any) => { const n = parseFloat(p.newValue); return isNaN(n) ? null : Math.round(n * 100) / 100; },
+                    valueFormatter: (p: any) => (p.value == null || p.value === "" || isNaN(Number(p.value)) ? "" : `${Number(p.value).toFixed(2)} V`),
+                    cellRenderer: (p: any) => {
+                      if (p.value == null || p.value === "" || isNaN(Number(p.value))) return <span style={{ color: "#cbd5e1" }}>—</span>;
+                      const n = Number(p.value);
+                      const ok = n >= 22 && n <= 23;
+                      return (
+                        <span style={{ color: ok ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
+                          {n.toFixed(2)} V{ok ? "" : ` ⚠ ${t("strings.voltageBad", "not ok")}`}
+                        </span>
+                      );
+                    },
                   },
                   {
                     field: "comment", headerName: t("strings.popup.comment"), minWidth: 220, flex: 1,
