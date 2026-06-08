@@ -1475,7 +1475,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   );
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", background: "#f8fafc" }}>
+    <div style={{ display: "flex", minHeight: compact ? undefined : "100vh", height: compact ? "100dvh" : undefined, overflow: compact ? "hidden" : undefined, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", background: "#f8fafc" }}>
       {sidebar}
       {compact && sidebarOpen && (
         <div
@@ -1484,7 +1484,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         />
       )}
 
-      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+      <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", ...(compact ? { height: "100dvh", overflow: "hidden" } : {}) }}>
         {/* Mobile-only logo strip ABOVE everything — the brand sits
             on its own row at the very top of the page so nothing else
             (hamburger, project picker, status pills) competes with it
@@ -1502,6 +1502,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               padding: "6px 0",
               background: "#ffffff",
               borderBottom: "1px solid #e2e8f0",
+              flexShrink: 0,
               position: "sticky",
               top: 0,
               zIndex: 11,
@@ -1534,6 +1535,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           position: compact ? "static" : "sticky",
           top: 0,
           zIndex: 10,
+          flexShrink: 0,
         }}>
           {compact && (
             <button
@@ -1635,7 +1637,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           </button>}
         </div>
 
-        <div style={{ padding: compact ? "12px 14px 24px" : "16px 24px 32px", flex: 1, minWidth: 0, boxSizing: "border-box", maxWidth: "100%" }}>
+        <div style={{ padding: compact ? "12px 14px 24px" : "16px 24px 32px", flex: 1, minWidth: 0, boxSizing: "border-box", maxWidth: "100%", minHeight: 0, overflowY: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {error && <div style={{ color: "#b91c1c", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 13 }}>{error}</div>}
 
       {/* ---- TAB: Config (upload/parse + display settings) ---- */}
