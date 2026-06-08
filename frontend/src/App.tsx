@@ -1996,19 +1996,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           </div>
         ) : electricalDetailsMode ? (
           <div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-              {stringTopology.length > 0 && (
-                <div style={{ display: "flex", gap: 6 }}>
-                  <Pill active={eplGridTab === "routes"} onClick={() => setEplGridTab("routes")}>{t("strings.routesTab")}</Pill>
-                  <Pill active={eplGridTab === "rows"} onClick={() => setEplGridTab("rows")}>{t("strings.rowsTab")}</Pill>
-                </div>
-              )}
-              <span style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
-                {eplGridTab === "routes" && stringTopology.length > 0
-                  ? `${topologyGridRows.length.toLocaleString()} ${t("strings.title")}`
-                  : `${electricalPhysicalRows.length.toLocaleString()} ${t("strings.rowsTab")}`}
-              </span>
-            </div>
             {eplGridTab === "routes" && stringTopology.length > 0 ? (
               <SimpleGrid
                 rows={topologyGridRows}
