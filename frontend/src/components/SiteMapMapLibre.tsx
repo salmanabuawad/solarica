@@ -2908,8 +2908,9 @@ export default function SiteMapMapLibre({
       // number comes from the route label so it isn't drawn twice.
       show("electrical-string-lines", false);
       show("electrical-string-row-jumps", false);
-      show("string-start-markers-layer", false);
-      show("string-end-markers-layer", false);
+      // "Strings" layer also shows the green start triangle + red end circle.
+      show("string-start-markers-layer", stringsOn);
+      show("string-end-markers-layer", stringsOn);
       show("electrical-string-starts", false);
       show("electrical-string-ends", false);
       show("electrical-string-labels", false);
