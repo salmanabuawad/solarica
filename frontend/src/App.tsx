@@ -1750,9 +1750,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               })}
             </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
-            {stringProgress.blocked > 0 && (
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#dc2626", whiteSpace: "nowrap" }}>⛔ {stringProgress.blocked} {t("strings.progress.blocked")}</span>
-            )}
             {STRING_STATUS_ORDER.map((k) => (
               <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
                 {STRING_STATUS_META[k].icon} {stringProgress.counts[k] || 0}
