@@ -17,12 +17,31 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // The same SW also Workbox-precaches the app shell (JS/CSS/HTML/icons),
 // so the app boots fully offline after a single online visit.
 if (typeof window !== "undefined") {
-  registerSW({ immediate: true, onRegisteredSW() { /* ok */ }, onOfflineReady() { /* shell cached */ } });
+  registerSW({
+    immediate: true,
+    onRegisteredSW(_swUrl, registration) {
+      // Poll for a new service worker so an already-open phone/tablet picks up
+      // a new deploy WITHOUT a manual refresh. nginx serves sw.js no-cache, so
+      // update() re-fetches it; when a new SW is found, autoUpdate's
+      // skipWaiting activates it → controllerchange (below) → auto reload.
+      if (!registration) return;
+      const check = () => { registration.update().catch(() => { /* offline / transient */ }); };
+      setInterval(check, 60_000);
+      // Also check when the app regains focus / comes back online.
+      window.addEventListener("focus", check);
+      window.addEventListener("online", check);
+    },
+    onOfflineReady() { /* shell cached */ },
+  });
 
   if ("serviceWorker" in navigator) {
+    // Only auto-reload on an UPDATE (a controller already existed), not on the
+    // first SW taking control of a fresh tab — that would double-load on the
+    // very first visit.
+    const hadController = !!navigator.serviceWorker.controller;
     let didReload = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (didReload) return;   // avoid the reload loop Chrome otherwise does on first activation
+      if (didReload || !hadController) return;
       didReload = true;
       window.location.reload();
     });
