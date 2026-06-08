@@ -1320,6 +1320,9 @@ export default function SiteMapMapLibre({
     if (!containerRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
+      // Needed so the WebGL canvas can be captured (getCanvas().toDataURL)
+      // for the "Export to PDF" of the map view.
+      preserveDrawingBuffer: true,
       style: {
         version: 8,
         sources: {},

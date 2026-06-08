@@ -1179,6 +1179,22 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   );
 
   const closeMobileSidebar = () => setSidebarOpen(false);
+  const exportMapToPdf = async () => {
+    const canvas = document.querySelector(".maplibregl-canvas") as HTMLCanvasElement | null;
+    if (!canvas) { setError("Map is not ready yet."); return; }
+    try {
+      const dataUrl = canvas.toDataURL("image/png");
+      const w = canvas.width, h = canvas.height;
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: w >= h ? "landscape" : "portrait", unit: "px", format: [w, h], hotfixes: ["px_scaling"] });
+      pdf.addImage(dataUrl, "PNG", 0, 0, w, h);
+      const today = new Date().toISOString().slice(0, 10);
+      pdf.save(`map-${projectId || "export"}-${today}.pdf`);
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    }
+  };
+
   const exportCurrentGrid = async () => {
     const api: any = pierGridApiRef.current;
     if (!api) return;
@@ -1549,13 +1565,13 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           )}
           {compact && (
             <div style={{ marginInlineStart: "auto", display: "flex", gap: 6, alignItems: "center" }}>
-              {activeTab === "mapgrid" && mode === "grid" && (
+              {activeTab === "mapgrid" && (
                 <button
-                  onClick={exportCurrentGrid}
-                  title={t("details.exportExcel", "Export to Excel")}
-                  aria-label={t("details.exportExcel", "Export to Excel")}
-                  style={{ background: "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 40, whiteSpace: "nowrap" }}
-                >⤓ {t("details.exportExcel", "Export to Excel")}</button>
+                  onClick={mode === "map" ? exportMapToPdf : exportCurrentGrid}
+                  title={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
+                  aria-label={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
+                  style={{ background: mode === "map" ? "#2563eb" : "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 40, whiteSpace: "nowrap" }}
+                >⤓ {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}</button>
               )}
               <LanguageSwitcher />
             </div>
@@ -1787,8 +1803,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           <span style={{ flex: 1 }} />
           <button
             type="button"
-            title={t("details.exportTooltip", "Export the current view to a CSV file Excel can open")}
-            onClick={exportCurrentGrid}
+            title={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
+            onClick={mode === "map" ? exportMapToPdf : exportCurrentGrid}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1797,8 +1813,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               fontWeight: 600,
               padding: "6px 12px",
               borderRadius: 8,
-              border: "1px solid #16a34a",
-              background: "#16a34a",
+              border: `1px solid ${mode === "map" ? "#2563eb" : "#16a34a"}`,
+              background: mode === "map" ? "#2563eb" : "#16a34a",
               color: "#fff",
               cursor: "pointer",
               boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
@@ -1810,7 +1826,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <polyline points="6 10 12 16 18 10" />
               <path d="M5 20h14" />
             </svg>
-            {t("details.exportExcel", "Export to Excel")}
+            {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
           </button>
         </div>}
 

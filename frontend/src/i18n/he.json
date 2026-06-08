@@ -62,6 +62,7 @@
     "grow": "הגדלה",
     "shrink": "הקטנה",
     "exportExcel": "ייצוא לאקסל",
+    "exportPdf": "ייצוא ל-PDF",
     "exportTooltip": "ייצוא הטבלה הנוכחית לקובץ CSV שאקסל יודע לפתוח"
   },
   "status": {
