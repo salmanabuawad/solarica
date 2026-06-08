@@ -12,6 +12,7 @@ const FieldConfigManager = lazy(() => import("./components/FieldConfigManager"))
 import SimpleGrid from "./components/SimpleGrid";
 import StatusDashboard from "./components/StatusDashboard";
 import LayerTogglePanel from "./components/LayerTogglePanel";
+import LanguageSwitcher from "./components/LanguageSwitcher";
 import PierModal from "./components/PierModal";
 import TrackerModal from "./components/TrackerModal";
 import SystemPanel from "./components/SystemPanel";
@@ -770,10 +771,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         .map((e: any) => `R${e.physical_row}: ${fmtPair(e.between_panels)}`)
         .join("   ");
       const code = s?.string || "";
-      const sr = start?.physical_row;
-      const er = end?.physical_row;
-      const row = (sr != null && er != null && sr !== er) ? `${sr}–${er}` : (sr ?? er ?? "");
-      const multiRow = Number(s?.jump_count || 0) > 0 || (sr != null && er != null && sr !== er);
+      const srN = Number(start?.physical_row);
+      const erN = Number(end?.physical_row);
+      const sv = Number.isFinite(srN) ? srN : null;
+      const ev = Number.isFinite(erN) ? erN : null;
+      const row = (sv != null && ev != null && sv !== ev) ? `${sv}–${ev}` : (sv ?? ev ?? "");
+      const multiRow = Number(s?.jump_count || 0) > 0 || (sv != null && ev != null && sv !== ev);
       return {
         id: String(s?.string || `str-${s?.ribbon_idx ?? idx}`),
         string: s?.string || "(unlabeled)",
@@ -1551,6 +1554,19 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
             </div>
           )}
+          {compact && (
+            <div style={{ marginInlineStart: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+              {activeTab === "mapgrid" && mode === "grid" && (
+                <button
+                  onClick={exportCurrentGrid}
+                  title={t("details.exportExcel", "Export to Excel")}
+                  aria-label={t("details.exportExcel", "Export to Excel")}
+                  style={{ background: "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 15, fontWeight: 700, cursor: "pointer", minHeight: 40, whiteSpace: "nowrap" }}
+                >⤓ XLS</button>
+              )}
+              <LanguageSwitcher />
+            </div>
+          )}
           {!compact && <select
             autoComplete="off"
             value={projectId}
@@ -1997,10 +2013,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <SimpleGrid
                 rows={topologyGridRows}
                 columns={applyFieldConfigs([
-                  { field: "string", headerName: t("strings.col.string"), width: 140, pinned: "left" },
-                  { field: "row", headerName: t("strings.rowsCol.row"), width: 90 },
+                  { field: "string", headerName: t("strings.col.string"), width: 96, pinned: "left" },
+                  { field: "row", headerName: t("strings.rowsCol.row"), width: 78 },
                   {
-                    field: "status", headerName: t("strings.col.status"), width: 184,
+                    field: "status", headerName: t("strings.col.status"), width: 168,
                     headerTooltip: t("strings.col.status"),
                     editable: canEdit, singleClickEdit: canEdit,
                     cellEditor: "agSelectCellEditor",
@@ -2018,11 +2034,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     },
                   },
                   {
-                    field: "string_type", headerName: t("strings.col.type"), width: 110,
+                    field: "string_type", headerName: t("strings.col.type"), width: 94,
                     valueGetter: (p: any) => p.data?.multi_row ? t("strings.type.multi") : t("strings.type.one"),
                   },
                   {
-                    field: "voltage", headerName: t("strings.col.voltage"), width: 150, type: "numericColumn",
+                    field: "voltage", headerName: t("strings.col.voltage"), width: 138, type: "numericColumn",
                     editable: canEdit, singleClickEdit: canEdit,
                     valueParser: (p: any) => { const n = parseFloat(p.newValue); return isNaN(n) ? null : Math.round(n * 100) / 100; },
                     valueFormatter: (p: any) => (p.value == null || p.value === "" || isNaN(Number(p.value)) ? "" : `${Number(p.value).toFixed(2)} V`),
@@ -2045,7 +2061,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     cellEditorParams: { maxLength: 1000, rows: 5, cols: 44 },
                   },
                   {
-                    field: "images", headerName: t("strings.col.images"), width: 110, sortable: false, filter: false,
+                    field: "images", headerName: t("strings.col.images"), width: 80, sortable: false, filter: false,
                     valueGetter: (p: any) => (Array.isArray(p.data?.images) ? p.data.images.length : 0),
                     cellRenderer: (p: any) => {
                       const imgs = Array.isArray(p.data?.images) ? p.data.images : [];
@@ -2064,7 +2080,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 quickFilterPlaceholder={t("strings.search")}
                 getRowId={(p: any) => p.data?.id}
                 getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
-                autoSizeColumns
                 onRowDoubleClick={(d: any) => { const code = d?.string; if (code && code !== "(unlabeled)") setStringModal({ code }); }}
                 onCellValueChanged={(e: any) => {
                   const code = e.data?.string;
