@@ -27,9 +27,12 @@ if (typeof window !== "undefined") {
       if (!registration) return;
       const check = () => { registration.update().catch(() => { /* offline / transient */ }); };
       setInterval(check, 60_000);
-      // Also check when the app regains focus / comes back online.
+      // Also check when the app regains focus / becomes visible (iOS Safari
+      // backgrounds tabs and fires visibilitychange more reliably than focus) /
+      // comes back online — so a phone returning to the app updates promptly.
       window.addEventListener("focus", check);
       window.addEventListener("online", check);
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
     },
     onOfflineReady() { /* shell cached */ },
   });
