@@ -486,6 +486,15 @@ export async function addStringImage(pid: string, stringId: string, file: File):
   return r.json();
 }
 
+export async function deleteStringImage(pid: string, stringId: string, url: string): Promise<any> {
+  if (!isOnline()) throw new OfflineError("String images need a connection.");
+  return j<any>(`${API}/api/projects/${pid}/strings/${encodeURIComponent(stringId)}/images`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+}
+
 export async function pendingCount(): Promise<number> {
   return countPendingMutations();
 }

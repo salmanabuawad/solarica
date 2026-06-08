@@ -243,8 +243,11 @@
       "endPanels": "ألواح النهاية",
       "optimizers": "المُحسِّنات",
       "panels": "الألواح",
-      "images": "صور"
+      "images": "صور",
+      "type": "النوع"
     },
+    "type": { "one": "صف واحد", "multi": "متعدد الصفوف" },
+    "img": { "upload": "رفع", "delete": "حذف", "view": "عرض", "none": "لا صور", "confirmDelete": "حذف هذه الصورة؟" },
     "status": {
       "new": "جديد",
       "opt_attached": "تم تركيب المُحسِّنات",

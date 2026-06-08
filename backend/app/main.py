@@ -1300,6 +1300,26 @@ async def api_add_string_image(project_id: str, string_id: str, file: UploadFile
     return {"string_id": string_id, "image": image, "record": _normalize_string_record(row)}
 
 
+@app.delete("/api/projects/{project_id}/strings/{string_id}/images")
+def api_delete_string_image(project_id: str, string_id: str, body: dict = Body(...)):
+    uu = _require_project_uuid(project_id)
+    url = str(body.get("url") or "")
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT images FROM string_records WHERE project_id=%s AND string_id=%s", (uu, string_id))
+        row = cur.fetchone()
+        imgs = (row.get("images") if row else None) or []
+        kept = [im for im in imgs if (im.get("url") if isinstance(im, dict) else im) != url]
+        cur.execute(
+            "INSERT INTO string_records (project_id, string_id, images) VALUES (%s, %s, %s)"
+            " ON CONFLICT (project_id, string_id) DO UPDATE SET images = EXCLUDED.images, updated_at = NOW()"
+            " RETURNING status, comment, images, updated_at",
+            (uu, string_id, json.dumps(kept)),
+        )
+        r = cur.fetchone()
+        conn.commit()
+    return {"string_id": string_id, **_normalize_string_record(r)}
+
+
 @app.post("/api/projects/{project_id}/pier/{pier_code}/status-event")
 async def api_create_status_event(
     project_id: str,

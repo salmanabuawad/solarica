@@ -1,6 +1,6 @@
 import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, getStringRecords, updateStringStatus, updateStringComment, addStringImage, type AuthUser } from "./api";
+import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, getStringRecords, updateStringStatus, updateStringComment, addStringImage, deleteStringImage, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
@@ -26,6 +26,7 @@ import { userPrefs } from "./userPrefs";
 // MapLibre is our single map engine. Lazy-loaded so the initial bundle
 // doesn't pay for it until the user opens the Map tab.
 const SiteMapMapLibre = lazy(() => import("./components/SiteMapMapLibre"));
+const StringImagesModal = lazy(() => import("./components/StringImagesModal"));
 
 // String Status Engine — 5-state presentation (kept in sync with
 // SiteMapMapLibre + backend STRING_STATUS_VALUES). Defined here too so the
@@ -302,7 +303,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [stringStatuses, setStringStatuses] = useState<Record<string, string>>({});
   const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
   const [stringComments, setStringComments] = useState<Record<string, string>>({});
-  const [imgModal, setImgModal] = useState<{ code: string; images: string[] } | null>(null);
+  const [imgModal, setImgModal] = useState<{ code: string } | null>(null);
   const [layers, setLayers] = useState(() => {
     // Restore per-layer visibility from localStorage so the user's
     // checkbox toggles survive refreshes. Falls back to INITIAL_LAYERS
@@ -442,6 +443,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         setStringImages((prev) => ({ ...prev, [stringId]: [...(prev[stringId] || []), url] }));
       })
       .catch((e: any) => setError(String(e?.message || e)));
+  }, [projectId]);
+
+  const handleStringImageDelete = useCallback((stringId: string, url: string) => {
+    if (!stringId || !projectId || !url) return;
+    setStringImages((prev) => ({ ...prev, [stringId]: (prev[stringId] || []).filter((u) => u !== url) }));
+    deleteStringImage(projectId, stringId, url).catch((e: any) => setError(String(e?.message || e)));
   }, [projectId]);
 
   const handleStringCommentChange = useCallback((stringId: string, comment: string) => {
@@ -754,10 +761,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       const sr = start?.physical_row;
       const er = end?.physical_row;
       const row = (sr != null && er != null && sr !== er) ? `${sr}–${er}` : (sr ?? er ?? "");
+      const multiRow = Number(s?.jump_count || 0) > 0 || (sr != null && er != null && sr !== er);
       return {
         id: String(s?.string || `str-${s?.ribbon_idx ?? idx}`),
         string: s?.string || "(unlabeled)",
         row,
+        multi_row: multiRow,
         status: code ? normStringStatus(stringStatuses[code]) : "new",
         comment: code ? (stringComments[code] || "") : "",
         images: code ? (stringImages[code] || []) : [],
@@ -1951,6 +1960,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     },
                   },
                   {
+                    field: "string_type", headerName: t("strings.col.type"), width: 110,
+                    valueGetter: (p: any) => p.data?.multi_row ? t("strings.type.multi") : t("strings.type.one"),
+                  },
+                  {
                     field: "comment", headerName: t("strings.popup.comment"), minWidth: 220, flex: 1,
                     editable: canEdit, singleClickEdit: false,
                     cellEditor: "agLargeTextCellEditor",
@@ -1962,12 +1975,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     valueGetter: (p: any) => (Array.isArray(p.data?.images) ? p.data.images.length : 0),
                     cellRenderer: (p: any) => {
                       const imgs = Array.isArray(p.data?.images) ? p.data.images : [];
-                      if (!imgs.length) return <span style={{ color: "#cbd5e1" }}>—</span>;
                       return (
                         <a
                           href="#"
-                          onClick={(ev) => { ev.preventDefault(); setImgModal({ code: String(p.data?.string || ""), images: imgs }); }}
-                          style={{ color: "#2563eb", fontWeight: 600, textDecoration: "none", cursor: "pointer" }}
+                          onClick={(ev) => { ev.preventDefault(); setImgModal({ code: String(p.data?.string || "") }); }}
+                          style={{ color: imgs.length ? "#2563eb" : "#94a3b8", fontWeight: 600, textDecoration: "none", cursor: "pointer" }}
                         >📷 {imgs.length}</a>
                       );
                     },
@@ -2286,28 +2298,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       )}
       {busy && <BusyOverlay message={busy} />}
       {imgModal && (
-        <div
-          onClick={() => setImgModal(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, padding: 16, maxWidth: "92vw", maxHeight: "88vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.4)", direction: isRtl ? "rtl" : "ltr" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>{imgModal.code} · {imgModal.images.length} 📷</div>
-              <button onClick={() => setImgModal(null)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>✕</button>
-            </div>
-            {imgModal.images.length === 0 ? (
-              <div style={{ color: "#94a3b8", padding: 20 }}>—</div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-                {imgModal.images.map((src, i) => (
-                  <a key={i} href={src} target="_blank" rel="noreferrer" style={{ display: "block" }}>
-                    <img src={src} alt={`${imgModal.code} ${i + 1}`} style={{ width: "100%", height: 160, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        <Suspense fallback={null}>
+          <StringImagesModal
+            code={imgModal.code}
+            images={stringImages[imgModal.code] || []}
+            canEdit={canEdit}
+            onUpload={(f) => handleStringImageAdd(imgModal.code, f)}
+            onDelete={(url) => handleStringImageDelete(imgModal.code, url)}
+            onClose={() => setImgModal(null)}
+          />
+        </Suspense>
       )}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       {statusEvent && projectId && (

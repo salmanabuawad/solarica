@@ -250,8 +250,11 @@
       "endPanels": "End panels",
       "optimizers": "Optimizers",
       "panels": "Panels",
-      "images": "Images"
+      "images": "Images",
+      "type": "Type"
     },
+    "type": { "one": "One row", "multi": "Multi row" },
+    "img": { "upload": "Upload", "delete": "Delete", "view": "View", "none": "No images", "confirmDelete": "Delete this image?" },
     "status": {
       "new": "New",
       "opt_attached": "Optimizers mounted",
