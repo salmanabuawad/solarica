@@ -2914,7 +2914,10 @@ export default function SiteMapMapLibre({
       show("electrical-string-starts", false);
       show("electrical-string-ends", false);
       show("electrical-string-labels", false);
-      show("electrical-string-point-labels", stringsOn && !topologyOn);
+      // The string-zones label layer carries EVERY string number (complete),
+      // so use it whenever Strings is on. The topology label layer only covers
+      // routed strings, so it's used only when routes are shown without Strings.
+      show("electrical-string-point-labels", stringsOn);
       show("electrical-string-status-icons", stringsOn);
       show("electrical-string-start-panel-labels", false);
       show("electrical-string-end-panel-labels", false);
@@ -2935,7 +2938,7 @@ export default function SiteMapMapLibre({
       show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
-      show("topology-labels-layer", topologyOn);
+      show("topology-labels-layer", topologyOn && !stringsOn);
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);
