@@ -124,6 +124,7 @@ export default function SiteMapMapLibre({
   pierStatusDisplay = "icon",
   mapLabelStride = 10,
   mapLabelDenseThreshold = 20,
+  captureRef,
 }: SiteMapProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1343,6 +1344,26 @@ export default function SiteMapMapLibre({
       touchPitch: false,
     });
     mapRef.current = map;
+    // Wire the "Export to PDF" capture hook. We read mapRef.current (not the
+    // closure `map`) so it always targets the live instance, force a
+    // synchronous redraw so the WebGL drawing buffer is fresh, then snapshot.
+    if (captureRef) {
+      captureRef.current = () => {
+        const m = mapRef.current;
+        if (!m) return null;
+        try {
+          if (typeof (m as any).redraw === "function") (m as any).redraw();
+        } catch {
+          /* redraw is best-effort; preserveDrawingBuffer still holds last frame */
+        }
+        const cv = m.getCanvas();
+        return {
+          dataUrl: cv.toDataURL("image/png"),
+          width: cv.width,
+          height: cv.height,
+        };
+      };
+    }
     map.addControl(
       new maplibregl.NavigationControl({ showCompass: false }),
       "top-right",
@@ -2549,6 +2570,7 @@ export default function SiteMapMapLibre({
       clearMarkers();
       map.remove();
       mapRef.current = null;
+      if (captureRef) captureRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

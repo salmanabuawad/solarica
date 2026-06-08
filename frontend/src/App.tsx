@@ -1179,12 +1179,28 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   );
 
   const closeMobileSidebar = () => setSidebarOpen(false);
+  const mapCaptureRef = useRef<
+    null | (() => { dataUrl: string; width: number; height: number } | null)
+  >(null);
   const exportMapToPdf = async () => {
-    const canvas = document.querySelector(".maplibregl-canvas") as HTMLCanvasElement | null;
-    if (!canvas) { setError("Map is not ready yet."); return; }
+    // Capture from the live map instance (forces a synchronous redraw so the
+    // WebGL buffer is fresh). Fall back to the raw canvas only if the hook is
+    // not wired yet (e.g. an older cached map chunk).
+    let shot = mapCaptureRef.current?.() || null;
+    if (!shot) {
+      const canvas = document.querySelector(".maplibregl-canvas") as HTMLCanvasElement | null;
+      if (canvas) {
+        try {
+          shot = { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
+        } catch { /* tainted / blank */ }
+      }
+    }
+    if (!shot || !shot.dataUrl || !shot.width || !shot.height) {
+      setError("Map is not ready yet — open the Map view, wait for it to draw, then export.");
+      return;
+    }
     try {
-      const dataUrl = canvas.toDataURL("image/png");
-      const w = canvas.width, h = canvas.height;
+      const { dataUrl, width: w, height: h } = shot;
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: w >= h ? "landscape" : "portrait", unit: "px", format: [w, h], hotfixes: ["px_scaling"] });
       pdf.addImage(dataUrl, "PNG", 0, 0, w, h);
@@ -1993,6 +2009,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   pierStatusDisplay={pierStatusDisplay}
                   mapLabelStride={mapLabelStride}
                   mapLabelDenseThreshold={mapLabelDenseThreshold}
+                  captureRef={mapCaptureRef}
                 />
               </Suspense>
             </div>

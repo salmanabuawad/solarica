@@ -75,6 +75,16 @@ export interface SiteMapProps {
   mapLabelStride?: number;
   /** When ≤ this many row/tracker labels are visible, render them all. */
   mapLabelDenseThreshold?: number;
+  /**
+   * Wired by the map once created: a capture function that forces a
+   * synchronous redraw and returns a PNG of the current map canvas plus its
+   * pixel size. Used by the map view's "Export to PDF". `preserveDrawingBuffer`
+   * alone is unreliable — the buffer can be cleared after compositing — so the
+   * redraw immediately before `toDataURL` is what guarantees a non-blank frame.
+   */
+  captureRef?: {
+    current: null | (() => { dataUrl: string; width: number; height: number } | null);
+  };
 }
 
 /** Fill colours for the five pier types. */
