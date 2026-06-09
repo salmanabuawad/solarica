@@ -60,6 +60,15 @@ const orderStringsCols = (cols: any[]) => {
   return cols.slice().sort((a, b) => rank(a?.field) - rank(b?.field));
 };
 
+// Status icon renderer. "panels_connected" uses a custom solar-panel + plug
+// SVG (public/panel-connected.svg); the others use their emoji glyph.
+function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
+  if (code === "panels_connected") {
+    return <img src="/panel-connected.svg" alt="" width={size + 2} height={size + 2} style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }} />;
+  }
+  return <span style={{ fontSize: size, lineHeight: 1 }}>{STRING_STATUS_META[code]?.icon}</span>;
+}
+
 const STATUS_OPTIONS = ["New", "In Progress", "Implemented", "Approved", "Rejected", "Fixed"] as const;
 
 // Shared style for the compact topbar icon buttons (buildings-manager
@@ -1901,7 +1910,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", justifyContent: compact ? "space-between" : "flex-start" }}>
               {STRING_STATUS_ORDER.map((k) => (
                 <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
-                  {STRING_STATUS_META[k].icon} {stringProgress.counts[k] || 0}
+                  <StatusGlyph code={k} size={12} /> {stringProgress.counts[k] || 0}
                 </span>
               ))}
             </div>
@@ -2148,7 +2157,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                       const m = STRING_STATUS_META[code];
                       return (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: m.color }}>
-                          <span style={{ fontSize: 14, lineHeight: 1 }}>{m.icon}</span>
+                          <StatusGlyph code={code} size={14} />
                           {t(`strings.status.${code}`)}
                         </span>
                       );

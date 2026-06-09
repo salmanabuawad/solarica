@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- solar panel -->
+  <rect x="4.5" y="4.5" width="30" height="22" rx="2.6" fill="#cdeaf3" stroke="#16202e" stroke-width="2.6"/>
+  <!-- grid lines -->
+  <path d="M4.5 15.5 H34.5 M14.8 4.5 V26.5 M24.2 4.5 V26.5" fill="none" stroke="#16202e" stroke-width="1.8"/>
+  <!-- cell nodes -->
+  <g fill="#2f9fc4">
+    <circle cx="14.8" cy="15.5" r="2"/>
+    <circle cx="24.2" cy="15.5" r="2"/>
+    <circle cx="14.8" cy="10" r="1.5"/>
+    <circle cx="24.2" cy="10" r="1.5"/>
+    <circle cx="14.8" cy="21" r="1.5"/>
+    <circle cx="24.2" cy="21" r="1.5"/>
+  </g>
+  <!-- cable -->
+  <path d="M19.5 26.5 V33.5 a5.5 5.5 0 0 0 5.5 5.5 H30.5" fill="none" stroke="#16202e" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- plug -->
+  <rect x="30.5" y="35" width="7.5" height="8" rx="1.6" fill="#5cb6d6" stroke="#16202e" stroke-width="2.2"/>
+  <path d="M38 37.5 h4 M38 40.5 h4" fill="none" stroke="#16202e" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

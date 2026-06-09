@@ -3853,8 +3853,10 @@ function StringStatusModal({
           x
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 32, marginBottom: 12 }}>
-          <span style={{ color: STRING_STATUS_COLORS[currentStatus], fontSize: 22, lineHeight: 1 }}>
-            {STRING_STATUS_ICONS[currentStatus]}
+          <span style={{ color: STRING_STATUS_COLORS[currentStatus], fontSize: 22, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>
+            {currentStatus === "panels_connected"
+              ? <img src="/panel-connected.svg" alt="" width={24} height={24} />
+              : STRING_STATUS_ICONS[currentStatus]}
           </span>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{stringInfo.id}</div>
@@ -3885,8 +3887,10 @@ function StringStatusModal({
                   textAlign: "left",
                 }}
               >
-                <span style={{ color: STRING_STATUS_COLORS[status], fontSize: 17, width: 20 }}>
-                  {STRING_STATUS_ICONS[status]}
+                <span style={{ color: STRING_STATUS_COLORS[status], fontSize: 17, width: 20, display: "inline-flex", alignItems: "center" }}>
+                  {status === "panels_connected"
+                    ? <img src="/panel-connected.svg" alt="" width={18} height={18} />
+                    : STRING_STATUS_ICONS[status]}
                 </span>
                 <span>{t(`strings.status.${status}`, STRING_STATUS_LABELS[status])}</span>
               </button>
