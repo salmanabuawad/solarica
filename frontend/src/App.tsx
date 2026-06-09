@@ -480,7 +480,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
   useEffect(() => {
     let ignore = false;
-    setBusy(t("app.loading"));
     getProjects()
       .then((items: any[]) => {
         if (ignore) return;
@@ -498,8 +497,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           } catch { /* ignore */ }
         }
       })
-      .catch((e: any) => { if (!ignore) setError(String(e.message || e)); })
-      .finally(() => { if (!ignore) setBusy(null); });
+      .catch((e: any) => { if (!ignore) setError(String(e.message || e)); });
     return () => { ignore = true; };
     // Project list is fetched once on mount.  Re-fetching every time
     // `projectId` changes was causing /api/projects to fire twice on
@@ -527,7 +525,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setSelectedPierFull(null);
     setGridFilterValue("");
 
-    setBusy(t("app.loading"));
     Promise.all([
       getProject(projectId).catch(() => null),
       getPlantInfo(projectId).catch(() => ({})),
@@ -536,8 +533,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       setProject(p);
       setPlantInfo(pi);
     })
-    .catch((e: any) => { if (!ignore) setError(String(e.message || e)); })
-    .finally(() => { if (!ignore) setBusy(null); });
+    .catch((e: any) => { if (!ignore) setError(String(e.message || e)); });
 
     const params = new URLSearchParams(window.location.search);
     params.set("project", projectId);
