@@ -1773,6 +1773,22 @@ export default function SiteMapMapLibre({
         `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#ef4444" stroke="#ffffff" stroke-width="2"/></svg>`,
       );
 
+      // String-status marker icons — render the custom panel/optimizer artwork
+      // (and simple shapes for the rest) as map images so the on-map status
+      // markers match the grid/popup. All 48x48 so icon-size scales uniformly.
+      const sstatusIcons: { id: string; src: string }[] = [
+        { id: "sstatus-new", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`) },
+        { id: "sstatus-volt_tested", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#16a34a" stroke="#ffffff" stroke-width="2"/><path d="M27 8 L13 27 H22 L20 40 L35 20 H25 Z" fill="#ffffff"/></svg>`) },
+        { id: "sstatus-blocked", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`) },
+        { id: "sstatus-panels_connected", src: "/panel-connected.svg" },
+        { id: "sstatus-opt_attached", src: "/optimizer-mounted.svg" },
+      ];
+      for (const it of sstatusIcons) {
+        const im = new Image(48, 48);
+        im.onload = () => { if (!map.hasImage(it.id)) map.addImage(it.id, im); };
+        im.src = it.src;
+      }
+
       map.addLayer({
         id: "pier-status-icons",
         type: "symbol",
@@ -2002,29 +2018,30 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "kind"], "status-icon"],
         layout: {
           visibility: "none",
-          "text-field": ["get", "status_icon"],
-          "text-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 8,
-            6, 9,
-            10, 12,
-            14, 17,
-            18, 25,
-            20, 31,
+          // Custom status artwork as map images (panel / optimizer / etc.),
+          // replacing the old text glyph so the on-map markers match the
+          // grid + popup. icon-image needs no glyphs font.
+          "icon-image": [
+            "match", ["get", "status"],
+            "opt_attached", "sstatus-opt_attached",
+            "panels_connected", "sstatus-panels_connected",
+            "volt_tested", "sstatus-volt_tested",
+            "blocked", "sstatus-blocked",
+            "sstatus-new",
           ],
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-rotate": ["get", "angle"],
-          "text-rotation-alignment": "viewport",
-          "text-offset": [0, 0],
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-anchor": "center",
+          "icon-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 0.14,
+            6, 0.20,
+            10, 0.30,
+            14, 0.42,
+            18, 0.62,
+            20, 0.78,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-anchor": "center",
           "symbol-sort-key": 4,
-        },
-        paint: {
-          "text-color": ["get", "status_color"],
-          "text-halo-color": "rgba(255,255,255,0.96)",
-          "text-halo-width": 1.4,
         },
       });
       map.addLayer({
