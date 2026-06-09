@@ -65,6 +65,7 @@ if (typeof window !== "undefined") {
       .find((s) => /assets\/index-[\w-]+\.js/.test(s)) || "";
     const booted = (bootSrc.match(/index-([\w-]+)\.js/) || [])[1] || "";
     if (booted) {
+      try { console.info("[solarica] build", booted); } catch { /* noop */ }
       const SOFT = "solarica_build_soft", HARD = "solarica_build_hard";
       const poll = async () => {
         if (refreshing || document.visibilityState !== "visible" || !navigator.onLine) return;
