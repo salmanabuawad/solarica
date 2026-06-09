@@ -1326,6 +1326,11 @@ export default function SiteMapMapLibre({
       // Needed so the WebGL canvas can be captured (getCanvas().toDataURL)
       // for the "Export to PDF" of the map view.
       preserveDrawingBuffer: true,
+      // MapLibre clamps the drawing buffer to maxCanvasSize (default
+      // [4096,4096]). The high-resolution PDF export temporarily raises the
+      // pixel ratio, so lift this to the GPU's real limit (MapLibre clamps it
+      // to MAX_RENDERBUFFER_SIZE) — otherwise the export stayed stuck at 4096.
+      maxCanvasSize: [16384, 16384],
       style: {
         version: 8,
         sources: {},
@@ -1378,7 +1383,9 @@ export default function SiteMapMapLibre({
             } catch {
               /* keep the conservative default */
             }
-            const cap = Math.max(2048, Math.min(glMax - 128, 12000));
+            // 8192 keeps PNG encode (toDataURL) responsive — ~12000px froze
+            // the tab. This is still 4× the pixels of the old 4096 cap.
+            const cap = Math.max(2048, Math.min(glMax - 128, 8192));
             const maxBufEdge = Math.max(cv0.width, cv0.height, 1);
             const upscale = Math.max(1, cap / maxBufEdge);
             const target = baseRatio * upscale;

@@ -1188,23 +1188,28 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     null | (() => { dataUrl: string; width: number; height: number } | null)
   >(null);
   const exportMapToPdf = async () => {
-    // Capture from the live map instance (forces a synchronous redraw so the
-    // WebGL buffer is fresh). Fall back to the raw canvas only if the hook is
-    // not wired yet (e.g. an older cached map chunk).
-    let shot = mapCaptureRef.current?.() || null;
-    if (!shot) {
-      const canvas = document.querySelector(".maplibregl-canvas") as HTMLCanvasElement | null;
-      if (canvas) {
-        try {
-          shot = { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
-        } catch { /* tainted / blank */ }
-      }
-    }
-    if (!shot || !shot.dataUrl || !shot.width || !shot.height) {
-      setError("Map is not ready yet — open the Map view, wait for it to draw, then export.");
-      return;
-    }
+    // The high-res capture (toDataURL on a large buffer) is synchronous and
+    // blocks the thread for a moment, so show the busy overlay first and yield
+    // a frame to let it paint before the heavy work begins.
+    setBusy(`${t("details.exportPdf", "Export to PDF")}…`);
+    await new Promise((r) => setTimeout(r, 60));
     try {
+      // Capture from the live map instance (forces a synchronous redraw so the
+      // WebGL buffer is fresh). Fall back to the raw canvas only if the hook is
+      // not wired yet (e.g. an older cached map chunk).
+      let shot = mapCaptureRef.current?.() || null;
+      if (!shot) {
+        const canvas = document.querySelector(".maplibregl-canvas") as HTMLCanvasElement | null;
+        if (canvas) {
+          try {
+            shot = { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
+          } catch { /* tainted / blank */ }
+        }
+      }
+      if (!shot || !shot.dataUrl || !shot.width || !shot.height) {
+        setError("Map is not ready yet — open the Map view, wait for it to draw, then export.");
+        return;
+      }
       const { dataUrl, width: w, height: h } = shot;
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: w >= h ? "landscape" : "portrait", unit: "px", format: [w, h], hotfixes: ["px_scaling"] });
@@ -1213,6 +1218,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       pdf.save(`map-${projectId || "export"}-${today}.pdf`);
     } catch (e: any) {
       setError(String(e?.message || e));
+    } finally {
+      setBusy(null);
     }
   };
 
