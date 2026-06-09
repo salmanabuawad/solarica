@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- mounting bracket / clip on top -->
+  <path d="M19 4 h10 a1 1 0 0 1 1 1 v6 h-3.6 v-3 h-4.8 v3 H18 V5 a1 1 0 0 1 1 -1 z" fill="#aeb6bf" stroke="#2b3340" stroke-width="1.2" stroke-linejoin="round"/>
+  <!-- optimizer body -->
+  <rect x="9.5" y="10" width="29" height="19.5" rx="3" fill="#202833" stroke="#0b0f14" stroke-width="1.6"/>
+  <rect x="9.5" y="10" width="29" height="5.5" rx="3" fill="#2c3744"/>
+  <!-- two cables -->
+  <path d="M19 29 C 18 33, 16 34, 16 38.5" fill="none" stroke="#0b0f14" stroke-width="3" stroke-linecap="round"/>
+  <path d="M29 29 C 30 33, 32 34, 32 38.5" fill="none" stroke="#0b0f14" stroke-width="3" stroke-linecap="round"/>
+  <!-- MC4 connectors -->
+  <g fill="#141a22" stroke="#0b0f14" stroke-width="1">
+    <rect x="12.8" y="37.5" width="6.4" height="7.5" rx="1.5"/>
+    <rect x="28.8" y="37.5" width="6.4" height="7.5" rx="1.5"/>
+  </g>
+  <g stroke="#3a4250" stroke-width="1" stroke-linecap="round">
+    <path d="M13.4 40 h5.2 M13.4 42.2 h5.2"/>
+    <path d="M29.4 40 h5.2 M29.4 42.2 h5.2"/>
+  </g>
+</svg>

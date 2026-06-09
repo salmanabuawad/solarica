@@ -21,15 +21,27 @@ const ExcelLikeFilter = ({
   onUiChange,
   api,
   getValue,
+  colDef,
+  column,
 }: CustomFilterProps<any, any, ExcelLikeFilterModel>) => {
   const { t, i18n } = useTranslation();
   const rtl = i18n.language === "he" || i18n.language === "ar";
   const BLANK_LABEL = `(${t("grid.blank", "Blanks")})`;
 
-  const toDisplay = useCallback((raw: unknown): string => {
+  // Show the column's *formatted* value (e.g. the translated status label)
+  // rather than the raw cell value. Filtering stays consistent because the same
+  // formatted string is used both to build the list and in doesFilterPass.
+  const toDisplay = useCallback((raw: unknown, node?: any): string => {
     if (raw === null || raw === undefined || raw === "") return BLANK_LABEL;
+    const fmt = (colDef as any)?.valueFormatter;
+    if (typeof fmt === "function") {
+      try {
+        const out = fmt({ value: raw, node, data: node?.data, colDef, column, api, context: (api as any)?.getGridOption?.("context") });
+        if (out != null && out !== "") return String(out);
+      } catch { /* fall back to the raw value */ }
+    }
     return String(raw);
-  }, [BLANK_LABEL]);
+  }, [BLANK_LABEL, colDef, column, api]);
 
   const hidePopupRef = useRef<(() => void) | undefined>();
 
@@ -37,7 +49,7 @@ const ExcelLikeFilter = ({
     const seen = new Set<string>();
     api.forEachNode((node: any) => {
       if (!node.data) return;
-      seen.add(toDisplay(getValue(node)));
+      seen.add(toDisplay(getValue(node), node));
     });
     return Array.from(seen).sort((a, b) => {
       if (a === BLANK_LABEL) return 1;
@@ -56,7 +68,7 @@ const ExcelLikeFilter = ({
   useGridFilter({
     doesFilterPass(params: IDoesFilterPassParams): boolean {
       if (!modelRef.current) return true;
-      return modelRef.current.values.includes(toDisplay(getValue(params.node)));
+      return modelRef.current.values.includes(toDisplay(getValue(params.node), params.node));
     },
     afterGuiAttached(params?: IAfterGuiAttachedParams) {
       hidePopupRef.current = params?.hidePopup;

@@ -60,11 +60,16 @@ const orderStringsCols = (cols: any[]) => {
   return cols.slice().sort((a, b) => rank(a?.field) - rank(b?.field));
 };
 
-// Status icon renderer. "panels_connected" uses a custom solar-panel + plug
-// SVG (public/panel-connected.svg); the others use their emoji glyph.
+// Status icon renderer. Some statuses use a custom SVG asset (solar panel +
+// plug, optimizer device); the rest use their emoji glyph.
+const STATUS_SVG: Record<string, string> = {
+  panels_connected: "/panel-connected.svg",
+  opt_attached: "/optimizer-mounted.svg",
+};
 function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
-  if (code === "panels_connected") {
-    return <img src="/panel-connected.svg" alt="" width={size + 2} height={size + 2} style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }} />;
+  const svg = STATUS_SVG[code];
+  if (svg) {
+    return <img src={svg} alt="" width={size + 2} height={size + 2} style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }} />;
   }
   return <span style={{ fontSize: size, lineHeight: 1 }}>{STRING_STATUS_META[code]?.icon}</span>;
 }

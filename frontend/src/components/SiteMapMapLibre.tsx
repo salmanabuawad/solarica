@@ -68,6 +68,16 @@ const STRING_STATUS_BG: Record<string, string> = {
   volt_tested: "#dcfce7",
   blocked: "#fee2e2",
 };
+// Custom SVG icons (served from public/) for statuses whose emoji we replaced.
+const STATUS_SVG: Record<string, string> = {
+  panels_connected: "/panel-connected.svg",
+  opt_attached: "/optimizer-mounted.svg",
+};
+function statusGlyph(code: string, size: number) {
+  return STATUS_SVG[code]
+    ? <img src={STATUS_SVG[code]} alt="" width={size} height={size} style={{ display: "inline-block", verticalAlign: "middle" }} />
+    : STRING_STATUS_ICONS[code];
+}
 
 function normalizeStringStatus(status: any) {
   const s = String(status || "new").toLowerCase();
@@ -3854,9 +3864,7 @@ function StringStatusModal({
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 32, marginBottom: 12 }}>
           <span style={{ color: STRING_STATUS_COLORS[currentStatus], fontSize: 22, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>
-            {currentStatus === "panels_connected"
-              ? <img src="/panel-connected.svg" alt="" width={24} height={24} />
-              : STRING_STATUS_ICONS[currentStatus]}
+            {statusGlyph(currentStatus, 24)}
           </span>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{stringInfo.id}</div>
@@ -3888,9 +3896,7 @@ function StringStatusModal({
                 }}
               >
                 <span style={{ color: STRING_STATUS_COLORS[status], fontSize: 17, width: 20, display: "inline-flex", alignItems: "center" }}>
-                  {status === "panels_connected"
-                    ? <img src="/panel-connected.svg" alt="" width={18} height={18} />
-                    : STRING_STATUS_ICONS[status]}
+                  {statusGlyph(status, 18)}
                 </span>
                 <span>{t(`strings.status.${status}`, STRING_STATUS_LABELS[status])}</span>
               </button>
