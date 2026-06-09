@@ -1169,12 +1169,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     <button
       onClick={onClick}
       style={{
-        padding: compact ? "10px 16px" : "6px 14px",
+        padding: compact ? "6px 10px" : "6px 14px",
         borderRadius: 10,
         border: "1px solid #e2e8f0",
         background: active ? "#0f172a" : "white",
         color: active ? "white" : "#0f172a",
-        fontSize: compact ? 14 : 13,
+        fontSize: compact ? 12 : 13,
         fontWeight: 500,
         cursor: "pointer",
       }}
@@ -1600,7 +1600,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         )}
         {/* Top bar: project selector + hamburger (mobile/tablet) */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 8, padding: compact ? "10px 16px" : "14px 20px",
+          display: "flex", alignItems: "center", gap: compact ? 6 : 10, flexWrap: "wrap", rowGap: 8, padding: compact ? "8px 10px" : "14px 20px",
           background: "#ffffff", borderBottom: "1px solid #e2e8f0",
           // On mobile this row scrolls away under the sticky logo
           // strip (the logo is the only sticky brand element). On
@@ -1624,17 +1624,17 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   onClick={mode === "map" ? exportMapToPdf : exportCurrentGrid}
                   title={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
                   aria-label={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
-                  style={{ background: mode === "map" ? "#2563eb" : "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 40, whiteSpace: "nowrap" }}
+                  style={{ background: mode === "map" ? "#2563eb" : "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", minHeight: 34, whiteSpace: "nowrap" }}
                 >⤓ {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}</button>
               )}
-              <LanguageSwitcher />
+              <div style={{ width: 84, flexShrink: 0 }}><LanguageSwitcher /></div>
               {/* Sign out — on phone/tablet the drawer (which also has logout)
                   only opens for admins, so every user needs it here. */}
               <button
                 onClick={logout}
                 title={`${authUser.username} · ${t("app.signOut")}`}
                 aria-label={t("app.signOut")}
-                style={{ ...iconBtn, width: 38, height: 38, flexShrink: 0 }}
+                style={{ ...iconBtn, width: 34, height: 34, flexShrink: 0 }}
               >
                 <LogoutIcon />
               </button>
