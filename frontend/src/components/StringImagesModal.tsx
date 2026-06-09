@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useResponsive } from "../hooks/useResponsive";
 
 /**
  * String images modal — mirrors the buildingsmanager asset-files UX:
@@ -23,14 +24,19 @@ export default function StringImagesModal({
 }) {
   const { t, i18n } = useTranslation();
   const rtl = i18n.language === "he" || i18n.language === "ar";
+  const { isMobile, isTablet } = useResponsive();
+  const compact = isMobile || isTablet;
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [viewIdx, setViewIdx] = useState<number | null>(null);
   const [confirmUrl, setConfirmUrl] = useState<string | null>(null);
 
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     files.forEach((f) => onUpload(f));
-    if (fileRef.current) fileRef.current.value = "";
+    // Reset whichever input fired (camera or gallery) so re-selecting the
+    // same file fires change again.
+    e.target.value = "";
   };
 
   const step = (d: number) => {
@@ -53,6 +59,14 @@ export default function StringImagesModal({
           <div style={{ display: "flex", gap: 8 }}>
             {canEdit && (
               <>
+                {/* Phone/tablet: capture straight from the rear camera. */}
+                {compact && (
+                  <>
+                    <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={pick} />
+                    <button onClick={() => cameraRef.current?.click()} style={btn("#2563eb", "#fff")}>📷 {t("strings.img.camera", "Camera")}</button>
+                  </>
+                )}
+                {/* Gallery / file picker (also offers the camera on mobile). */}
                 <input ref={fileRef} type="file" accept="image/*,video/*" multiple style={{ display: "none" }} onChange={pick} />
                 <button onClick={() => fileRef.current?.click()} style={btn("#0f172a", "#fff")}>＋ {t("strings.img.upload", "Upload")}</button>
               </>

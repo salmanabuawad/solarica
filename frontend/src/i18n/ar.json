@@ -250,7 +250,7 @@
     },
     "type": { "one": "صف واحد", "multi": "متعدد الصفوف" },
     "voltageBad": "غير صالح",
-    "img": { "upload": "رفع", "delete": "حذف", "view": "عرض", "none": "لا صور", "confirmDelete": "حذف هذه الصورة؟" },
+    "img": { "upload": "رفع", "camera": "كاميرا", "delete": "حذف", "view": "عرض", "none": "لا صور", "confirmDelete": "حذف هذه الصورة؟" },
     "status": {
       "new": "جديد",
       "opt_attached": "تم تركيب المُحسِّنات",

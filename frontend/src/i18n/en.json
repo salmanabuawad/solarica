@@ -257,7 +257,7 @@
     },
     "type": { "one": "One row", "multi": "Multi row" },
     "voltageBad": "not ok",
-    "img": { "upload": "Upload", "delete": "Delete", "view": "View", "none": "No images", "confirmDelete": "Delete this image?" },
+    "img": { "upload": "Upload", "camera": "Camera", "delete": "Delete", "view": "View", "none": "No images", "confirmDelete": "Delete this image?" },
     "status": {
       "new": "New",
       "opt_attached": "Optimizers mounted",
