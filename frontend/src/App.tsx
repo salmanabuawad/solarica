@@ -1522,6 +1522,45 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     </aside>
   );
 
+  // Phone/tablet user menu (language + sign out under one icon). Rendered in
+  // the stats row when that's visible, otherwise in the controls toolbar.
+  const userMenuEl = (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={() => setUserMenuOpen((v) => !v)}
+        title={`${authUser.username} · ${authUser.role}`}
+        aria-label="User menu"
+        aria-expanded={userMenuOpen}
+        style={{ ...iconBtn, width: 34, height: 34 }}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" />
+        </svg>
+      </button>
+      {userMenuOpen && (
+        <>
+          <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
+          <div
+            dir={isRtl ? "rtl" : "ltr"}
+            style={{ position: "absolute", top: "calc(100% + 8px)", insetInlineEnd: 0, zIndex: 51, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 10px 30px rgba(15,23,42,0.2)", minWidth: 190, padding: 10, display: "grid", gap: 10 }}
+          >
+            <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, whiteSpace: "nowrap" }}>
+              {authUser.username} · {authUser.role}
+            </div>
+            <LanguageSwitcher />
+            <button
+              onClick={() => { setUserMenuOpen(false); logout(); }}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+            >
+              <LogoutIcon /> {t("app.signOut")}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div style={{ display: "flex", minHeight: compact ? undefined : "100vh", height: compact ? "100dvh" : undefined, overflow: compact ? "hidden" : undefined, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", background: "#f8fafc" }}>
       {sidebar}
@@ -1581,22 +1620,26 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             flexShrink: 0,
             background: "#ffffff",
             borderBottom: "1px solid #e2e8f0",
-            padding: "4px 12px",
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "0 8px",
+            padding: "4px 10px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
           }}>
-            {[
-              [t("field.stringZones"), electricalSummary?.string_zones],
-              [t("strings.title"), electricalSummary?.strings],
-              ["Optimizers", electricalSummary?.optimizers],
-              ["Modules", electricalSummary?.modules],
-            ].map(([label, value]) => (
-              <div key={String(label)} style={{ minWidth: 0, textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#64748b", marginBottom: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
-                <div style={{ fontWeight: 800, fontSize: 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
-              </div>
-            ))}
+            <div style={{ flex: 1, minWidth: 0, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0 8px" }}>
+              {[
+                [t("field.stringZones"), electricalSummary?.string_zones],
+                [t("strings.title"), electricalSummary?.strings],
+                ["Optimizers", electricalSummary?.optimizers],
+                ["Modules", electricalSummary?.modules],
+              ].map(([label, value]) => (
+                <div key={String(label)} style={{ minWidth: 0, textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: "#64748b", marginBottom: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</div>
+                  <div style={{ fontWeight: 800, fontSize: 15 }}>{value?.toLocaleString?.() ?? value ?? "-"}</div>
+                </div>
+              ))}
+            </div>
+            {/* User menu lives in this stats row (left side) on phone/tablet. */}
+            {userMenuEl}
           </div>
         )}
         {/* Top bar: project selector + hamburger (mobile/tablet) */}
@@ -1628,43 +1671,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   style={{ background: mode === "map" ? "#2563eb" : "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", minHeight: 34, whiteSpace: "nowrap" }}
                 >⤓ {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}</button>
               )}
-              {/* User menu — language + sign out grouped under one icon to
-                  keep the bar on a single row. The drawer (admin-only) still
-                  has its own logout, so this covers every user here. */}
-              <div style={{ position: "relative", flexShrink: 0 }}>
-                <button
-                  onClick={() => setUserMenuOpen((v) => !v)}
-                  title={`${authUser.username} · ${authUser.role}`}
-                  aria-label="User menu"
-                  aria-expanded={userMenuOpen}
-                  style={{ ...iconBtn, width: 34, height: 34 }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
-                </button>
-                {userMenuOpen && (
-                  <>
-                    <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
-                    <div
-                      dir={isRtl ? "rtl" : "ltr"}
-                      style={{ position: "absolute", top: "calc(100% + 8px)", insetInlineEnd: 0, zIndex: 51, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 10px 30px rgba(15,23,42,0.2)", minWidth: 190, padding: 10, display: "grid", gap: 10 }}
-                    >
-                      <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, whiteSpace: "nowrap" }}>
-                        {authUser.username} · {authUser.role}
-                      </div>
-                      <LanguageSwitcher />
-                      <button
-                        onClick={() => { setUserMenuOpen(false); logout(); }}
-                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
-                      >
-                        <LogoutIcon /> {t("app.signOut")}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* The user menu normally lives in the stats row above; show it
+                  here only when that row isn't rendered (e.g. a non-electrical
+                  project, which has no stats banner). */}
+              {!(activeTab === "mapgrid" && electricalDetailsMode) && userMenuEl}
             </div>
           )}
           {!compact && <select
