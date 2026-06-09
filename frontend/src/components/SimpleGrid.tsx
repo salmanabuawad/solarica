@@ -59,17 +59,14 @@ export default function SimpleGrid({
     // chips above the grid (rendered by the caller).
     filter: ExcelLikeFilter,
     floatingFilter: false,
-    // Let long headers wrap onto a second line and grow the header row to fit,
-    // instead of the text overlapping the sort/filter icons on narrow columns.
-    wrapHeaderText: true,
-    autoHeaderHeight: true,
-    // Header truncation fallback: if a custom headerTooltip isn't set,
-    // fall back to the headerName itself so hover still reveals the full
-    // text on narrow columns.
+    // NB: deliberately NOT using wrapHeaderText/autoHeaderHeight — they make
+    // ag-grid recompute the header height as columns scroll in/out, which made
+    // the sort/filter icons jump around during horizontal scroll. Long headers
+    // simply truncate (with the tooltip below revealing the full text).
     headerTooltip: undefined as string | undefined,
     minWidth: compact ? 64 : 80,
     // On phones the per-column filter menu button (funnel) crowds the header
-    // and overlaps the text; hide it there. Filtering on mobile is via the
+    // and overlapped the text; hide it there. Filtering on mobile is via the
     // quick-search box (and active filters still show as chips). Desktop keeps
     // the menu button so per-column filtering stays one click away.
     suppressHeaderMenuButton: compact,
