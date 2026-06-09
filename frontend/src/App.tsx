@@ -2159,7 +2159,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     valueGetter: (p: any) => p.data?.multi_row ? t("strings.type.multi") : t("strings.type.one"),
                   },
                   {
-                    field: "voltage", headerName: t("strings.col.voltage"), width: 138, type: "numericColumn",
+                    field: "voltage", headerName: t("strings.col.voltage"), width: 138, minWidth: 80, type: "numericColumn",
                     editable: canEdit, singleClickEdit: canEdit,
                     valueParser: (p: any) => { const n = parseFloat(p.newValue); return isNaN(n) ? null : Math.round(n * 100) / 100; },
                     valueFormatter: (p: any) => (p.value == null || p.value === "" || isNaN(Number(p.value)) ? "" : `${Number(p.value).toFixed(2)} V`),
