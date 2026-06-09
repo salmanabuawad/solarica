@@ -1884,21 +1884,27 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         {/* Verified-Progress dashboard for strings — below the totals, above
             the Grid/Map toggle so it's seen in both views and on mobile. */}
         {electricalDetailsMode && stringTopology.length > 0 && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: compact ? 6 : 10, flexWrap: "wrap", padding: compact ? "7px 10px" : 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc" }}>
-            <div style={{ flex: 1, minWidth: compact ? 150 : 220, height: compact ? 16 : 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#fff" }}>
-              {STRING_STATUS_ORDER.map((k) => {
-                const n = stringProgress.counts[k] || 0;
-                if (!n) return null;
-                const pct = (100 * n) / (stringProgress.total || 1);
-                return <div key={k} title={`${t(`strings.status.${k}`)}: ${n}`} style={{ width: `${pct}%`, background: STRING_STATUS_META[k].color }} />;
-              })}
+          <div style={{ display: "flex", flexDirection: "column", gap: compact ? 6 : 8, marginBottom: compact ? 6 : 10, padding: compact ? "7px 10px" : 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc" }}>
+            {/* Row 1: the progress bar + verified % */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ flex: 1, minWidth: 0, height: compact ? 16 : 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#fff" }}>
+                {STRING_STATUS_ORDER.map((k) => {
+                  const n = stringProgress.counts[k] || 0;
+                  if (!n) return null;
+                  const pct = (100 * n) / (stringProgress.total || 1);
+                  return <div key={k} title={`${t(`strings.status.${k}`)}: ${n}`} style={{ width: `${pct}%`, background: STRING_STATUS_META[k].color }} />;
+                })}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
             </div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
-            {STRING_STATUS_ORDER.map((k) => (
-              <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
-                {STRING_STATUS_META[k].icon} {stringProgress.counts[k] || 0}
-              </span>
-            ))}
+            {/* Row 2: per-status counts on their own line */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {STRING_STATUS_ORDER.map((k) => (
+                <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                  {STRING_STATUS_META[k].icon} {stringProgress.counts[k] || 0}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
