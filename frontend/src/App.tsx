@@ -74,6 +74,31 @@ function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
   return <span style={{ fontSize: size, lineHeight: 1 }}>{STRING_STATUS_META[code]?.icon}</span>;
 }
 
+// One-tap "Update app": unregister the service worker + wipe its caches, then
+// reload so the freshest build is fetched from the network. Does NOT touch
+// IndexedDB, so queued offline edits are preserved.
+async function forceUpdateApp() {
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if (typeof caches !== "undefined") {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    try { sessionStorage.removeItem("solarica_build_soft"); sessionStorage.removeItem("solarica_build_hard"); } catch { /* ignore */ }
+  } catch { /* best-effort */ }
+  // Cache-bust the navigation so even a stale HTTP cache is bypassed.
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.set("_v", String(Date.now()));
+    window.location.replace(u.toString());
+    return;
+  } catch { /* ignore */ }
+  window.location.reload();
+}
+
 const STATUS_OPTIONS = ["New", "In Progress", "Implemented", "Approved", "Rejected", "Fixed"] as const;
 
 // Shared style for the compact topbar icon buttons (buildings-manager
@@ -1569,6 +1594,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               {authUser.username} · {authUser.role}
             </div>
             <LanguageSwitcher />
+            <button
+              onClick={() => { setUserMenuOpen(false); forceUpdateApp(); }}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #bfdbfe", background: "#eff6ff", color: "#1e40af", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+            >
+              ↻ {t("app.updateApp", "Update app")}
+            </button>
             <button
               onClick={() => { setUserMenuOpen(false); logout(); }}
               style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
