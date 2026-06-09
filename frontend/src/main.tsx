@@ -18,6 +18,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // The same SW also Workbox-precaches the app shell (JS/CSS/HTML/icons),
 // so the app boots fully offline after a single online visit.
 if (typeof window !== "undefined") {
+  let refreshing = false;
+  const reload = () => { if (!refreshing) { refreshing = true; window.location.reload(); } };
+
   registerSW({
     immediate: true,
     onRegisteredSW(_swUrl, registration) {
@@ -27,28 +30,78 @@ if (typeof window !== "undefined") {
       // skipWaiting activates it → controllerchange (below) → auto reload.
       if (!registration) return;
       const check = () => { registration.update().catch(() => { /* offline / transient */ }); };
-      setInterval(check, 60_000);
-      // Also check when the app regains focus / becomes visible (iOS Safari
-      // backgrounds tabs and fires visibilitychange more reliably than focus) /
-      // comes back online — so a phone returning to the app updates promptly.
+      check();
+      setInterval(check, 30_000);
+      // Also check on focus / visibility / online / pageshow. `pageshow` is the
+      // important one for iOS: standalone PWAs are restored from the bfcache
+      // and `pageshow` (persisted) fires when they do, while background timers
+      // are frozen. Without this, an iOS home-screen app can sit on old code.
       window.addEventListener("focus", check);
       window.addEventListener("online", check);
+      window.addEventListener("pageshow", check);
       document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
     },
     onOfflineReady() { /* shell cached */ },
   });
 
   if ("serviceWorker" in navigator) {
-    // Only auto-reload on an UPDATE (a controller already existed), not on the
-    // first SW taking control of a fresh tab — that would double-load on the
-    // very first visit.
+    // Auto-reload when a NEW sw takes control — but not on the first SW install
+    // of a fresh tab (that would double-load on the very first visit).
     const hadController = !!navigator.serviceWorker.controller;
-    let didReload = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (didReload || !hadController) return;
-      didReload = true;
-      window.location.reload();
-    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) reload(); });
+
+    // ---- Build watchdog -------------------------------------------------
+    // The SW-update path above is not reliable on every phone (iOS especially
+    // is slow to swap a controlling SW). So we independently compare the JS
+    // bundle this tab booted with against the one the server is serving right
+    // now, and force the refresh ourselves. nginx serves index.html no-store
+    // and we add a cache-busting query so the SW precache can't shadow it.
+    //   • 1st time a newer build is seen  → update the SW, then reload.
+    //   • if a reload still served the old shell → unregister the SW + clear
+    //     caches and reload, so the next load comes straight from the network.
+    // Both steps are sessionStorage-guarded per build hash → never loops.
+    const bootSrc = Array.from(document.querySelectorAll("script[src]"))
+      .map((s) => s.getAttribute("src") || "")
+      .find((s) => /assets\/index-[\w-]+\.js/.test(s)) || "";
+    const booted = (bootSrc.match(/index-([\w-]+)\.js/) || [])[1] || "";
+    if (booted) {
+      const SOFT = "solarica_build_soft", HARD = "solarica_build_hard";
+      const poll = async () => {
+        if (refreshing || document.visibilityState !== "visible" || !navigator.onLine) return;
+        let live = "";
+        try {
+          const html = await fetch("/index.html?ts=" + Date.now(), { cache: "no-store" }).then((r) => r.text());
+          live = (html.match(/index-([\w-]+)\.js/) || [])[1] || "";
+        } catch { return; /* offline / transient */ }
+        if (!live || live === booted) return;
+        if (sessionStorage.getItem(HARD) === live) return; // escalation already spent → don't loop
+        if (sessionStorage.getItem(SOFT) === live) {
+          // A gentle reload already happened but we still booted the old shell
+          // → the SW is serving stale precache. Nuke it and reload from network.
+          sessionStorage.setItem(HARD, live);
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+            if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.map((k) => caches.delete(k))); }
+          } catch { /* ignore */ }
+          reload();
+          return;
+        }
+        // First sighting of a newer build → refresh the SW, then reload.
+        sessionStorage.setItem(SOFT, live);
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg) { await reg.update(); if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" }); }
+        } catch { /* ignore */ }
+        setTimeout(reload, 1200);
+      };
+      setInterval(poll, 30_000);
+      window.addEventListener("focus", poll);
+      window.addEventListener("online", poll);
+      window.addEventListener("pageshow", poll);
+      document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") poll(); });
+      setTimeout(poll, 4000);
+    }
   }
 }
 
