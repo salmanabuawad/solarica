@@ -1361,12 +1361,26 @@ export default function SiteMapMapLibre({
         let raised = false;
         try {
           if (canRatio) {
-            // Render at up to 3× the on-screen resolution for a crisp PDF,
-            // but keep the largest drawing-buffer edge under ~7600px so we
-            // never hit the 8192 GL renderbuffer limit.
+            // Render the export at the highest resolution the GPU allows so
+            // labels/lines stay crisp when zoomed in the PDF. We scale the
+            // drawing buffer up until its longest edge reaches the GPU's
+            // MAX_RENDERBUFFER_SIZE (queried live), minus a margin, and capped
+            // at 12000px so toDataURL + memory stay healthy.
             const cv0 = m.getCanvas();
+            let glMax = 8192;
+            try {
+              const gl =
+                (cv0.getContext("webgl2") as any) ||
+                (cv0.getContext("webgl") as any) ||
+                (cv0.getContext("experimental-webgl") as any);
+              const v = gl && gl.getParameter(gl.MAX_RENDERBUFFER_SIZE);
+              if (v && Number.isFinite(v)) glMax = v;
+            } catch {
+              /* keep the conservative default */
+            }
+            const cap = Math.max(2048, Math.min(glMax - 128, 12000));
             const maxBufEdge = Math.max(cv0.width, cv0.height, 1);
-            const upscale = Math.max(1, Math.min(3, 7600 / maxBufEdge));
+            const upscale = Math.max(1, cap / maxBufEdge);
             const target = baseRatio * upscale;
             if (target > baseRatio + 0.01) {
               m.setPixelRatio(target);
