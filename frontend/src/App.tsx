@@ -1545,9 +1545,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              // No horizontal padding — the logo image stretches edge
-              // to edge across the phone viewport.
-              padding: "6px 0",
+              padding: "4px 8px",
               background: "#ffffff",
               borderBottom: "1px solid #e2e8f0",
               flexShrink: 0,
@@ -1562,11 +1560,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               onClick={authUser.role === "admin" ? () => setSidebarOpen(true) : undefined}
               style={{
                 display: "block",
-                height: "auto",
-                // Full viewport width, no upper cap — the logo
-                // stretches to whatever the phone gives us.
-                width: "100%",
-                maxWidth: "none",
+                // Capped height keeps the brand bar slim on phones — it used to
+                // stretch to full viewport width, which made it very tall.
+                height: 38,
+                width: "auto",
+                maxWidth: "100%",
                 // Only admins can open the slide-out menu (nav/settings); other
                 // roles are locked to the view they're on.
                 cursor: authUser.role === "admin" ? "pointer" : "default",
@@ -1581,10 +1579,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             flexShrink: 0,
             background: "#ffffff",
             borderBottom: "1px solid #e2e8f0",
-            padding: "8px 12px",
+            padding: "4px 12px",
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "2px 8px",
+            gap: "0 8px",
           }}>
             {[
               [t("field.stringZones"), electricalSummary?.string_zones],
@@ -1601,7 +1599,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         )}
         {/* Top bar: project selector + hamburger (mobile/tablet) */}
         <div style={{
-          display: "flex", alignItems: "center", gap: compact ? 6 : 10, flexWrap: "wrap", rowGap: 8, padding: compact ? "8px 10px" : "14px 20px",
+          display: "flex", alignItems: "center", gap: compact ? 6 : 10, flexWrap: "wrap", rowGap: 6, padding: compact ? "5px 10px" : "14px 20px",
           background: "#ffffff", borderBottom: "1px solid #e2e8f0",
           // On mobile this row scrolls away under the sticky logo
           // strip (the logo is the only sticky brand element). On
@@ -1752,7 +1750,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           </button>}
         </div>
 
-        <div style={{ padding: compact ? "12px 18px 24px" : "16px 32px 32px", flex: 1, minWidth: 0, boxSizing: "border-box", maxWidth: "100%", minHeight: 0, overflowY: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ padding: compact ? "8px 14px 16px" : "16px 32px 32px", flex: 1, minWidth: 0, boxSizing: "border-box", maxWidth: "100%", minHeight: 0, overflowY: compact ? "auto" : "visible", WebkitOverflowScrolling: "touch" }}>
           {error && <div style={{ color: "#b91c1c", background: "#fee2e2", border: "1px solid #fecaca", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 13 }}>{error}</div>}
 
       {/* ---- TAB: Config (upload/parse + display settings) ---- */}
@@ -1868,8 +1866,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         {/* Verified-Progress dashboard for strings — below the totals, above
             the Grid/Map toggle so it's seen in both views and on mobile. */}
         {electricalDetailsMode && stringTopology.length > 0 && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10, flexWrap: "wrap", padding: 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc" }}>
-            <div style={{ flex: 1, minWidth: 220, height: 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#fff" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: compact ? 6 : 10, flexWrap: "wrap", padding: compact ? "7px 10px" : 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc" }}>
+            <div style={{ flex: 1, minWidth: compact ? 150 : 220, height: compact ? 16 : 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#fff" }}>
               {STRING_STATUS_ORDER.map((k) => {
                 const n = stringProgress.counts[k] || 0;
                 if (!n) return null;
