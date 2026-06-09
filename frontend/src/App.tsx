@@ -1545,7 +1545,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding: "4px 8px",
+              // No horizontal padding — the logo image stretches edge
+              // to edge across the phone viewport.
+              padding: "6px 0",
               background: "#ffffff",
               borderBottom: "1px solid #e2e8f0",
               flexShrink: 0,
@@ -1560,11 +1562,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               onClick={authUser.role === "admin" ? () => setSidebarOpen(true) : undefined}
               style={{
                 display: "block",
-                // Capped height keeps the brand bar slim on phones — it used to
-                // stretch to full viewport width, which made it very tall.
-                height: 38,
-                width: "auto",
-                maxWidth: "100%",
+                height: "auto",
+                // Full viewport width, no upper cap — the logo
+                // stretches to whatever the phone gives us.
+                width: "100%",
+                maxWidth: "none",
                 // Only admins can open the slide-out menu (nav/settings); other
                 // roles are locked to the view they're on.
                 cursor: authUser.role === "admin" ? "pointer" : "default",
