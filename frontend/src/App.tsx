@@ -1600,7 +1600,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         )}
         {/* Top bar: project selector + hamburger (mobile/tablet) */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 10, padding: compact ? "10px 16px" : "14px 20px",
+          display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", rowGap: 8, padding: compact ? "10px 16px" : "14px 20px",
           background: "#ffffff", borderBottom: "1px solid #e2e8f0",
           // On mobile this row scrolls away under the sticky logo
           // strip (the logo is the only sticky brand element). On
@@ -1628,6 +1628,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 >⤓ {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}</button>
               )}
               <LanguageSwitcher />
+              {/* Sign out — on phone/tablet the drawer (which also has logout)
+                  only opens for admins, so every user needs it here. */}
+              <button
+                onClick={logout}
+                title={`${authUser.username} · ${t("app.signOut")}`}
+                aria-label={t("app.signOut")}
+                style={{ ...iconBtn, width: 38, height: 38, flexShrink: 0 }}
+              >
+                <LogoutIcon />
+              </button>
             </div>
           )}
           {!compact && <select
