@@ -26,14 +26,10 @@ function detect(): LangCode {
     const saved = localStorage.getItem(LS_KEY);
     if (saved && VALID.has(saved)) return saved as LangCode;
   } catch { /* ignore */ }
-  // Fall back to the browser locale when it is one of the supported set,
-  // otherwise default to English — we do NOT auto-pick Hebrew/Arabic from
-  // the browser since English is the baseline product language.
-  if (typeof navigator !== "undefined") {
-    const code = (navigator.language || "en").slice(0, 2).toLowerCase();
-    if (VALID.has(code)) return code as LangCode;
-  }
-  return "en";
+  // Hebrew is the default product language (primary audience). We intentionally
+  // do NOT auto-pick from the browser locale; a user who wants another language
+  // chooses it from the menu, and that choice is persisted.
+  return "he";
 }
 
 export function applyDirection(code: string) {
@@ -55,7 +51,7 @@ i18n.use(initReactI18next).init({
     fr: { translation: fr },
   },
   lng: detect(),
-  fallbackLng: "en",
+  fallbackLng: "he",
   interpolation: { escapeValue: false },
 });
 
