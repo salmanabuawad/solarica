@@ -50,6 +50,16 @@ const normStringStatus = (s: any) => {
   return STRING_STATUS_META[v] ? v : "new";
 };
 
+// Fixed display order for the strings grid (after the pinned string number):
+// status → voltage → comment → images → row → type. Applied as a post-sort so
+// it's identical in every language (ag-grid's RTL only mirrors direction, not
+// this logical sequence) and independent of the field-config table.
+const STRINGS_COL_ORDER = ["string", "status", "voltage", "comment", "images", "row", "string_type"];
+const orderStringsCols = (cols: any[]) => {
+  const rank = (f: string) => { const i = STRINGS_COL_ORDER.indexOf(f); return i < 0 ? 999 : i; };
+  return cols.slice().sort((a, b) => rank(a?.field) - rank(b?.field));
+};
+
 const STATUS_OPTIONS = ["New", "In Progress", "Implemented", "Approved", "Rejected", "Fixed"] as const;
 
 // Shared style for the compact topbar icon buttons (buildings-manager
@@ -2117,7 +2127,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             {eplGridTab === "routes" && stringTopology.length > 0 ? (
               <SimpleGrid
                 rows={topologyGridRows}
-                columns={applyFieldConfigs([
+                columns={orderStringsCols(applyFieldConfigs([
                   { field: "string", headerName: t("strings.col.string"), width: 96, pinned: "left" },
                   { field: "row", headerName: t("strings.rowsCol.row"), width: 78 },
                   {
@@ -2179,7 +2189,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                       );
                     },
                   },
-                ], stringsFieldConfigs, 1, isRtl)}
+                ], stringsFieldConfigs, 1, isRtl))}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
                 quickFilterPlaceholder={t("strings.search")}

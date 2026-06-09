@@ -68,7 +68,9 @@ export function applyFieldConfigs(
     if (!cfg) return col.pinned ? { ...col, pinned: flipPin(col.pinned) } : col;
     if (cfg.visible === false) return null;
     const merged: any = { ...col };
-    if (cfg.display_name) merged.headerName = cfg.display_name;
+    // NB: we intentionally do NOT override headerName with cfg.display_name.
+    // display_name is a single (English) string, so applying it would defeat
+    // i18n — the column defs already pass translated headerName via t().
     if (cfg.pin_side) merged.pinned = flipPin(cfg.pin_side);
     else if (cfg.pin_side === null && col.pinned) merged.pinned = undefined;
     else if (col.pinned) merged.pinned = flipPin(col.pinned);
