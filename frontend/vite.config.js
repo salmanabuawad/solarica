@@ -6,6 +6,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // TEMPORARY force-reset: ship a self-destroying service worker that
+      // unregisters the old SW and wipes its caches on the next visit. This
+      // breaks devices (esp. iOS) that got stuck on a stale cached build and
+      // wouldn't auto-update. Once devices have reloaded fresh, flip this back
+      // to false to restore offline/PWA support.
+      selfDestroying: true,
       // autoUpdate: a new service worker installs silently and activates on
       // the next navigation. Combined with the skipWaiting / reload logic
       // in main.tsx, visible tabs reload automatically when a new build
