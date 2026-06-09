@@ -1211,9 +1211,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         return;
       }
       const { dataUrl, width: w, height: h } = shot;
+      const fmt = dataUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: w >= h ? "landscape" : "portrait", unit: "px", format: [w, h], hotfixes: ["px_scaling"] });
-      pdf.addImage(dataUrl, "PNG", 0, 0, w, h);
+      pdf.addImage(dataUrl, fmt, 0, 0, w, h, undefined, "FAST");
       const today = new Date().toISOString().slice(0, 10);
       pdf.save(`map-${projectId || "export"}-${today}.pdf`);
     } catch (e: any) {

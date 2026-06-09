@@ -1383,12 +1383,14 @@ export default function SiteMapMapLibre({
             } catch {
               /* keep the conservative default */
             }
-            // 8192 keeps PNG encode (toDataURL) responsive — ~12000px froze
-            // the tab. This is still 4× the pixels of the old 4096 cap.
+            // 8192 keeps things responsive — ~12000px froze the tab. Still 4×
+            // the pixels of the old 4096 cap.
             const cap = Math.max(2048, Math.min(glMax - 128, 8192));
-            const maxBufEdge = Math.max(cv0.width, cv0.height, 1);
-            const upscale = Math.max(1, cap / maxBufEdge);
-            const target = baseRatio * upscale;
+            // Derive the pixel ratio from the CSS size so the resulting buffer's
+            // long edge lands on `cap` exactly. (Computing from the current
+            // drawing buffer could overshoot if the canvas was mid-resize.)
+            const cssLong = Math.max(cv0.clientWidth || cv0.width, cv0.clientHeight || cv0.height, 1);
+            const target = Math.max(baseRatio, cap / cssLong);
             if (target > baseRatio + 0.01) {
               m.setPixelRatio(target);
               raised = true;
@@ -1399,7 +1401,10 @@ export default function SiteMapMapLibre({
           if (typeof m.redraw === "function") m.redraw();
           const cv = m.getCanvas();
           return {
-            dataUrl: cv.toDataURL("image/png"),
+            // JPEG so jsPDF.addImage stays fast (it embeds the JPEG stream
+            // directly; PNG at this size made jsPDF take ~9s). At ~8192px the
+            // map is heavily oversampled, so 0.95 quality is visually lossless.
+            dataUrl: cv.toDataURL("image/jpeg", 0.95),
             width: cv.width,
             height: cv.height,
           };
