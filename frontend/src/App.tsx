@@ -1184,6 +1184,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   );
 
   const closeMobileSidebar = () => setSidebarOpen(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const mapCaptureRef = useRef<
     null | (() => { dataUrl: string; width: number; height: number } | null)
   >(null);
@@ -1627,17 +1628,43 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   style={{ background: mode === "map" ? "#2563eb" : "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", minHeight: 34, whiteSpace: "nowrap" }}
                 >⤓ {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}</button>
               )}
-              <div style={{ width: 84, flexShrink: 0 }}><LanguageSwitcher /></div>
-              {/* Sign out — on phone/tablet the drawer (which also has logout)
-                  only opens for admins, so every user needs it here. */}
-              <button
-                onClick={logout}
-                title={`${authUser.username} · ${t("app.signOut")}`}
-                aria-label={t("app.signOut")}
-                style={{ ...iconBtn, width: 34, height: 34, flexShrink: 0 }}
-              >
-                <LogoutIcon />
-              </button>
+              {/* User menu — language + sign out grouped under one icon to
+                  keep the bar on a single row. The drawer (admin-only) still
+                  has its own logout, so this covers every user here. */}
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <button
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  title={`${authUser.username} · ${authUser.role}`}
+                  aria-label="User menu"
+                  aria-expanded={userMenuOpen}
+                  style={{ ...iconBtn, width: 34, height: 34 }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </button>
+                {userMenuOpen && (
+                  <>
+                    <div onClick={() => setUserMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
+                    <div
+                      dir={isRtl ? "rtl" : "ltr"}
+                      style={{ position: "absolute", top: "calc(100% + 8px)", insetInlineEnd: 0, zIndex: 51, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, boxShadow: "0 10px 30px rgba(15,23,42,0.2)", minWidth: 190, padding: 10, display: "grid", gap: 10 }}
+                    >
+                      <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, whiteSpace: "nowrap" }}>
+                        {authUser.username} · {authUser.role}
+                      </div>
+                      <LanguageSwitcher />
+                      <button
+                        onClick={() => { setUserMenuOpen(false); logout(); }}
+                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #fecaca", background: "#fef2f2", color: "#991b1b", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        <LogoutIcon /> {t("app.signOut")}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
           {!compact && <select
