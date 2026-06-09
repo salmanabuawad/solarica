@@ -3796,6 +3796,9 @@ function StringStatusModal({
   canEdit?: boolean;
   onClose: () => void;
 }) {
+  // This modal is a module-level component, so it needs its own translation
+  // hook — without it `t(...)` below throws "t is not defined" on render.
+  const { t } = useTranslation();
   const currentStatus = normalizeStringStatus(stringInfo?.status);
   const images = Array.isArray(stringInfo?.images) ? stringInfo.images : [];
   const [comment, setComment] = useState(String(stringInfo?.comment || ""));
