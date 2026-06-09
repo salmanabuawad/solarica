@@ -112,6 +112,12 @@ export default function StringImagesModal({
           <button onClick={(e) => { e.stopPropagation(); step(1); }} style={navBtn(rtl ? "left" : "right")}>›</button>
           <div style={{ position: "fixed", top: 16, [rtl ? "left" : "right"]: 20, color: "#fff", fontWeight: 700 } as React.CSSProperties}>{viewIdx + 1} / {images.length}</div>
           <button onClick={(e) => { e.stopPropagation(); setViewIdx(null); }} style={{ position: "fixed", top: 14, [rtl ? "right" : "left"]: 20, background: "rgba(255,255,255,0.15)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 12px", cursor: "pointer", fontWeight: 700 } as React.CSSProperties}>✕</button>
+          {canEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmUrl(images[viewIdx]); }}
+              style={{ position: "fixed", bottom: 22, left: "50%", transform: "translateX(-50%)", background: "rgba(220,38,38,0.95)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", cursor: "pointer", fontWeight: 700, fontSize: 15, zIndex: 212, display: "inline-flex", alignItems: "center", gap: 8 }}
+            >🗑 {t("strings.img.delete", "Delete")}</button>
+          )}
         </div>
       )}
 
