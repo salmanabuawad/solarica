@@ -94,16 +94,16 @@ export default function SimpleGrid({
   return (
     <div style={{ width: "100%" }}>
       {enableQuickFilter && (
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 8 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: compact ? 6 : 8 }}>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={quickFilterPlaceholder}
             style={{
               width: "100%",
-              padding: compact ? "12px 14px" : "10px 12px",
-              fontSize: compact ? 15 : undefined,
-              borderRadius: 12,
+              padding: compact ? "7px 12px" : "10px 12px",
+              fontSize: compact ? 14 : undefined,
+              borderRadius: 10,
               border: "1px solid #e2e8f0",
               outline: "none"
             }}
