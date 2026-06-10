@@ -212,11 +212,16 @@ html, body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  /* Kill the browser/PWA pull-to-refresh: dragging down at the top of the
+     page (or chaining out of a scroll container) must NOT reload the app —
+     this is a field tool that may be offline with queued edits. */
+  overscroll-behavior: none;
 }
 #root {
   width: 100%;
   max-width: 100vw;
   min-height: 100dvh;
+  overscroll-behavior: none;
 }
 
 /* ── AG Grid Quartz overrides ────────────────────────────────────────── */
@@ -376,6 +381,12 @@ html, body {
 .ag-theme-quartz .ag-header-cell.ag-header-cell-filtered .ag-header-icon.ag-header-cell-filter-button {
   color: var(--solarica-accent);
   opacity: 1 !important;
+}
+
+/* Prevent the grid's own vertical scroll from chaining out to a
+   pull-to-refresh reload when dragged down while already at the top. */
+.ag-theme-quartz .ag-body-viewport {
+  overscroll-behavior: contain;
 }
 
 /* Rows */
