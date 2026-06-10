@@ -131,7 +131,36 @@ def get_string_optimizer_model(
     By default the response omits the 6,336 optimizer records because the
     frontend usually needs only summary, physical rows, zones and strings.
     Use `?include_optimizers=true` for full data.
+
+    Prefer the persisted model from project_metadata: it is complete and
+    instant to read. The live PDF rebuild is heavy and, under memory pressure
+    on the prod box, can truncate the topology (dropping higher rows) and then
+    cache that truncated result — which surfaced as "rows > 52 missing" in the
+    grid/dashboard. Only fall through to the rebuild when the caller needs the
+    full optimizer list, or when no stored model exists.
     """
+    if not include_optimizers:
+        try:
+            project_uuid = db_store.get_project_uuid(project_id)
+            if project_uuid:
+                stored = ((db_store.get_project_metadata(project_uuid).get("summary") or {})
+                          .get("strings_optimizers") or {})
+                layers = (stored.get("map_data") or {}).get("layers") or {}
+                if layers.get("string_topology"):
+                    model = dict(stored)
+                    # Reconstruct the top-level convenience fields the frontend
+                    # reads (the persisted blob keeps the full data under
+                    # map_data.layers but not always at the top level).
+                    if not model.get("string_zones"):
+                        model["string_zones"] = layers.get("string_zones") or []
+                    if not model.get("strings"):
+                        model["strings"] = layers.get("strings") or []
+                    model["optimizers"] = []
+                    model["optimizers_omitted"] = True
+                    return attach_map_source_image_url(project_id, project_uuid, model)
+        except Exception:
+            pass  # fall through to the live rebuild
+
     model = dict(_build_model(project_id))
     if not include_optimizers:
         model["optimizers"] = []
