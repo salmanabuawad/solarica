@@ -66,6 +66,13 @@ const MOBILE_STRING_COLS = new Set(["string", "status", "images"]);
 const limitMobileStringCols = (cols: any[], compact: boolean) =>
   compact ? cols.filter((c: any) => MOBILE_STRING_COLS.has(c?.field)) : cols;
 
+// Natural / numeric-aware compare so dotted codes sort 1.1.1.2 < 1.1.1.10
+// instead of the lexicographic 1.1.1.10 < 1.1.1.2 (where "10" < "2" as text).
+// Runs of digits are compared as numbers; non-numeric values like
+// "(unlabeled)" are handled gracefully and pushed to the end.
+const naturalCompare = (a: any, b: any) =>
+  String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true, sensitivity: "base" });
+
 // Status icon renderer. Some statuses use a custom SVG asset (solar panel +
 // plug, optimizer device); the rest use their emoji glyph.
 const STATUS_SVG: Record<string, string> = {
@@ -1277,41 +1284,74 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   };
 
   const exportCurrentGrid = async () => {
-    const api: any = pierGridApiRef.current;
-    if (!api) return;
-    const cols: any[] = (api.getAllDisplayedColumns?.() || []).filter((c: any) => c.getColDef?.()?.field);
-    if (!cols.length) return;
     const isStrings = electricalDetailsMode && eplGridTab === "routes";
     const toArgb = (hex: string) => "FF" + String(hex || "#ffffff").replace("#", "").toUpperCase().slice(0, 6);
+
+    // Build (columns, rows, rowBg). For the strings table we export the FULL
+    // dataset — every string, every field — straight from topologyGridRows,
+    // deliberately bypassing the grid so neither an active column filter nor
+    // the mobile 3-column layout can trim what's exported. Piers / string-zones
+    // still export exactly what their grid currently shows.
+    let columns: { header: string; key: string; width: number; get: (d: any) => any }[];
+    let dataRows: any[];
+    let rowBg: (d: any) => string;
+
+    if (isStrings) {
+      const fmtVolt = (v: any) => (v == null || v === "" || isNaN(Number(v)) ? "" : Number(v).toFixed(2));
+      columns = [
+        { header: t("strings.col.string"), key: "string", width: 16, get: (d) => d.string ?? "" },
+        { header: t("strings.col.status"), key: "status", width: 18, get: (d) => t(`strings.status.${normStringStatus(d.status)}`) },
+        { header: t("strings.col.voltage"), key: "voltage", width: 12, get: (d) => fmtVolt(d.voltage) },
+        { header: t("strings.popup.comment"), key: "comment", width: 44, get: (d) => d.comment || "" },
+        { header: t("strings.col.images"), key: "images", width: 10, get: (d) => (Array.isArray(d.images) ? d.images.length : 0) },
+        { header: t("strings.rowsCol.row"), key: "row", width: 12, get: (d) => d.row ?? "" },
+        { header: t("strings.col.type"), key: "type", width: 12, get: (d) => (d.multi_row ? t("strings.type.multi") : t("strings.type.one")) },
+        { header: t("strings.col.startRow"), key: "start_row", width: 12, get: (d) => d.start_row ?? "" },
+        { header: t("strings.col.endRow"), key: "end_row", width: 12, get: (d) => d.end_row ?? "" },
+        { header: t("strings.col.optimizers"), key: "optimizer_count", width: 14, get: (d) => d.optimizer_count ?? "" },
+        { header: t("strings.col.panels"), key: "total_panels", width: 12, get: (d) => d.total_panels ?? "" },
+        { header: t("strings.col.startPanels"), key: "start_panels", width: 16, get: (d) => d.start_panels || "" },
+        { header: t("strings.col.jumpPanels"), key: "jump_panels", width: 28, get: (d) => d.jump_panels || "" },
+        { header: t("strings.col.endPanels"), key: "end_panels", width: 16, get: (d) => d.end_panels || "" },
+      ];
+      dataRows = topologyGridRows.slice().sort((a: any, b: any) => naturalCompare(a.string, b.string));
+      rowBg = (d) => STRING_STATUS_META[normStringStatus(d.status)]?.bg || "#ffffff";
+    } else {
+      const api: any = pierGridApiRef.current;
+      if (!api) return;
+      const gcols: any[] = (api.getAllDisplayedColumns?.() || []).filter((c: any) => c.getColDef?.()?.field);
+      if (!gcols.length) return;
+      columns = gcols.map((c: any) => ({
+        header: c.getColDef().headerName || c.getColId(),
+        key: c.getColId(),
+        width: Math.max(10, Math.min(48, Math.round((c.getActualWidth?.() || 120) / 7))),
+        get: (d: any) => {
+          const cd = c.getColDef();
+          let v = d[cd.field];
+          if (typeof cd.valueGetter === "function") { try { v = cd.valueGetter({ data: d, colDef: cd, getValue: (f: string) => d[f] }); } catch { /* ignore */ } }
+          if (typeof cd.valueFormatter === "function") { try { v = cd.valueFormatter({ value: v, data: d, colDef: cd }); } catch { /* ignore */ } }
+          return v == null ? "" : v;
+        },
+      }));
+      dataRows = [];
+      api.forEachNodeAfterFilterAndSort((node: any) => { if (node?.data) dataRows.push(node.data); });
+      rowBg = (d: any) => (d.status ? (STATUS_BG[d.status] || "#ffffff") : "#ffffff");
+    }
+
     try {
       const mod: any = await import("exceljs/dist/exceljs.min.js");
       const ExcelJS = mod.default ?? mod;
       const wb = new ExcelJS.Workbook();
       const ws = wb.addWorksheet("Export", { views: [{ rightToLeft: isRtl, state: "frozen", ySplit: 1 }] });
-      ws.columns = cols.map((c: any) => ({
-        header: c.getColDef().headerName || c.getColId(),
-        key: c.getColId(),
-        width: Math.max(10, Math.min(48, Math.round((c.getActualWidth?.() || 120) / 7))),
-      }));
+      ws.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width }));
       const head = ws.getRow(1);
       head.eachCell((cell: any) => {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
         cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       });
-      api.forEachNodeAfterFilterAndSort((node: any) => {
-        if (!node?.data) return;
-        const d = node.data;
-        const bg = toArgb(isStrings
-          ? (STRING_STATUS_META[normStringStatus(d.status)]?.bg || "#ffffff")
-          : (d.status ? (STATUS_BG[d.status] || "#ffffff") : "#ffffff"));
-        const values = cols.map((c: any) => {
-          const cd = c.getColDef();
-          let v = d[cd.field];
-          if (typeof cd.valueGetter === "function") { try { v = cd.valueGetter({ data: d, colDef: cd, node, getValue: (f: string) => d[f] }); } catch { /* ignore */ } }
-          if (typeof cd.valueFormatter === "function") { try { v = cd.valueFormatter({ value: v, data: d, colDef: cd, node }); } catch { /* ignore */ } }
-          return v == null ? "" : v;
-        });
-        const row = ws.addRow(values);
+      for (const d of dataRows) {
+        const bg = toArgb(rowBg(d));
+        const row = ws.addRow(columns.map((c) => { const v = c.get(d); return v == null ? "" : v; }));
         row.eachCell({ includeEmpty: true }, (cell: any) => {
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
           cell.border = {
@@ -1319,7 +1359,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             left: { style: "thin", color: { argb: "FFE2E8F0" } }, right: { style: "thin", color: { argb: "FFE2E8F0" } },
           };
         });
-      });
+      }
       const buf = await wb.xlsx.writeBuffer();
       const today = new Date().toISOString().slice(0, 10);
       const name = `${isStrings ? "strings" : (electricalDetailsMode ? "string-zones" : "piers")}-${projectId || "export"}-${today}.xlsx`;
@@ -1720,13 +1760,13 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           )}
           {compact && (
             <div style={{ marginInlineStart: "auto", display: "flex", gap: 6, alignItems: "center" }}>
-              {activeTab === "mapgrid" && (
+              {activeTab === "mapgrid" && mode !== "map" && (
                 <button
-                  onClick={mode === "map" ? exportMapToPdf : exportCurrentGrid}
-                  title={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
-                  aria-label={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
-                  style={{ background: mode === "map" ? "#2563eb" : "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", minHeight: 34, whiteSpace: "nowrap" }}
-                >⤓ {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}</button>
+                  onClick={exportCurrentGrid}
+                  title={t("details.exportExcel", "Export to Excel")}
+                  aria-label={t("details.exportExcel", "Export to Excel")}
+                  style={{ background: "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", minHeight: 34, whiteSpace: "nowrap" }}
+                >⤓ {t("details.exportExcel", "Export to Excel")}</button>
               )}
               {/* The user menu normally lives in the stats row above; show it
                   here only when that row isn't rendered (e.g. a non-electrical
@@ -1966,10 +2006,10 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
           <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
           <span style={{ flex: 1 }} />
-          <button
+          {mode !== "map" && <button
             type="button"
-            title={mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
-            onClick={mode === "map" ? exportMapToPdf : exportCurrentGrid}
+            title={t("details.exportExcel", "Export to Excel")}
+            onClick={exportCurrentGrid}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -1978,8 +2018,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               fontWeight: 600,
               padding: "6px 12px",
               borderRadius: 8,
-              border: `1px solid ${mode === "map" ? "#2563eb" : "#16a34a"}`,
-              background: mode === "map" ? "#2563eb" : "#16a34a",
+              border: "1px solid #16a34a",
+              background: "#16a34a",
               color: "#fff",
               cursor: "pointer",
               boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
@@ -1991,8 +2031,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <polyline points="6 10 12 16 18 10" />
               <path d="M5 20h14" />
             </svg>
-            {mode === "map" ? t("details.exportPdf", "Export to PDF") : t("details.exportExcel", "Export to Excel")}
-          </button>
+            {t("details.exportExcel", "Export to Excel")}
+          </button>}
         </div>}
 
         {/* Bulk status toolbar — visible when piers are selected. One
@@ -2185,8 +2225,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <SimpleGrid
                 rows={topologyGridRows}
                 columns={limitMobileStringCols(orderStringsCols(applyFieldConfigs([
-                  { field: "string", headerName: t("strings.col.string"), width: 96, pinned: "left" },
-                  { field: "row", headerName: t("strings.rowsCol.row"), width: 78 },
+                  { field: "string", headerName: t("strings.col.string"), width: 96, pinned: "left", comparator: naturalCompare, sort: "asc" },
+                  { field: "row", headerName: t("strings.rowsCol.row"), width: 78, comparator: naturalCompare },
                   {
                     field: "status", headerName: t("strings.col.status"), width: 168,
                     headerTooltip: t("strings.col.status"),
