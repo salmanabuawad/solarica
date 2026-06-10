@@ -1774,6 +1774,14 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           )}
           {compact && (
             <div style={{ marginInlineStart: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+              {activeTab === "mapgrid" && mode !== "map" && (
+                <button
+                  onClick={exportCurrentGrid}
+                  title={t("details.exportExcel", "Export to Excel")}
+                  aria-label={t("details.exportExcel", "Export to Excel")}
+                  style={{ background: "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", minHeight: 34, whiteSpace: "nowrap" }}
+                >⤓ {t("details.exportExcel", "Export to Excel")}</button>
+              )}
               {activeTab === "mapgrid" && (
                 <button
                   onClick={refreshData}
@@ -1782,14 +1790,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   aria-label={t("details.refresh", "Refresh data")}
                   style={{ background: "#0ea5e9", border: "none", color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 15, fontWeight: 700, cursor: refreshing ? "default" : "pointer", minHeight: 34, opacity: refreshing ? 0.6 : 1 }}
                 ><span className={refreshing ? "solarica-spin" : undefined}>↻</span></button>
-              )}
-              {activeTab === "mapgrid" && mode !== "map" && (
-                <button
-                  onClick={exportCurrentGrid}
-                  title={t("details.exportExcel", "Export to Excel")}
-                  aria-label={t("details.exportExcel", "Export to Excel")}
-                  style={{ background: "#16a34a", border: "none", color: "#fff", borderRadius: 8, padding: "6px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", minHeight: 34, whiteSpace: "nowrap" }}
-                >⤓ {t("details.exportExcel", "Export to Excel")}</button>
               )}
               {/* The user menu normally lives in the stats row above; show it
                   here only when that row isn't rendered (e.g. a non-electrical
@@ -2029,31 +2029,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
           <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
           <span style={{ flex: 1 }} />
-          <button
-            type="button"
-            title={t("details.refresh", "Refresh data")}
-            onClick={refreshData}
-            disabled={refreshing}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              padding: "6px 12px",
-              borderRadius: 8,
-              border: "1px solid #0ea5e9",
-              background: "#0ea5e9",
-              color: "#fff",
-              cursor: refreshing ? "default" : "pointer",
-              boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
-              flexShrink: 0,
-              opacity: refreshing ? 0.7 : 1,
-            }}
-          >
-            <span className={refreshing ? "solarica-spin" : undefined} style={{ fontSize: 15, lineHeight: 1 }}>↻</span>
-            {t("details.refresh", "Refresh data")}
-          </button>
           {mode !== "map" && <button
             type="button"
             title={t("details.exportExcel", "Export to Excel")}
@@ -2081,6 +2056,31 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             </svg>
             {t("details.exportExcel", "Export to Excel")}
           </button>}
+          <button
+            type="button"
+            title={t("details.refresh", "Refresh data")}
+            onClick={refreshData}
+            disabled={refreshing}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid #0ea5e9",
+              background: "#0ea5e9",
+              color: "#fff",
+              cursor: refreshing ? "default" : "pointer",
+              boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
+              flexShrink: 0,
+              opacity: refreshing ? 0.7 : 1,
+            }}
+          >
+            <span className={refreshing ? "solarica-spin" : undefined} style={{ fontSize: 15, lineHeight: 1 }}>↻</span>
+            {t("details.refresh", "Refresh data")}
+          </button>
         </div>}
 
         {/* Bulk status toolbar — visible when piers are selected. One
