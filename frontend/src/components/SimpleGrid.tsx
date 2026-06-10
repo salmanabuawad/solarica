@@ -181,7 +181,7 @@ export default function SimpleGrid({
             }
           }}
           onRowClicked={(e) => onRowClick?.(e.data)}
-          onRowDoubleClicked={(e) => onRowDoubleClick?.(e.data)}
+          onCellDoubleClicked={(e) => onRowDoubleClick?.(e.data, e.column?.getColId?.())}
           onFirstDataRendered={(e) => { if (autoSizeColumns) { try { e.api.autoSizeAllColumns(); } catch { /* ignore */ } } }}
           onCellValueChanged={onCellValueChanged}
           stopEditingWhenCellsLoseFocus={stopEditingWhenCellsLoseFocus}

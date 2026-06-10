@@ -2252,7 +2252,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 quickFilterPlaceholder={t("strings.search")}
                 getRowId={(p: any) => p.data?.id}
                 getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
-                onRowDoubleClick={(d: any) => { const code = d?.string; if (code && code !== "(unlabeled)") setStringModal({ code }); }}
+                onRowDoubleClick={(d: any, colId?: string) => { if (colId !== "string") return; const code = d?.string; if (code && code !== "(unlabeled)") setStringModal({ code }); }}
                 onCellValueChanged={(e: any) => {
                   const code = e.data?.string;
                   if (!code || code === "(unlabeled)") return;
