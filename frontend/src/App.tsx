@@ -60,6 +60,12 @@ const orderStringsCols = (cols: any[]) => {
   return cols.slice().sort((a, b) => rank(a?.field) - rank(b?.field));
 };
 
+// On phone/tablet the strings grid is trimmed to the essentials: string
+// number, status, and images. Desktop keeps the full set.
+const MOBILE_STRING_COLS = new Set(["string", "status", "images"]);
+const limitMobileStringCols = (cols: any[], compact: boolean) =>
+  compact ? cols.filter((c: any) => MOBILE_STRING_COLS.has(c?.field)) : cols;
+
 // Status icon renderer. Some statuses use a custom SVG asset (solar panel +
 // plug, optimizer device); the rest use their emoji glyph.
 const STATUS_SVG: Record<string, string> = {
@@ -2178,7 +2184,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             {eplGridTab === "routes" && stringTopology.length > 0 ? (
               <SimpleGrid
                 rows={topologyGridRows}
-                columns={orderStringsCols(applyFieldConfigs([
+                columns={limitMobileStringCols(orderStringsCols(applyFieldConfigs([
                   { field: "string", headerName: t("strings.col.string"), width: 96, pinned: "left" },
                   { field: "row", headerName: t("strings.rowsCol.row"), width: 78 },
                   {
@@ -2240,7 +2246,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                       );
                     },
                   },
-                ], stringsFieldConfigs, 1, isRtl))}
+                ], stringsFieldConfigs, 1, isRtl)), compact)}
                 height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
                 enableQuickFilter
                 quickFilterPlaceholder={t("strings.search")}
