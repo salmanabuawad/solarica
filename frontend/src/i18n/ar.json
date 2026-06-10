@@ -63,6 +63,7 @@
     "grow": "تكبير",
     "shrink": "تصغير",
     "exportExcel": "تصدير إلى Excel",
+    "refresh": "تحديث البيانات",
     "exportPdf": "تصدير PDF",
     "exportTooltip": "تصدير العرض الحالي إلى ملف CSV يمكن لـ Excel فتحه"
   },

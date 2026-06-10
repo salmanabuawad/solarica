@@ -396,6 +396,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [pierLabelThreshold, setPierLabelThreshold] = useState<number>(
     () => userPrefs.getPierLabelThreshold(),
   );
@@ -497,7 +498,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         }
       });
     return () => { ignore = true; };
-  }, [projectId]);
+    // refreshKey lets the "Refresh data" button re-pull string statuses/
+    // voltages/comments/images from the server (network-first).
+  }, [projectId, refreshKey]);
 
   const handleStringStatusChange = useCallback((stringId: string, status: string) => {
     if (!stringId || !projectId) return;
@@ -766,6 +769,17 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       .catch((e: any) => setError(String(e.message || e)))
       .finally(() => setEplLoading(false));
   }, [projectId]);
+
+  // Manual "Refresh data" — re-pull project, piers, topology AND string
+  // records (statuses/voltage/comments/images) from the server. Every
+  // data-loading effect keys off refreshKey, so bumping it triggers a fresh
+  // network-first fetch without a full page reload. Brief spinner for feedback.
+  const refreshData = useCallback(() => {
+    if (!projectId || refreshing) return;
+    setRefreshing(true);
+    setRefreshKey((k) => k + 1);
+    window.setTimeout(() => setRefreshing(false), 1200);
+  }, [projectId, refreshing]);
 
   const handleAreaSelect = useCallback((items: any[]) => {
     setSelectedPierCodes((prev) => {
@@ -1760,6 +1774,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           )}
           {compact && (
             <div style={{ marginInlineStart: "auto", display: "flex", gap: 6, alignItems: "center" }}>
+              {activeTab === "mapgrid" && (
+                <button
+                  onClick={refreshData}
+                  disabled={refreshing}
+                  title={t("details.refresh", "Refresh data")}
+                  aria-label={t("details.refresh", "Refresh data")}
+                  style={{ background: "#0ea5e9", border: "none", color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 15, fontWeight: 700, cursor: refreshing ? "default" : "pointer", minHeight: 34, opacity: refreshing ? 0.6 : 1 }}
+                ><span className={refreshing ? "solarica-spin" : undefined}>↻</span></button>
+              )}
               {activeTab === "mapgrid" && mode !== "map" && (
                 <button
                   onClick={exportCurrentGrid}
@@ -2006,6 +2029,31 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
           <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
           <span style={{ flex: 1 }} />
+          <button
+            type="button"
+            title={t("details.refresh", "Refresh data")}
+            onClick={refreshData}
+            disabled={refreshing}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid #0ea5e9",
+              background: "#0ea5e9",
+              color: "#fff",
+              cursor: refreshing ? "default" : "pointer",
+              boxShadow: "0 1px 2px rgba(15,23,42,0.08)",
+              flexShrink: 0,
+              opacity: refreshing ? 0.7 : 1,
+            }}
+          >
+            <span className={refreshing ? "solarica-spin" : undefined} style={{ fontSize: 15, lineHeight: 1 }}>↻</span>
+            {t("details.refresh", "Refresh data")}
+          </button>
           {mode !== "map" && <button
             type="button"
             title={t("details.exportExcel", "Export to Excel")}

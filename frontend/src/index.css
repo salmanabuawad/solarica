@@ -224,6 +224,10 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* Spinner for the "Refresh data" button while a refresh is in flight. */
+@keyframes solarica-spin { to { transform: rotate(360deg); } }
+.solarica-spin { display: inline-block; animation: solarica-spin 0.8s linear infinite; }
+
 /* ── AG Grid Quartz overrides ────────────────────────────────────────── */
 
 .ag-theme-quartz {

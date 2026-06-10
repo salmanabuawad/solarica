@@ -63,6 +63,7 @@
     "grow": "Grow",
     "shrink": "Shrink",
     "exportExcel": "Export to Excel",
+    "refresh": "Refresh data",
     "exportPdf": "Export to PDF",
     "exportTooltip": "Export the current view to a CSV file Excel can open"
   },

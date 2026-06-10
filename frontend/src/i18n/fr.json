@@ -62,6 +62,7 @@
     "grow": "Agrandir",
     "shrink": "Réduire",
     "exportExcel": "Exporter vers Excel",
+    "refresh": "Actualiser les données",
     "exportTooltip": "Exporter la vue actuelle vers un fichier CSV ouvrable dans Excel"
   },
   "status": {

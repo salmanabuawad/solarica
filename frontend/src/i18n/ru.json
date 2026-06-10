@@ -62,6 +62,7 @@
     "grow": "Увеличить",
     "shrink": "Уменьшить",
     "exportExcel": "Экспорт в Excel",
+    "refresh": "Обновить данные",
     "exportTooltip": "Экспортировать текущий вид в CSV, открываемый Excel"
   },
   "status": {
