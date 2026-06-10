@@ -36,42 +36,47 @@ import {
 const DEG_PER_PT = 0.001;
 const pt2lng = (pt: number) => pt * DEG_PER_PT;
 const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
-// String Status Engine — 5-state MVP. Shared status presentation.
-const STRING_STATUSES = ["new", "opt_attached", "panels_connected", "volt_tested", "blocked"] as const;
+// String Status Engine — 5-stage progression + Blocked.
+// Shared status presentation, kept in sync with App.tsx STRING_STATUS_META.
+const STRING_STATUSES = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   new: "New",
-  opt_attached: "Optimizers mounted",
-  panels_connected: "Panels connected",
-  volt_tested: "Volt tested",
+  opt_installed: "Optimizers Installed",
+  panels_connected: "Panels Connected",
+  voltage_passed: "Voltage Passed",
+  tga_connected: "TGA Connected",
   blocked: "Blocked",
 };
-// Kept in sync with App.tsx STRING_STATUS_META. On the map the status COLOUR
-// (route line + markers) is the primary signal; the icon is a secondary cue.
+// On the map the status COLOUR (route line + markers) is the primary signal;
+// the icon is a secondary cue.
 const STRING_STATUS_ICONS: Record<string, string> = {
   new: "○",
-  opt_attached: "🔩",
+  opt_installed: "🔩",
   panels_connected: "🔌",
-  volt_tested: "⚡",
+  voltage_passed: "⚡",
+  tga_connected: "🔗",
   blocked: "⛔",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
   new: "#64748b",
-  opt_attached: "#f59e0b",
+  opt_installed: "#f59e0b",
   panels_connected: "#2563eb",
-  volt_tested: "#16a34a",
+  voltage_passed: "#a855f7",
+  tga_connected: "#16a34a",
   blocked: "#dc2626",
 };
 const STRING_STATUS_BG: Record<string, string> = {
   new: "#f1f5f9",
-  opt_attached: "#fef3c7",
+  opt_installed: "#fef3c7",
   panels_connected: "#dbeafe",
-  volt_tested: "#dcfce7",
+  voltage_passed: "#f3e8ff",
+  tga_connected: "#dcfce7",
   blocked: "#fee2e2",
 };
-// Custom SVG icons (served from public/) for statuses whose emoji we replaced.
+// Custom SVG icons (served from public/) for the optimizer + panel stages.
 const STATUS_SVG: Record<string, string> = {
+  opt_installed: "/optimizer-mounted.svg",
   panels_connected: "/panel-connected.svg",
-  opt_attached: "/optimizer-mounted.svg",
 };
 function statusGlyph(code: string, size: number) {
   return STATUS_SVG[code]
@@ -1776,13 +1781,18 @@ export default function SiteMapMapLibre({
       // String-status marker icons — render the custom panel/optimizer artwork
       // (and simple shapes for the rest) as map images so the on-map status
       // markers match the grid/popup. All 48x48 so icon-size scales uniformly.
-      const sstatusIcons: { id: string; src: string }[] = [
-        { id: "sstatus-new", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`) },
-        { id: "sstatus-volt_tested", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#16a34a" stroke="#ffffff" stroke-width="2"/><path d="M27 8 L13 27 H22 L20 40 L35 20 H25 Z" fill="#ffffff"/></svg>`) },
-        { id: "sstatus-blocked", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`) },
-        { id: "sstatus-panels_connected", src: "/panel-connected.svg" },
-        { id: "sstatus-opt_attached", src: "/optimizer-mounted.svg" },
-      ];
+      // One 48x48 image per status id "sstatus-<code>": the custom panel
+      // artwork where defined, a hollow ring for New, a no-entry disc for
+      // Blocked, and a solid coloured disc (status colour) for every other
+      // commissioning stage. Generated from STRING_STATUSES so adding a stage
+      // needs no extra wiring here.
+      const disc = (fill: string) => "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${fill}" stroke="#ffffff" stroke-width="3"/></svg>`);
+      const sstatusIcons: { id: string; src: string }[] = (STRING_STATUSES as readonly string[]).map((code) => {
+        if (STATUS_SVG[code]) return { id: `sstatus-${code}`, src: STATUS_SVG[code] };
+        if (code === "new") return { id: "sstatus-new", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`) };
+        if (code === "blocked") return { id: "sstatus-blocked", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`) };
+        return { id: `sstatus-${code}`, src: disc(STRING_STATUS_COLORS[code] || "#64748b") };
+      });
       for (const it of sstatusIcons) {
         const im = new Image(48, 48);
         im.onload = () => { if (!map.hasImage(it.id)) map.addImage(it.id, im); };
@@ -2021,14 +2031,9 @@ export default function SiteMapMapLibre({
           // Custom status artwork as map images (panel / optimizer / etc.),
           // replacing the old text glyph so the on-map markers match the
           // grid + popup. icon-image needs no glyphs font.
-          "icon-image": [
-            "match", ["get", "status"],
-            "opt_attached", "sstatus-opt_attached",
-            "panels_connected", "sstatus-panels_connected",
-            "volt_tested", "sstatus-volt_tested",
-            "blocked", "sstatus-blocked",
-            "sstatus-new",
-          ],
+          // Image id is "sstatus-<status>"; every status registered a matching
+          // 48x48 image above, so this scales to all stages with no per-code list.
+          "icon-image": ["concat", "sstatus-", ["coalesce", ["get", "status"], "new"]],
           "icon-size": [
             "interpolate", ["linear"], ["zoom"],
             0, 0.14,

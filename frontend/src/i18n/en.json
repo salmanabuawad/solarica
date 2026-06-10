@@ -262,9 +262,10 @@
     "img": { "upload": "Upload", "camera": "Camera", "delete": "Delete", "view": "View", "none": "No images", "confirmDelete": "Delete this image?" },
     "status": {
       "new": "New",
-      "opt_attached": "Optimizers mounted",
-      "panels_connected": "Panels connected",
-      "volt_tested": "Volt tested",
+      "opt_installed": "Optimizers Installed",
+      "panels_connected": "Panels Connected",
+      "voltage_passed": "Voltage Passed",
+      "tga_connected": "TGA Connected",
       "blocked": "Blocked"
     },
     "progress": {

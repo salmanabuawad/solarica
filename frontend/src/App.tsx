@@ -29,22 +29,21 @@ import { userPrefs } from "./userPrefs";
 const SiteMapMapLibre = lazy(() => import("./components/SiteMapMapLibre"));
 const StringImagesModal = lazy(() => import("./components/StringImagesModal"));
 
-// String Status Engine — 5-state presentation (kept in sync with
+// String Status Engine — 5-stage progression + Blocked (kept in sync with
 // SiteMapMapLibre + backend STRING_STATUS_VALUES). Defined here too so the
 // strings grid colours rows without pulling in the heavy lazy map chunk.
-// Colours follow the work progression so the rollout reads at a glance:
-//   New (neutral grey) → Optimizers mounted (amber) → Panels connected (blue)
-//   → Volt tested (green = verified) → Blocked (red). Icons are picked to be
-//   self-explanatory: ○ empty, 🔩 hardware mounted, 🔌 connected, ⚡ voltage,
-//   ⛔ blocked.
+// Colours run a grey→amber→blue→violet→green progression so the rollout reads
+// at a glance; "Blocked" is a separate red state a string can enter from any
+// stage (driven by the blocker workflow).
 const STRING_STATUS_META: Record<string, { label: string; icon: string; color: string; bg: string }> = {
-  new: { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
-  opt_attached: { label: "Optimizers", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
-  panels_connected: { label: "Panels connected", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
-  volt_tested: { label: "Volt tested", icon: "⚡", color: "#16a34a", bg: "#dcfce7" },
-  blocked: { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
+  new:              { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
+  opt_installed:    { label: "Optimizers Installed", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
+  panels_connected: { label: "Panels Connected", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
+  voltage_passed:   { label: "Voltage Passed", icon: "⚡", color: "#a855f7", bg: "#f3e8ff" },
+  tga_connected:    { label: "TGA Connected", icon: "🔗", color: "#16a34a", bg: "#dcfce7" },
+  blocked:          { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
-const STRING_STATUS_ORDER = ["new", "opt_attached", "panels_connected", "volt_tested", "blocked"];
+const STRING_STATUS_ORDER = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";
@@ -76,8 +75,8 @@ const naturalCompare = (a: any, b: any) =>
 // Status icon renderer. Some statuses use a custom SVG asset (solar panel +
 // plug, optimizer device); the rest use their emoji glyph.
 const STATUS_SVG: Record<string, string> = {
+  opt_installed: "/optimizer-mounted.svg",
   panels_connected: "/panel-connected.svg",
-  opt_attached: "/optimizer-mounted.svg",
 };
 function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
   const svg = STATUS_SVG[code];
@@ -875,21 +874,26 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     });
   }, [stringTopology, stringStatuses, stringComments, stringImages, stringVoltages]);
 
-  // Verified-Progress rollup for the strings grid: status counts + the
-  // weighted progress % (new=0, optimizers=⅓, panels=⅔, volt-tested=1,
-  // blocked contributes 0). "Verified" = the volt-tested share only.
+  // Verified-Progress rollup for the strings grid: status counts + the weighted
+  // progress %, spread evenly across the 11 commissioning stages (New=0 …
+  // Commissioned=1). Blocked is a separate state and contributes 0.
+  // "Verified" = the Commissioned share only.
   const stringProgress = useMemo(() => {
-    const weight: Record<string, number> = { new: 0, opt_attached: 1 / 3, panels_connected: 2 / 3, volt_tested: 1, blocked: 0 };
-    const counts: Record<string, number> = { new: 0, opt_attached: 0, panels_connected: 0, volt_tested: 0, blocked: 0 };
+    const stages = STRING_STATUS_ORDER.filter((k) => k !== "blocked");
+    const weight: Record<string, number> = { blocked: 0 };
+    stages.forEach((k, i) => { weight[k] = stages.length > 1 ? i / (stages.length - 1) : 0; });
+    const counts: Record<string, number> = {};
+    for (const k of STRING_STATUS_ORDER) counts[k] = 0;
     for (const r of topologyGridRows) counts[r.status] = (counts[r.status] || 0) + 1;
     const total = topologyGridRows.length || 0;
     const weighted = STRING_STATUS_ORDER.reduce((a, k) => a + (weight[k] || 0) * counts[k], 0);
+    const lastStage = stages[stages.length - 1];
     return {
       total,
       counts,
-      verifiedPct: total ? Math.round((100 * counts.volt_tested) / total) : 0,
+      verifiedPct: total ? Math.round((100 * (counts[lastStage] || 0)) / total) : 0,
       weightedPct: total ? Math.round((100 * weighted) / total) : 0,
-      blocked: counts.blocked,
+      blocked: counts.blocked || 0,
     };
   }, [topologyGridRows]);
 

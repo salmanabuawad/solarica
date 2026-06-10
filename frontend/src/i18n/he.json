@@ -255,9 +255,10 @@
     "img": { "upload": "העלאה", "camera": "מצלמה", "delete": "מחיקה", "view": "צפייה", "none": "אין תמונות", "confirmDelete": "למחוק את התמונה?" },
     "status": {
       "new": "חדש",
-      "opt_attached": "אופטימזירים הותקנו",
+      "opt_installed": "אופטימייזרים הותקנו",
       "panels_connected": "פאנלים חוברו",
-      "volt_tested": "נבדק מתח",
+      "voltage_passed": "מתח עבר",
+      "tga_connected": "TGA חובר",
       "blocked": "חסום"
     },
     "progress": {

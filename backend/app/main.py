@@ -962,20 +962,25 @@ def _startup_pier_status_events() -> None:
 ATTACHMENT_MAX_SIZE_MB = 25
 ATTACHMENT_MIME_PREFIXES = ("image/", "video/")
 STRING_IMAGE_MAX_SIZE_MB = 12
-# --- String Status Engine (5-state MVP) ----------------------------------
-# NEW -> OPT_ATTACHED -> PANELS_CONNECTED -> VOLT_TESTED ; BLOCKED from any.
-STRING_STATUS_VALUES = {"new", "opt_attached", "panels_connected", "volt_tested", "blocked"}
+# --- String Status Engine (5-stage progression + Blocked) ----------------
+# NEW -> OPT_INSTALLED -> PANELS_CONNECTED -> VOLTAGE_PASSED -> TGA_CONNECTED ;
+# BLOCKED is a separate state enterable from any stage.
+STRING_STATUS_STAGES = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected"]
+STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"blocked"}
+# Linear progression. The manual picker may set any value (validated against
+# STRING_STATUS_VALUES); this table documents the canonical forward/back moves
+# for guided flows. Blocked can be entered from / restored to any stage.
 STRING_STATUS_ALLOWED = {
-    "new":              {"opt_attached", "blocked"},
-    "opt_attached":     {"panels_connected", "blocked", "new"},
-    "panels_connected": {"volt_tested", "blocked", "opt_attached"},
-    "volt_tested":      {"blocked", "panels_connected"},
-    # resolving a blocker can restore any prior state
-    "blocked":          {"new", "opt_attached", "panels_connected", "volt_tested"},
+    s: ({"blocked"}
+        | ({STRING_STATUS_STAGES[i + 1]} if i + 1 < len(STRING_STATUS_STAGES) else set())
+        | ({STRING_STATUS_STAGES[i - 1]} if i > 0 else set()))
+    for i, s in enumerate(STRING_STATUS_STAGES)
 }
-# state used to weight Verified Progress (configurable per contract)
-STRING_STATUS_WEIGHT = {"new": 0.0, "opt_attached": 0.33, "panels_connected": 0.66, "volt_tested": 1.0, "blocked": 0.0}
-PAYMENT_ELIGIBLE_STATUS = "volt_tested"
+STRING_STATUS_ALLOWED["blocked"] = set(STRING_STATUS_STAGES)
+# Verified Progress weights spread evenly across stages (New=0 … Commissioned=1).
+STRING_STATUS_WEIGHT = {s: i / (len(STRING_STATUS_STAGES) - 1) for i, s in enumerate(STRING_STATUS_STAGES)}
+STRING_STATUS_WEIGHT["blocked"] = 0.0
+PAYMENT_ELIGIBLE_STATUS = STRING_STATUS_STAGES[-1]
 STRING_RECORDS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS string_records (
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -1146,12 +1151,12 @@ def api_string_voltage_test(project_id: str, string_id: str, body: dict = Body(.
         if result == "PASS":
             frm, _ = _string_current_status(cur, uu, string_id)
             cur.execute(
-                "INSERT INTO string_records (project_id,string_id,status) VALUES (%s,%s,'volt_tested')"
-                " ON CONFLICT (project_id,string_id) DO UPDATE SET status='volt_tested', pre_block_status=NULL, updated_at=NOW()",
+                "INSERT INTO string_records (project_id,string_id,status) VALUES (%s,%s,'voltage_passed')"
+                " ON CONFLICT (project_id,string_id) DO UPDATE SET status='voltage_passed', pre_block_status=NULL, updated_at=NOW()",
                 (uu, string_id),
             )
-            _string_history(cur, uu, string_id, frm, "volt_tested", tech, f"voltage {measured}V {result}", gps)
-            new_status = "volt_tested"
+            _string_history(cur, uu, string_id, frm, "voltage_passed", tech, f"voltage {measured}V {result}", gps)
+            new_status = "voltage_passed"
         conn.commit()
     return {"string_id": string_id, "result": result, "test_id": vt["id"], "status": new_status}
 
@@ -1242,7 +1247,7 @@ def api_string_progress(project_id: str):
             if rw is not None:
                 by_row.setdefault(rw, blank())[s] += 1
     weighted = sum(STRING_STATUS_WEIGHT.get(s, 0) * n for s, n in by_status.items())
-    verified = by_status.get("volt_tested", 0)
+    verified = by_status.get(PAYMENT_ELIGIBLE_STATUS, 0)
     return {
         "total": total,
         "by_status": by_status,
