@@ -1327,10 +1327,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         { header: t("strings.col.startRow"), key: "start_row", width: 12, get: (d) => d.start_row ?? "" },
         { header: t("strings.col.endRow"), key: "end_row", width: 12, get: (d) => d.end_row ?? "" },
         { header: t("strings.col.optimizers"), key: "optimizer_count", width: 14, get: (d) => d.optimizer_count ?? "" },
-        { header: t("strings.col.panels"), key: "total_panels", width: 12, get: (d) => d.total_panels ?? "" },
-        { header: t("strings.col.startPanels"), key: "start_panels", width: 16, get: (d) => d.start_panels || "" },
-        { header: t("strings.col.jumpPanels"), key: "jump_panels", width: 28, get: (d) => d.jump_panels || "" },
-        { header: t("strings.col.endPanels"), key: "end_panels", width: 16, get: (d) => d.end_panels || "" },
       ];
       dataRows = topologyGridRows.slice().sort((a: any, b: any) => naturalCompare(a.string, b.string));
       rowBg = (d) => STRING_STATUS_META[normStringStatus(d.status)]?.bg || "#ffffff";
