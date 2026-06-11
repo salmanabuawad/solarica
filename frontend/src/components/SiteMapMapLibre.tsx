@@ -2262,7 +2262,7 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "role"], "start"],
         layout: { visibility: "none" },
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 2, 8, 3, 14, 4.5, 18, 6.5],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1, 8, 1.5, 14, 2.2, 18, 3],
           "circle-color": "#16a34a",
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 1.2,
@@ -2275,7 +2275,7 @@ export default function SiteMapMapLibre({
         filter: ["==", ["get", "role"], "end"],
         layout: { visibility: "none" },
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 2, 8, 3, 14, 4.5, 18, 6.5],
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1, 8, 1.5, 14, 2.2, 18, 3],
           "circle-color": "#dc2626",
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": 1.2,
