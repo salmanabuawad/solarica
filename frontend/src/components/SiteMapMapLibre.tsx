@@ -513,6 +513,25 @@ export default function SiteMapMapLibre({
   const avlWatermarkGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
   const avlSectionGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
 
+  // Map each string id to the ELECTRICAL row number(s) it sits on — the same
+  // numbering as the blue R-labels on the map. The topology layer uses a
+  // different per-block physical_row, so the string inspector shows this instead
+  // (e.g. R-75, not topology "row 33").
+  const stringElectricalRows = useMemo(() => {
+    const m: Record<string, Set<number>> = {};
+    for (const row of (electricalRows || [])) {
+      const rn = Number(row?.row_num);
+      if (!Number.isFinite(rn)) continue;
+      for (const sp of (Array.isArray(row?.string_points) ? row.string_points : [])) {
+        const id = String(sp?.id || "").trim();
+        if (id) (m[id] ||= new Set<number>()).add(rn);
+      }
+    }
+    const out: Record<string, number[]> = {};
+    for (const k of Object.keys(m)) out[k] = [...m[k]].sort((a, b) => a - b);
+    return out;
+  }, [electricalRows]);
+
   // Panel rectangles (one polygon per E41 panel) so the row reads as a filled
   // strip of modules rather than a bare line.
   const panelRectsGeoJSON = useMemo(() => {
@@ -3808,6 +3827,7 @@ export default function SiteMapMapLibre({
       {selectedTopologyString && (
         <TopologyInspector
           info={selectedTopologyString}
+          eRows={stringElectricalRows[String(selectedTopologyString?.string || "").trim()] || []}
           onClose={() => {
             setSelectedTopologyString(null);
             const src = mapRef.current?.getSource("topology-highlight") as GeoJSONSource | undefined;
@@ -3862,9 +3882,15 @@ function PierDetailModal({ info, onClose }: { info: any; onClose: () => void }) 
   );
 }
 
-function TopologyInspector({ info, onClose }: { info: any; onClose: () => void }) {
+function TopologyInspector({ info, eRows, onClose }: { info: any; eRows: number[]; onClose: () => void }) {
   const events: any[] = Array.isArray(info?.events) ? info.events : [];
   const crossedRows = Array.from(new Set(events.map((e) => e.physical_row).filter((r) => r != null)));
+  // Electrical row label(s) — matches the blue R-labels. Falls back to the
+  // topology rows only if the electrical mapping is unavailable.
+  const rowText = eRows.length > 0
+    ? `row${eRows.length > 1 ? "s" : ""} ${eRows.map((r) => `R-${r}`).join(" → ")}`
+    : (crossedRows.length > 0 ? `rows ${crossedRows.join(" → ")}` : "");
+  const singleERow = eRows.length === 1 ? `R-${eRows[0]}` : null;
   const eventColor: Record<string, string> = {
     start: "#16a34a", end: "#dc2626", exit_row: "#f97316", enter_row: "#2563eb",
   };
@@ -3884,7 +3910,7 @@ function TopologyInspector({ info, onClose }: { info: any; onClose: () => void }
       <div style={{ padding: "8px 10px" }}>
         <div style={{ marginBottom: 6, color: "#334155" }}>
           {info?.jump_count ? `${info.jump_count} row jump${info.jump_count > 1 ? "s" : ""}` : "single row"}
-          {crossedRows.length > 0 && ` · rows ${crossedRows.join(" → ")}`}
+          {rowText && ` · ${rowText}`}
         </div>
         {Number(info?.total_panels) > 0 && (
           <div style={{ marginBottom: 6, color: "#334155" }}>
@@ -3901,7 +3927,7 @@ function TopologyInspector({ info, onClose }: { info: any; onClose: () => void }
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: eventColor[e.type] || "#94a3b8", flexShrink: 0 }} />
               <span style={{ fontWeight: 600, minWidth: 78 }}>{e.type}</span>
-              <span style={{ color: "#475569" }}>{e.row || "?"}</span>
+              <span style={{ color: "#475569" }}>{singleERow || e.row || "?"}</span>
               <span style={{ color: "#94a3b8", marginLeft: "auto" }}>
                 {Array.isArray(e.between_panels) ? `panels ${e.between_panels[0]}–${e.between_panels[1]}` : ""}
               </span>
