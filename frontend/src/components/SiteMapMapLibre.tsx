@@ -2195,7 +2195,7 @@ export default function SiteMapMapLibre({
           "icon-image": "string-start-rect",
           "icon-size": [
             "interpolate", ["linear"], ["zoom"],
-            8, 0.25, 12, 0.4, 16, 0.6, 20, 0.85,
+            8, 0.13, 12, 0.2, 16, 0.3, 20, 0.42,
           ],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
@@ -2210,7 +2210,7 @@ export default function SiteMapMapLibre({
           "icon-image": "string-end-circle",
           "icon-size": [
             "interpolate", ["linear"], ["zoom"],
-            8, 0.25, 12, 0.4, 16, 0.6, 20, 0.85,
+            8, 0.13, 12, 0.2, 16, 0.3, 20, 0.42,
           ],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
