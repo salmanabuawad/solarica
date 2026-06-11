@@ -518,32 +518,17 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
-  // Codes currently in the AVL status (the "2.x" section). Their routes /
-  // numbers / markers are hidden so the AVL section reads clean — driven by the
-  // status, so the hidden set always matches whatever is actually tagged AVL.
-  const avlStringCodes = useMemo(() => {
-    const set = new Set<string>();
-    const ss: any = stringStatuses || {};
-    for (const code of Object.keys(ss)) {
-      if (String(ss[code]).toLowerCase() === "avl") set.add(String(code).trim());
-    }
-    return set;
-  }, [stringStatuses]);
-
-  // Electrical rows whose strings are (majority) AVL — used to hide their R-row
-  // labels along with the routes, so the AVL rows' numbers are hidden too.
+  // Electrical rows to blank on the map — rows 53-107. Everything on them
+  // (routes, string numbers, start/end markers, R-row labels) is hidden, leaving
+  // only the physical-row lines. Per the request to clear that whole band.
   const avlRowNums = useMemo(() => {
     const set = new Set<number>();
     for (const row of (electricalRows || [])) {
       const rn = Number(row?.row_num);
-      if (!Number.isFinite(rn)) continue;
-      const pts = Array.isArray(row?.string_points) ? row.string_points : [];
-      if (!pts.length) continue;
-      const avlN = pts.filter((p: any) => avlStringCodes.has(String(p?.id || "").trim())).length;
-      if (avlN > 0 && avlN >= pts.length / 2) set.add(rn);
+      if (Number.isFinite(rn) && rn >= 53 && rn <= 107) set.add(rn);
     }
     return set;
-  }, [electricalRows, avlStringCodes]);
+  }, [electricalRows]);
 
   // Keep avlRowNums in a ref so the once-registered zoom/move label handlers and
   // the label refresh always see the current AVL rows. Declared here (early) so
@@ -565,9 +550,9 @@ export default function SiteMapMapLibre({
     return lines;
   }, [electricalRows, avlRowNums]);
 
-  // AVL watermark + gray section rectangle removed (per request). avlStringCodes
-  // (above) is still used below to keep the rows-53-107 strings' routes /
-  // string-numbers / markers hidden, so the band stays a clean blank area.
+  // AVL watermark + gray section rectangle removed (per request). avlRowNums
+  // (above = rows 53-107) drives the per-segment hiding below, so everything on
+  // those rows is blanked except the physical-row lines.
   const avlWatermarkGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
   const avlSectionGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
 
@@ -1094,6 +1079,8 @@ export default function SiteMapMapLibre({
         const x = Array.isArray(p) ? Number(p[0]) : Number(p?.x);
         const y = Array.isArray(p) ? Number(p[1]) : Number(p?.y);
         if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+        // Hide string piers on the blanked rows (53-107).
+        if (nearestRowIsAvl(allRowLines, x, y)) return null;
         const props = Array.isArray(p) ? {} : {
           pier_id: p?.pier_id ?? "", row_id: p?.row_id ?? "",
           row: p?.row ?? "", pier: p?.pier ?? "", type: p?.type ?? "",
@@ -1107,7 +1094,7 @@ export default function SiteMapMapLibre({
       })
       .filter(Boolean);
     return { type: "FeatureCollection" as const, features };
-  }, [stringPiers, imageWidth]);
+  }, [stringPiers, imageWidth, allRowLines]);
 
   const baseTrackersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
