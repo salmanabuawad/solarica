@@ -99,22 +99,16 @@ function normalizeStringStatus(status: any) {
   return (STRING_STATUSES as readonly string[]).includes(s) ? s : "new";
 }
 
-// Whether an image-space point belongs to an AVL row: find the nearest physical
-// row line (each row is an a→b segment) and return its AVL flag. Nearest-line
-// (not a bounding box) so a point on row 52 isn't swallowed by the row-53 band
-// on this angled site. Used to clip ANY string's routes/numbers/markers that
-// cross into the AVL section, even 1.x strings that jump through an AVL row.
-type RowLine = { ax: number; ay: number; bx: number; by: number; avl: boolean };
-function nearestRowIsAvl(lines: RowLine[], x: number, y: number): boolean {
+// Whether an image-space point belongs to the AVL (2.x) section: find the
+// NEAREST string label point and return its AVL flag. Used to clip the
+// panels-plan start/end glyph markers, which carry no string code — identity by
+// proximity, robust at the 1.x/2.x boundary where row geometry is ambiguous.
+type AvlPoint = { x: number; y: number; avl: boolean };
+function nearestStringIsAvl(points: AvlPoint[], x: number, y: number): boolean {
   let bestD = Infinity, bestAvl = false;
-  for (const L of lines) {
-    const dx = L.bx - L.ax, dy = L.by - L.ay;
-    const len2 = dx * dx + dy * dy;
-    let t = len2 > 0 ? ((x - L.ax) * dx + (y - L.ay) * dy) / len2 : 0;
-    t = t < 0 ? 0 : t > 1 ? 1 : t;
-    const px = L.ax + dx * t, py = L.ay + dy * t;
-    const d = (x - px) * (x - px) + (y - py) * (y - py);
-    if (d < bestD) { bestD = d; bestAvl = L.avl; }
+  for (const p of points) {
+    const d = (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y);
+    if (d < bestD) { bestD = d; bestAvl = p.avl; }
   }
   return bestAvl;
 }
@@ -526,28 +520,11 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
-  // Electrical rows to blank on the map — rows 53-107. Everything on them
-  // (routes, string numbers, start/end markers, R-row labels) is hidden, leaving
-  // only the physical-row lines. Per the request to clear that whole band.
-  const avlRowNums = useMemo(() => {
-    const set = new Set<number>();
-    for (const row of (electricalRows || [])) {
-      const rn = Number(row?.row_num);
-      if (Number.isFinite(rn) && rn >= 53 && rn <= 107) set.add(rn);
-    }
-    return set;
-  }, [electricalRows]);
-
-  // Keep avlRowNums in a ref so the once-registered zoom/move label handlers and
-  // the label refresh always see the current AVL rows. Declared here (early) so
-  // this sync runs before the label-render effect further down.
-  useEffect(() => { avlRowNumsRef.current = avlRowNums; }, [avlRowNums]);
-
-  // Codes whose status is AVL (the 2.x section). Their entire route/markers/
-  // numbers are hidden by IDENTITY — geometry alone misses a 2.x string's
-  // south-origin start point, which sits right on the 52/53 boundary and maps
-  // to the non-AVL side. Combined (OR) with the per-row geometric clip below so
-  // 1.x strings that merely jump through an AVL row are still trimmed per-segment.
+  // AVL is defined by string IDENTITY (the 2.x section), NOT geography. 1.x and
+  // 2.x overlap in physical-row (1.x: rows 1-100, 2.x: rows 30-107) and a 1.x
+  // string can sit on the 2.x boundary (e.g. 1.2.7.10 at row 51, y~1390). Only
+  // the code prefix separates them cleanly, so every clip below keys off this
+  // set — never the row number or nearest-row geometry.
   const avlStringCodes = useMemo(() => {
     const set = new Set<string>();
     const ss: any = stringStatuses || {};
@@ -557,24 +534,46 @@ export default function SiteMapMapLibre({
     return set;
   }, [stringStatuses]);
 
-  // All physical-row centre lines (north→south) tagged with whether the row is
-  // AVL — fed to nearestRowIsAvl to clip any string segment that crosses an AVL
-  // row (e.g. a 1.x string that jumps through an AVL/2.x row).
-  const allRowLines = useMemo<RowLine[]>(() => {
-    const lines: RowLine[] = [];
+  // Electrical rows whose string_points are a strict majority AVL — only these
+  // get their R-number label hidden. A 50/50 boundary row (e.g. row 51) keeps
+  // its label so the 1.x strings there still read a row number.
+  const avlRowNums = useMemo(() => {
+    const set = new Set<number>();
     for (const row of (electricalRows || [])) {
-      const ax = Number(row?.x), ay = Number(row?.y);
-      if (!Number.isFinite(ax) || !Number.isFinite(ay)) continue;
-      let bx = Number(row?.south_x), by = Number(row?.south_y);
-      if (!Number.isFinite(bx) || !Number.isFinite(by)) { bx = ax; by = ay; }
-      lines.push({ ax, ay, bx, by, avl: avlRowNums.has(Number(row?.row_num)) });
+      const rn = Number(row?.row_num);
+      if (!Number.isFinite(rn)) continue;
+      const pts = Array.isArray(row?.string_points) ? row.string_points : [];
+      if (!pts.length) continue;
+      const avlN = pts.filter((p: any) => avlStringCodes.has(String(p?.id || "").trim())).length;
+      if (avlN > pts.length / 2) set.add(rn);
     }
-    return lines;
-  }, [electricalRows, avlRowNums]);
+    return set;
+  }, [electricalRows, avlStringCodes]);
 
-  // AVL watermark + gray section rectangle removed (per request). avlRowNums
-  // (above = rows 53-107) drives the per-segment hiding below, so everything on
-  // those rows is blanked except the physical-row lines.
+  // Keep avlRowNums in a ref so the once-registered zoom/move label handlers and
+  // the label refresh always see the current AVL rows.
+  useEffect(() => { avlRowNumsRef.current = avlRowNums; }, [avlRowNums]);
+
+  // Every string's label point tagged AVL/not. The panels-plan start/end glyph
+  // markers carry NO string code, so they're clipped by their nearest string's
+  // identity — which keeps a 1.x boundary string's glyph even when a 2.x string
+  // shares its row.
+  const avlStringPoints = useMemo<AvlPoint[]>(() => {
+    const pts: AvlPoint[] = [];
+    for (const row of (electricalRows || [])) {
+      for (const sp of (Array.isArray(row?.string_points) ? row.string_points : [])) {
+        const x = Number(sp?.x), y = Number(sp?.y);
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          pts.push({ x, y, avl: avlStringCodes.has(String(sp?.id || "").trim()) });
+        }
+      }
+    }
+    return pts;
+  }, [electricalRows, avlStringCodes]);
+
+  // AVL watermark + gray section rectangle removed (per request). The AVL (2.x)
+  // strings are hidden by identity in the builders above/below; nothing is drawn
+  // here.
   const avlWatermarkGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
   const avlSectionGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
 
@@ -780,10 +779,9 @@ export default function SiteMapMapLibre({
         const xValues = positioned.xValues;
         const yValues = positioned.yValues;
         if (!id || !xValues.length || !yValues.length) continue;
-        // Blank the AVL section: skip an AVL-status string outright, or any row
-        // run whose position falls on a blanked row (53-107). Covers this run's
-        // lines, number label, status icon and start/end markers in one place.
-        if (avlStringCodes.has(id) || nearestRowIsAvl(allRowLines, positioned.cx, positioned.cy)) continue;
+        // Hide AVL (2.x) strings only — by identity, never by row. Covers this
+        // run's lines, number label, status icon and start/end markers at once.
+        if (avlStringCodes.has(id)) continue;
         const labelT = positioned.labelT;
         const segmentPanelCount = Math.min(panelsPerString, Math.max(2, panelCount));
         const startPanelNo = Math.min(panelCount, stringIndex * segmentPanelCount + 1);
@@ -890,7 +888,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [electricalRows, panelBaseRows, imageWidth, stringDetail, stringStatuses, allRowLines, avlStringCodes]);
+  }, [electricalRows, panelBaseRows, imageWidth, stringDetail, stringStatuses, avlStringCodes]);
 
   const electricalRowGuideGeoJSON = useMemo(() => {
     const features: any[] = [];
@@ -1078,9 +1076,6 @@ export default function SiteMapMapLibre({
         if (!Array.isArray(seg) || seg.length < 5) continue;
         const [x0, y0, x1, y1, kind] = seg;
         if (![x0, y0, x1, y1].every((v: any) => Number.isFinite(Number(v)))) continue;
-        // Hide segments on AVL rows so the AVL section stays clean — including
-        // 1.x strings that merely jump through an AVL row.
-        if (nearestRowIsAvl(allRowLines, (Number(x0) + Number(x1)) / 2, (Number(y0) + Number(y1)) / 2)) continue;
         const isJump = kind === "jump";
         // Runs sit on the row line; jumps cross rows so leave them raw.
         const a = isJump ? [Number(x0), Number(y0)] : snap(Number(x0), Number(y0));
@@ -1096,7 +1091,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, allRowLines, avlStringCodes]);
+  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, avlStringCodes]);
 
   const stringPiersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -1106,8 +1101,8 @@ export default function SiteMapMapLibre({
         const x = Array.isArray(p) ? Number(p[0]) : Number(p?.x);
         const y = Array.isArray(p) ? Number(p[1]) : Number(p?.y);
         if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-        // Hide string piers on the blanked rows (53-107).
-        if (nearestRowIsAvl(allRowLines, x, y)) return null;
+        // Hide string piers that belong to AVL (2.x) strings, by nearest string.
+        if (nearestStringIsAvl(avlStringPoints, x, y)) return null;
         const props = Array.isArray(p) ? {} : {
           pier_id: p?.pier_id ?? "", row_id: p?.row_id ?? "",
           row: p?.row ?? "", pier: p?.pier ?? "", type: p?.type ?? "",
@@ -1121,7 +1116,7 @@ export default function SiteMapMapLibre({
       })
       .filter(Boolean);
     return { type: "FeatureCollection" as const, features };
-  }, [stringPiers, imageWidth, allRowLines]);
+  }, [stringPiers, imageWidth, avlStringPoints]);
 
   const baseTrackersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -1144,15 +1139,15 @@ export default function SiteMapMapLibre({
       const jumps = Number(s?.jump_count || 0);
       const start = s?.start_xy;
       const end = s?.end_xy;
-      // Hide start/end markers that fall on AVL rows (keep the AVL section clean).
-      if (Array.isArray(start) && start.length === 2 && !nearestRowIsAvl(allRowLines, Number(start[0]), Number(start[1]))) {
+      // AVL strings already skipped above; show the rest (1.x) in full.
+      if (Array.isArray(start) && start.length === 2) {
         features.push({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(start[0]), Number(start[1]), imageWidth) },
           properties: { id, role: "start", jumps },
         });
       }
-      if (Array.isArray(end) && end.length === 2 && !nearestRowIsAvl(allRowLines, Number(end[0]), Number(end[1]))) {
+      if (Array.isArray(end) && end.length === 2) {
         features.push({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(end[0]), Number(end[1]), imageWidth) },
@@ -1161,7 +1156,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, allRowLines, avlStringCodes]);
+  }, [stringTopology, imageWidth, avlStringCodes]);
 
   // String-number label points (rendered by a GPU symbol layer — efficient at
   // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
@@ -1178,21 +1173,18 @@ export default function SiteMapMapLibre({
       if (!id) continue;
       if (avlStringCodes.has(id)) continue; // AVL string → hide its number
       const jumping = Number(s?.jump_count || 0) >= 1;
-      // candidate runs (the per-row horizontal runs) in geo coords. Runs that
-      // fall on AVL rows are dropped so AVL-section string numbers stay hidden.
+      // AVL strings already skipped above; render every run of the rest (1.x).
       const runs: [number, number][][] = [];
       for (const seg of (s?.segments || [])) {
         if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h"
             && (Number(seg[0]) !== Number(seg[2]) || Number(seg[1]) !== Number(seg[3]))) {
-          if (nearestRowIsAvl(allRowLines, (Number(seg[0]) + Number(seg[2])) / 2, (Number(seg[1]) + Number(seg[3])) / 2)) continue;
           runs.push([rotatedToLngLat(Number(seg[0]), Number(seg[1]), imageWidth),
                      rotatedToLngLat(Number(seg[2]), Number(seg[3]), imageWidth)]);
         }
       }
       if (!runs.length) {
         const a = s?.start_xy, b = s?.end_xy;
-        if (Array.isArray(a) && Array.isArray(b)
-            && !nearestRowIsAvl(allRowLines, (Number(a[0]) + Number(b[0])) / 2, (Number(a[1]) + Number(b[1])) / 2)) {
+        if (Array.isArray(a) && Array.isArray(b)) {
           runs.push([rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth),
                      rotatedToLngLat(Number(b[0]), Number(b[1]), imageWidth)]);
         }
@@ -1216,7 +1208,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, allRowLines, avlStringCodes]);
+  }, [stringTopology, imageWidth, avlStringCodes]);
 
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
@@ -1244,10 +1236,10 @@ export default function SiteMapMapLibre({
     }
     const features = (stringStartMarkers || [])
       .filter((m: any) => typeof m?.x === "number" && typeof m?.y === "number")
-      // Drop start glyphs on the blanked rows (53-107). These come from the
-      // panels-plan PDF with no string code, so they can only be clipped by
-      // position; they're snapped onto the panel rows, so nearest-row is exact.
-      .filter((m: any) => !nearestRowIsAvl(allRowLines, m.x, m.y))
+      // Drop start glyphs belonging to AVL (2.x) strings. These panels-plan
+      // glyphs carry no string code, so clip by the NEAREST string's identity —
+      // which keeps a 1.x boundary string's glyph (e.g. 1.2.7.10 at row 51).
+      .filter((m: any) => !nearestStringIsAvl(avlStringPoints, m.x, m.y))
       .map((m: any, idx: number) => ({
         type: "Feature" as const,
         id: `string-start-${idx}`,
@@ -1255,7 +1247,7 @@ export default function SiteMapMapLibre({
         properties: { kind: "start" },
       }));
     return { type: "FeatureCollection" as const, features };
-  }, [stringStartMarkers, imageWidth, allRowLines]);
+  }, [stringStartMarkers, imageWidth, avlStringPoints]);
 
   const stringEndMarkersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
@@ -1263,8 +1255,8 @@ export default function SiteMapMapLibre({
     }
     const features = (stringEndMarkers || [])
       .filter((m: any) => typeof m?.x === "number" && typeof m?.y === "number")
-      // Drop end glyphs on the blanked rows (53-107) — same position-only clip.
-      .filter((m: any) => !nearestRowIsAvl(allRowLines, m.x, m.y))
+      // Drop end glyphs belonging to AVL (2.x) strings — same nearest-string clip.
+      .filter((m: any) => !nearestStringIsAvl(avlStringPoints, m.x, m.y))
       .map((m: any, idx: number) => ({
         type: "Feature" as const,
         id: `string-end-${idx}`,
@@ -1272,7 +1264,7 @@ export default function SiteMapMapLibre({
         properties: { kind: "end" },
       }));
     return { type: "FeatureCollection" as const, features };
-  }, [stringEndMarkers, imageWidth, allRowLines]);
+  }, [stringEndMarkers, imageWidth, avlStringPoints]);
 
   const electricalZonesGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
