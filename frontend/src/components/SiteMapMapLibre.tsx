@@ -520,11 +520,10 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
-  // AVL is defined by string IDENTITY (the 2.x section), NOT geography. 1.x and
-  // 2.x overlap in physical-row (1.x: rows 1-100, 2.x: rows 30-107) and a 1.x
-  // string can sit on the 2.x boundary (e.g. 1.2.7.10 at row 51, y~1390). Only
-  // the code prefix separates them cleanly, so every clip below keys off this
-  // set — never the row number or nearest-row geometry.
+  // AVL is a STATUS only: a string is AVL iff its status is "avl". Every clip
+  // below keys off this set (and the nearest-string test for the codeless glyph
+  // markers) — no row numbers, no geometry. The user controls what's hidden by
+  // setting status to AVL.
   const avlStringCodes = useMemo(() => {
     const set = new Set<string>();
     const ss: any = stringStatuses || {};
@@ -534,38 +533,40 @@ export default function SiteMapMapLibre({
     return set;
   }, [stringStatuses]);
 
-  // Rows above 52 are the blanked band: everything on them is hidden, leaving
-  // only the physical-row lines. Their R-number labels are hidden here.
+  // AVL is a STATUS only. A row's R-number label is hidden when the strings on
+  // it are a strict majority AVL-status (so an all-AVL row reads clean).
   const avlRowNums = useMemo(() => {
     const set = new Set<number>();
     for (const row of (electricalRows || [])) {
       const rn = Number(row?.row_num);
-      if (Number.isFinite(rn) && rn > 52) set.add(rn);
+      if (!Number.isFinite(rn)) continue;
+      const pts = Array.isArray(row?.string_points) ? row.string_points : [];
+      if (!pts.length) continue;
+      const avlN = pts.filter((p: any) => avlStringCodes.has(String(p?.id || "").trim())).length;
+      if (avlN > pts.length / 2) set.add(rn);
     }
     return set;
-  }, [electricalRows]);
+  }, [electricalRows, avlStringCodes]);
 
   // Keep avlRowNums in a ref so the once-registered zoom/move label handlers and
   // the label refresh always see the current AVL rows.
   useEffect(() => { avlRowNumsRef.current = avlRowNums; }, [avlRowNums]);
 
-  // Every string label point tagged by whether its row is above 52 (the blanked
-  // band). Each string knows its own row_num (reliable), unlike the row-LINE
-  // geometry which is mis-sorted on this angled field. Any map content is then
-  // clipped by its NEAREST string: if that string is in a row > 52 it's dropped.
-  // This blanks rows > 52 while keeping row-51 strings (e.g. 1.2.7.10) and
-  // trimming a 1.x string's broken segments that stray up into the band.
+  // Every string label point tagged by whether its OWN status is AVL. The
+  // panels-plan start/end glyph markers carry no string code, so they're clipped
+  // by their nearest string's AVL status. AVL = status only — no row geometry.
   const avlStringPoints = useMemo<AvlPoint[]>(() => {
     const pts: AvlPoint[] = [];
     for (const row of (electricalRows || [])) {
-      const rowAbove52 = Number(row?.row_num) > 52;
       for (const sp of (Array.isArray(row?.string_points) ? row.string_points : [])) {
         const x = Number(sp?.x), y = Number(sp?.y);
-        if (Number.isFinite(x) && Number.isFinite(y)) pts.push({ x, y, avl: rowAbove52 });
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          pts.push({ x, y, avl: avlStringCodes.has(String(sp?.id || "").trim()) });
+        }
       }
     }
     return pts;
-  }, [electricalRows]);
+  }, [electricalRows, avlStringCodes]);
 
   // AVL watermark + gray section rectangle removed (per request). The AVL (2.x)
   // strings are hidden by identity in the builders above/below; nothing is drawn
@@ -749,7 +750,6 @@ export default function SiteMapMapLibre({
     const segmentEndpointsByKey: Record<string, { id: string; rowNo: number; start: number[]; end: number[] }[]> = {};
     for (const row of electricalRows || []) {
       const rowNo = Number(row?.row_num);
-      if (Number.isFinite(rowNo) && rowNo > 52) continue; // blank rows above 52
       const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
       if (!panelRow) continue;
       const panels = rowPanels(panelRow);
