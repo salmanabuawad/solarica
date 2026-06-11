@@ -508,14 +508,17 @@ export default function SiteMapMapLibre({
     if (!imageWidth || imageWidth <= 0) return empty;
     let sx = 0, sy = 0, n = 0;
     for (const s of (stringTopology || [])) {
-      let maxRow = -Infinity;
+      // Only strings ENTIRELY above row 52 — their whole geometry sits in the
+      // 53→107 band, so the centroid/bbox don't get dragged into lower rows by
+      // strings that merely straddle the boundary.
+      let minRow = Infinity;
       for (const r of (Array.isArray(s?.rows) ? s.rows : [])) {
-        const v = Number(r?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+        const v = Number(r?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
       }
       for (const e of (Array.isArray(s?.events) ? s.events : [])) {
-        const v = Number(e?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+        const v = Number(e?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
       }
-      if (!(maxRow > 52)) continue;
+      if (!Number.isFinite(minRow) || minRow <= 52) continue;
       for (const p of [s?.start_xy, s?.end_xy]) {
         if (Array.isArray(p) && p.length === 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) {
           sx += Number(p[0]); sy += Number(p[1]); n++;
@@ -540,14 +543,16 @@ export default function SiteMapMapLibre({
       maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); n++;
     };
     for (const s of (stringTopology || [])) {
-      let maxRow = -Infinity;
+      // Only strings ENTIRELY above row 52 (every row > 52) so the bbox is the
+      // clean 53→107 band and isn't stretched down by boundary-straddling strings.
+      let minRow = Infinity;
       for (const r of (Array.isArray(s?.rows) ? s.rows : [])) {
-        const v = Number(r?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+        const v = Number(r?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
       }
       for (const e of (Array.isArray(s?.events) ? s.events : [])) {
-        const v = Number(e?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+        const v = Number(e?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
       }
-      if (!(maxRow > 52)) continue;
+      if (!Number.isFinite(minRow) || minRow <= 52) continue;
       if (Array.isArray(s?.start_xy)) add(Number(s.start_xy[0]), Number(s.start_xy[1]));
       if (Array.isArray(s?.end_xy)) add(Number(s.end_xy[0]), Number(s.end_xy[1]));
       for (const seg of (Array.isArray(s?.segments) ? s.segments : [])) {
