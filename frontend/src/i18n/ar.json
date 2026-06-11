@@ -259,7 +259,8 @@
       "panels_connected": "تم توصيل الألواح",
       "voltage_passed": "اجتاز الجهد",
       "tga_connected": "تم توصيل TGA",
-      "blocked": "محظور"
+      "blocked": "محظور",
+      "avl": "AVL"
     },
     "progress": {
       "verified": "مُتحقَّق",

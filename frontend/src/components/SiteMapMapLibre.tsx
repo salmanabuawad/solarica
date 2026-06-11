@@ -36,9 +36,9 @@ import {
 const DEG_PER_PT = 0.001;
 const pt2lng = (pt: number) => pt * DEG_PER_PT;
 const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
-// String Status Engine — 5-stage progression + Blocked.
+// String Status Engine — 5-stage progression + Blocked + AVL section.
 // Shared status presentation, kept in sync with App.tsx STRING_STATUS_META.
-const STRING_STATUSES = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked"] as const;
+const STRING_STATUSES = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked", "avl"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   new: "New",
   opt_installed: "Optimizers Installed",
@@ -46,6 +46,7 @@ const STRING_STATUS_LABELS: Record<string, string> = {
   voltage_passed: "Voltage Passed",
   tga_connected: "TGA Connected",
   blocked: "Blocked",
+  avl: "AVL",
 };
 // On the map the status COLOUR (route line + markers) is the primary signal;
 // the icon is a secondary cue.
@@ -56,6 +57,7 @@ const STRING_STATUS_ICONS: Record<string, string> = {
   voltage_passed: "⚡",
   tga_connected: "🔗",
   blocked: "⛔",
+  avl: "🏷",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
   new: "#64748b",
@@ -64,6 +66,7 @@ const STRING_STATUS_COLORS: Record<string, string> = {
   voltage_passed: "#a855f7",
   tga_connected: "#16a34a",
   blocked: "#dc2626",
+  avl: "#94a3b8",
 };
 const STRING_STATUS_BG: Record<string, string> = {
   new: "#f1f5f9",
@@ -72,11 +75,13 @@ const STRING_STATUS_BG: Record<string, string> = {
   voltage_passed: "#f3e8ff",
   tga_connected: "#dcfce7",
   blocked: "#fee2e2",
+  avl: "#f1f5f9",
 };
-// Custom SVG icons (served from public/) for the optimizer + panel stages.
+// Custom SVG icons (served from public/) for the optimizer + panel stages + AVL.
 const STATUS_SVG: Record<string, string> = {
   opt_installed: "/optimizer-mounted.svg",
   panels_connected: "/panel-connected.svg",
+  avl: "/avl.svg",
 };
 function statusGlyph(code: string, size: number) {
   return STATUS_SVG[code]
@@ -520,6 +525,43 @@ export default function SiteMapMapLibre({
     if (n === 0) return empty;
     const [lng, lat] = rotatedToLngLat(sx / n, sy / n, imageWidth);
     return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [lng, lat] }, properties: {} }] };
+  }, [stringTopology, imageWidth]);
+
+  // Gray "AVL section" overlay — the bounding box (rotated to the field) of every
+  // string above physical row 52, filled translucent gray so the whole
+  // rows-53→107 band reads as a separate, de-emphasised section.
+  const avlSectionGeoJSON = useMemo(() => {
+    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
+    if (!imageWidth || imageWidth <= 0) return empty;
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity, n = 0;
+    const add = (x: number, y: number) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      minx = Math.min(minx, x); miny = Math.min(miny, y);
+      maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); n++;
+    };
+    for (const s of (stringTopology || [])) {
+      let maxRow = -Infinity;
+      for (const r of (Array.isArray(s?.rows) ? s.rows : [])) {
+        const v = Number(r?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+      }
+      for (const e of (Array.isArray(s?.events) ? s.events : [])) {
+        const v = Number(e?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+      }
+      if (!(maxRow > 52)) continue;
+      if (Array.isArray(s?.start_xy)) add(Number(s.start_xy[0]), Number(s.start_xy[1]));
+      if (Array.isArray(s?.end_xy)) add(Number(s.end_xy[0]), Number(s.end_xy[1]));
+      for (const seg of (Array.isArray(s?.segments) ? s.segments : [])) {
+        if (Array.isArray(seg) && seg.length >= 4) { add(Number(seg[0]), Number(seg[1])); add(Number(seg[2]), Number(seg[3])); }
+      }
+    }
+    if (n === 0 || !Number.isFinite(minx)) return empty;
+    const padX = (maxx - minx) * 0.02 + 3;
+    const padY = (maxy - miny) * 0.06 + 3;
+    const ring = [
+      [minx - padX, miny - padY], [maxx + padX, miny - padY],
+      [maxx + padX, maxy + padY], [minx - padX, maxy + padY], [minx - padX, miny - padY],
+    ].map((c) => rotatedToLngLat(c[0], c[1], imageWidth));
+    return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Polygon" as const, coordinates: [ring] }, properties: {} }] };
   }, [stringTopology, imageWidth]);
 
   // Panel rectangles (one polygon per E41 panel) so the row reads as a filled
@@ -2529,6 +2571,16 @@ export default function SiteMapMapLibre({
         },
       });
 
+      // Gray "AVL section" fill over the rows-53→107 band, beneath the AVL
+      // watermark, so all rows and strings in that section read as de-emphasised.
+      map.addSource("avl-section", { type: "geojson", data: avlSectionGeoJSON });
+      map.addLayer({
+        id: "avl-section",
+        type: "fill",
+        source: "avl-section",
+        paint: { "fill-color": "#64748b", "fill-opacity": 0.28 },
+      });
+
       // "AVL" watermark over the section above physical row 52. SVG <text>
       // rasterises to an image, so it works even though this style ships no
       // glyph font (which is why map text-fields elsewhere are avoided). One
@@ -2536,7 +2588,7 @@ export default function SiteMapMapLibre({
       const avlImg = new Image(560, 240);
       avlImg.onload = () => { if (!map.hasImage("avl-watermark")) map.addImage("avl-watermark", avlImg); };
       avlImg.src = "data:image/svg+xml;utf8," + encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="240" viewBox="0 0 560 240"><text x="280" y="180" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="200" fill="#1e3a5f" text-anchor="middle" letter-spacing="8">AVL</text></svg>`,
+        `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="240" viewBox="0 0 560 240"><text x="280" y="180" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="200" fill="#e11d48" text-anchor="middle" letter-spacing="8">AVL</text></svg>`,
       );
       map.addSource("avl-watermark", { type: "geojson", data: avlWatermarkGeoJSON });
       map.addLayer({
@@ -2547,13 +2599,13 @@ export default function SiteMapMapLibre({
           "icon-image": "avl-watermark",
           "icon-size": [
             "interpolate", ["linear"], ["zoom"],
-            0, 0.18, 13, 0.5, 17, 1.15, 20, 2.2,
+            0, 0.3, 13, 0.75, 17, 1.7, 20, 3.4,
           ],
           "icon-allow-overlap": true,
           "icon-ignore-placement": true,
           "icon-anchor": "center",
         },
-        paint: { "icon-opacity": 0.22 },
+        paint: { "icon-opacity": 0.5 },
       });
 
       // Generous internal padding so the site layout doesn't kiss the map's
@@ -2963,10 +3015,11 @@ export default function SiteMapMapLibre({
       (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
       (map.getSource("base-trackers") as GeoJSONSource | undefined)?.setData(baseTrackersGeoJSON as any);
       (map.getSource("avl-watermark") as GeoJSONSource | undefined)?.setData(avlWatermarkGeoJSON as any);
+      (map.getSource("avl-section") as GeoJSONSource | undefined)?.setData(avlSectionGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON, avlWatermarkGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON, avlWatermarkGeoJSON, avlSectionGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;

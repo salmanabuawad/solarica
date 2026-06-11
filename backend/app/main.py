@@ -966,7 +966,7 @@ STRING_IMAGE_MAX_SIZE_MB = 12
 # NEW -> OPT_INSTALLED -> PANELS_CONNECTED -> VOLTAGE_PASSED -> TGA_CONNECTED ;
 # BLOCKED is a separate state enterable from any stage.
 STRING_STATUS_STAGES = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected"]
-STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"blocked"}
+STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"blocked", "avl"}
 # Linear progression. The manual picker may set any value (validated against
 # STRING_STATUS_VALUES); this table documents the canonical forward/back moves
 # for guided flows. Blocked can be entered from / restored to any stage.
@@ -977,9 +977,12 @@ STRING_STATUS_ALLOWED = {
     for i, s in enumerate(STRING_STATUS_STAGES)
 }
 STRING_STATUS_ALLOWED["blocked"] = set(STRING_STATUS_STAGES)
-# Verified Progress weights spread evenly across stages (New=0 … Commissioned=1).
+# AVL is a separate section designation, not a workflow stage.
+STRING_STATUS_ALLOWED["avl"] = set(STRING_STATUS_STAGES) | {"blocked"}
+# Verified Progress weights spread evenly across stages (New=0 … last stage=1).
 STRING_STATUS_WEIGHT = {s: i / (len(STRING_STATUS_STAGES) - 1) for i, s in enumerate(STRING_STATUS_STAGES)}
 STRING_STATUS_WEIGHT["blocked"] = 0.0
+STRING_STATUS_WEIGHT["avl"] = 0.0
 PAYMENT_ELIGIBLE_STATUS = STRING_STATUS_STAGES[-1]
 STRING_RECORDS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS string_records (

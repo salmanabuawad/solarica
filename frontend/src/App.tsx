@@ -42,8 +42,11 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   voltage_passed:   { label: "Voltage Passed", icon: "⚡", color: "#a855f7", bg: "#f3e8ff" },
   tga_connected:    { label: "TGA Connected", icon: "🔗", color: "#16a34a", bg: "#dcfce7" },
   blocked:          { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
+  // AVL — a separate (grayed-out) section designation, not a workflow stage.
+  // Gray colour for the row/string rendering; the icon keeps the red "AVL" badge.
+  avl:              { label: "AVL", icon: "🏷", color: "#94a3b8", bg: "#f1f5f9" },
 };
-const STRING_STATUS_ORDER = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked"];
+const STRING_STATUS_ORDER = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked", "avl"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";
@@ -77,6 +80,7 @@ const naturalCompare = (a: any, b: any) =>
 const STATUS_SVG: Record<string, string> = {
   opt_installed: "/optimizer-mounted.svg",
   panels_connected: "/panel-connected.svg",
+  avl: "/avl.svg",
 };
 function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
   const svg = STATUS_SVG[code];
@@ -879,7 +883,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   // Commissioned=1). Blocked is a separate state and contributes 0.
   // "Verified" = the Commissioned share only.
   const stringProgress = useMemo(() => {
-    const stages = STRING_STATUS_ORDER.filter((k) => k !== "blocked");
+    const stages = STRING_STATUS_ORDER.filter((k) => k !== "blocked" && k !== "avl");
     const weight: Record<string, number> = { blocked: 0 };
     stages.forEach((k, i) => { weight[k] = stages.length > 1 ? i / (stages.length - 1) : 0; });
     const counts: Record<string, number> = {};

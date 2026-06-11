@@ -259,7 +259,8 @@
       "panels_connected": "פאנלים חוברו",
       "voltage_passed": "מתח עבר",
       "tga_connected": "TGA חובר",
-      "blocked": "חסום"
+      "blocked": "חסום",
+      "avl": "AVL"
     },
     "progress": {
       "verified": "מאומת",
