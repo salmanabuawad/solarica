@@ -495,6 +495,33 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
+  // "AVL" watermark anchor — the centroid of every string that reaches above
+  // physical row 52. A single faint "AVL" label is drawn here to mark that
+  // section of the site (always shown). Empty when no rows above 52 exist.
+  const avlWatermarkGeoJSON = useMemo(() => {
+    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
+    if (!imageWidth || imageWidth <= 0) return empty;
+    let sx = 0, sy = 0, n = 0;
+    for (const s of (stringTopology || [])) {
+      let maxRow = -Infinity;
+      for (const r of (Array.isArray(s?.rows) ? s.rows : [])) {
+        const v = Number(r?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+      }
+      for (const e of (Array.isArray(s?.events) ? s.events : [])) {
+        const v = Number(e?.physical_row); if (Number.isFinite(v)) maxRow = Math.max(maxRow, v);
+      }
+      if (!(maxRow > 52)) continue;
+      for (const p of [s?.start_xy, s?.end_xy]) {
+        if (Array.isArray(p) && p.length === 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) {
+          sx += Number(p[0]); sy += Number(p[1]); n++;
+        }
+      }
+    }
+    if (n === 0) return empty;
+    const [lng, lat] = rotatedToLngLat(sx / n, sy / n, imageWidth);
+    return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [lng, lat] }, properties: {} }] };
+  }, [stringTopology, imageWidth]);
+
   // Panel rectangles (one polygon per E41 panel) so the row reads as a filled
   // strip of modules rather than a bare line.
   const panelRectsGeoJSON = useMemo(() => {
@@ -2502,6 +2529,33 @@ export default function SiteMapMapLibre({
         },
       });
 
+      // "AVL" watermark over the section above physical row 52. SVG <text>
+      // rasterises to an image, so it works even though this style ships no
+      // glyph font (which is why map text-fields elsewhere are avoided). One
+      // faint, large label centred on that section — always shown (no toggle).
+      const avlImg = new Image(560, 240);
+      avlImg.onload = () => { if (!map.hasImage("avl-watermark")) map.addImage("avl-watermark", avlImg); };
+      avlImg.src = "data:image/svg+xml;utf8," + encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="240" viewBox="0 0 560 240"><text x="280" y="180" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="200" fill="#1e3a5f" text-anchor="middle" letter-spacing="8">AVL</text></svg>`,
+      );
+      map.addSource("avl-watermark", { type: "geojson", data: avlWatermarkGeoJSON });
+      map.addLayer({
+        id: "avl-watermark",
+        type: "symbol",
+        source: "avl-watermark",
+        layout: {
+          "icon-image": "avl-watermark",
+          "icon-size": [
+            "interpolate", ["linear"], ["zoom"],
+            0, 0.18, 13, 0.5, 17, 1.15, 20, 2.2,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+          "icon-anchor": "center",
+        },
+        paint: { "icon-opacity": 0.22 },
+      });
+
       // Generous internal padding so the site layout doesn't kiss the map's
       // edges — especially on narrow mobile viewports where 40 px was too tight.
       if (bounds) map.fitBounds(bounds, { padding: 56, duration: 0 });
@@ -2908,10 +2962,11 @@ export default function SiteMapMapLibre({
       (map.getSource("panel-rects") as GeoJSONSource | undefined)?.setData(panelRectsGeoJSON as any);
       (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
       (map.getSource("base-trackers") as GeoJSONSource | undefined)?.setData(baseTrackersGeoJSON as any);
+      (map.getSource("avl-watermark") as GeoJSONSource | undefined)?.setData(avlWatermarkGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON, avlWatermarkGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
