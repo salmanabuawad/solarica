@@ -780,6 +780,10 @@ export default function SiteMapMapLibre({
         const xValues = positioned.xValues;
         const yValues = positioned.yValues;
         if (!id || !xValues.length || !yValues.length) continue;
+        // Blank the AVL section: skip an AVL-status string outright, or any row
+        // run whose position falls on a blanked row (53-107). Covers this run's
+        // lines, number label, status icon and start/end markers in one place.
+        if (avlStringCodes.has(id) || nearestRowIsAvl(allRowLines, positioned.cx, positioned.cy)) continue;
         const labelT = positioned.labelT;
         const segmentPanelCount = Math.min(panelsPerString, Math.max(2, panelCount));
         const startPanelNo = Math.min(panelCount, stringIndex * segmentPanelCount + 1);
@@ -886,7 +890,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [electricalRows, panelBaseRows, imageWidth, stringDetail, stringStatuses]);
+  }, [electricalRows, panelBaseRows, imageWidth, stringDetail, stringStatuses, allRowLines, avlStringCodes]);
 
   const electricalRowGuideGeoJSON = useMemo(() => {
     const features: any[] = [];
@@ -1240,6 +1244,10 @@ export default function SiteMapMapLibre({
     }
     const features = (stringStartMarkers || [])
       .filter((m: any) => typeof m?.x === "number" && typeof m?.y === "number")
+      // Drop start glyphs on the blanked rows (53-107). These come from the
+      // panels-plan PDF with no string code, so they can only be clipped by
+      // position; they're snapped onto the panel rows, so nearest-row is exact.
+      .filter((m: any) => !nearestRowIsAvl(allRowLines, m.x, m.y))
       .map((m: any, idx: number) => ({
         type: "Feature" as const,
         id: `string-start-${idx}`,
@@ -1247,7 +1255,7 @@ export default function SiteMapMapLibre({
         properties: { kind: "start" },
       }));
     return { type: "FeatureCollection" as const, features };
-  }, [stringStartMarkers, imageWidth]);
+  }, [stringStartMarkers, imageWidth, allRowLines]);
 
   const stringEndMarkersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
@@ -1255,6 +1263,8 @@ export default function SiteMapMapLibre({
     }
     const features = (stringEndMarkers || [])
       .filter((m: any) => typeof m?.x === "number" && typeof m?.y === "number")
+      // Drop end glyphs on the blanked rows (53-107) — same position-only clip.
+      .filter((m: any) => !nearestRowIsAvl(allRowLines, m.x, m.y))
       .map((m: any, idx: number) => ({
         type: "Feature" as const,
         id: `string-end-${idx}`,
@@ -1262,7 +1272,7 @@ export default function SiteMapMapLibre({
         properties: { kind: "end" },
       }));
     return { type: "FeatureCollection" as const, features };
-  }, [stringEndMarkers, imageWidth]);
+  }, [stringEndMarkers, imageWidth, allRowLines]);
 
   const electricalZonesGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
