@@ -254,13 +254,12 @@
     "voltageBad": "غير صالح",
     "img": { "upload": "رفع", "camera": "كاميرا", "delete": "حذف", "view": "عرض", "none": "لا صور", "confirmDelete": "حذف هذه الصورة؟" },
     "status": {
+      "avl": "AVL",
       "new": "جديد",
-      "opt_installed": "تم تركيب المُحسِّنات",
-      "panels_connected": "تم توصيل الألواح",
-      "voltage_passed": "اجتاز الجهد",
-      "tga_connected": "تم توصيل TGA",
-      "blocked": "محظور",
-      "avl": "AVL"
+      "optimizer": "محسّن",
+      "connection": "توصيل",
+      "cable_to_tga": "كابل إلى TGA",
+      "tga_commissioning": "تشغيل TGA"
     },
     "progress": {
       "verified": "مُتحقَّق",

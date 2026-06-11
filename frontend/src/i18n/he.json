@@ -254,13 +254,12 @@
     "voltageBad": "לא תקין",
     "img": { "upload": "העלאה", "camera": "מצלמה", "delete": "מחיקה", "view": "צפייה", "none": "אין תמונות", "confirmDelete": "למחוק את התמונה?" },
     "status": {
+      "avl": "AVL",
       "new": "חדש",
-      "opt_installed": "אופטימייזרים הותקנו",
-      "panels_connected": "פאנלים חוברו",
-      "voltage_passed": "מתח עבר",
-      "tga_connected": "TGA חובר",
-      "blocked": "חסום",
-      "avl": "AVL"
+      "optimizer": "אופטימייזר",
+      "connection": "חיבור",
+      "cable_to_tga": "כבל ל-TGA",
+      "tga_commissioning": "הרצת TGA"
     },
     "progress": {
       "verified": "מאומת",

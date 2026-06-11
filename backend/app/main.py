@@ -962,10 +962,10 @@ def _startup_pier_status_events() -> None:
 ATTACHMENT_MAX_SIZE_MB = 25
 ATTACHMENT_MIME_PREFIXES = ("image/", "video/")
 STRING_IMAGE_MAX_SIZE_MB = 12
-# --- String Status Engine (5-stage progression + Blocked) ----------------
-# NEW -> OPT_INSTALLED -> PANELS_CONNECTED -> VOLTAGE_PASSED -> TGA_CONNECTED ;
-# BLOCKED is a separate state enterable from any stage.
-STRING_STATUS_STAGES = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected"]
+# --- String Status Engine (AVL section + 5-stage progression) ------------
+# NEW -> OPTIMIZER -> CONNECTION -> CABLE_TO_TGA -> TGA_COMMISSIONING ;
+# AVL (the 2.x section) and BLOCKED are separate states enterable from any stage.
+STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "tga_commissioning"]
 STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"blocked", "avl"}
 # Linear progression. The manual picker may set any value (validated against
 # STRING_STATUS_VALUES); this table documents the canonical forward/back moves

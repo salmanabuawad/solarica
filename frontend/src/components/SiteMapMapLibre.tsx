@@ -36,51 +36,48 @@ import {
 const DEG_PER_PT = 0.001;
 const pt2lng = (pt: number) => pt * DEG_PER_PT;
 const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
-// String Status Engine — 5-stage progression + Blocked + AVL section.
+// String Status Engine — AVL section + a 5-stage progression
+// (New → Optimizer → Connection → Cable to TGA → TGA Commissioning).
 // Shared status presentation, kept in sync with App.tsx STRING_STATUS_META.
-const STRING_STATUSES = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked", "avl"] as const;
+const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "cable_to_tga", "tga_commissioning"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
-  new: "New",
-  opt_installed: "Optimizers Installed",
-  panels_connected: "Panels Connected",
-  voltage_passed: "Voltage Passed",
-  tga_connected: "TGA Connected",
-  blocked: "Blocked",
   avl: "AVL",
+  new: "New",
+  optimizer: "Optimizer",
+  connection: "Connection",
+  cable_to_tga: "Cable to TGA",
+  tga_commissioning: "TGA Commissioning",
 };
 // On the map the status COLOUR (route line + markers) is the primary signal;
 // the icon is a secondary cue.
 const STRING_STATUS_ICONS: Record<string, string> = {
-  new: "○",
-  opt_installed: "🔩",
-  panels_connected: "🔌",
-  voltage_passed: "⚡",
-  tga_connected: "🔗",
-  blocked: "⛔",
   avl: "🏷",
+  new: "○",
+  optimizer: "🔩",
+  connection: "🔌",
+  cable_to_tga: "🔗",
+  tga_commissioning: "✅",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
-  new: "#64748b",
-  opt_installed: "#f59e0b",
-  panels_connected: "#2563eb",
-  voltage_passed: "#a855f7",
-  tga_connected: "#16a34a",
-  blocked: "#dc2626",
   avl: "#94a3b8",
+  new: "#64748b",
+  optimizer: "#f59e0b",
+  connection: "#2563eb",
+  cable_to_tga: "#a855f7",
+  tga_commissioning: "#16a34a",
 };
 const STRING_STATUS_BG: Record<string, string> = {
+  avl: "#eef2f6",
   new: "#f1f5f9",
-  opt_installed: "#fef3c7",
-  panels_connected: "#dbeafe",
-  voltage_passed: "#f3e8ff",
-  tga_connected: "#dcfce7",
-  blocked: "#fee2e2",
-  avl: "#f1f5f9",
+  optimizer: "#fef3c7",
+  connection: "#dbeafe",
+  cable_to_tga: "#f3e8ff",
+  tga_commissioning: "#dcfce7",
 };
-// Custom SVG icons (served from public/) for the optimizer + panel stages + AVL.
+// Custom SVG icons (served from public/) for the optimizer + connection stages + AVL.
 const STATUS_SVG: Record<string, string> = {
-  opt_installed: "/optimizer-mounted.svg",
-  panels_connected: "/panel-connected.svg",
+  optimizer: "/optimizer-mounted.svg",
+  connection: "/panel-connected.svg",
   avl: "/avl.svg",
 };
 function statusGlyph(code: string, size: number) {
@@ -174,6 +171,7 @@ export default function SiteMapMapLibre({
   const rowLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
   const electricalRowLabelDataRef = useRef<Record<string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }>>({});
   const trackerLabelDataRef = useRef<Record<string, { lng: number; lat: number }>>({});
+  const avlRowNumsRef = useRef<Set<number>>(new Set());
   const [selectedString, setSelectedString] = useState<any>(null);
   // Sampling prefs are read from refs by the map's `moveend`/`zoomend`
   // handlers, which are registered once at mount; without the refs
@@ -500,22 +498,37 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
-  // Set of string codes that sit on the ELECTRICAL rows above row_num 52 (the
-  // map's "R-53…R-107"). Used to hide just those strings' routes / numbers /
-  // markers. Done by CODE rather than a bounding box, because this site is
-  // angled and an axis-aligned box of rows 53-107 over-covered the adjacent
-  // rows 44-52 and hid them too.
+  // Codes currently in the AVL status (the "2.x" section). Their routes /
+  // numbers / markers are hidden so the AVL section reads clean — driven by the
+  // status, so the hidden set always matches whatever is actually tagged AVL.
   const avlStringCodes = useMemo(() => {
     const set = new Set<string>();
-    for (const row of (electricalRows || [])) {
-      if (Number(row?.row_num) <= 52) continue;
-      for (const sp of (Array.isArray(row?.string_points) ? row.string_points : [])) {
-        const id = String(sp?.id || "").trim();
-        if (id) set.add(id);
-      }
+    const ss: any = stringStatuses || {};
+    for (const code of Object.keys(ss)) {
+      if (String(ss[code]).toLowerCase() === "avl") set.add(String(code).trim());
     }
     return set;
-  }, [electricalRows]);
+  }, [stringStatuses]);
+
+  // Electrical rows whose strings are (majority) AVL — used to hide their R-row
+  // labels along with the routes, so the AVL rows' numbers are hidden too.
+  const avlRowNums = useMemo(() => {
+    const set = new Set<number>();
+    for (const row of (electricalRows || [])) {
+      const rn = Number(row?.row_num);
+      if (!Number.isFinite(rn)) continue;
+      const pts = Array.isArray(row?.string_points) ? row.string_points : [];
+      if (!pts.length) continue;
+      const avlN = pts.filter((p: any) => avlStringCodes.has(String(p?.id || "").trim())).length;
+      if (avlN > 0 && avlN >= pts.length / 2) set.add(rn);
+    }
+    return set;
+  }, [electricalRows, avlStringCodes]);
+
+  // Keep avlRowNums in a ref so the once-registered zoom/move label handlers and
+  // the label refresh always see the current AVL rows. Declared here (early) so
+  // this sync runs before the label-render effect further down.
+  useEffect(() => { avlRowNumsRef.current = avlRowNums; }, [avlRowNums]);
 
   // AVL watermark + gray section rectangle removed (per request). avlStringCodes
   // (above) is still used below to keep the rows-53-107 strings' routes /
@@ -3178,7 +3191,7 @@ export default function SiteMapMapLibre({
     refreshRowLabels();
     refreshElectricalRowLabels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rowLabelsOn, rowLabelData, electricalRowLabelData, mapLabelStride, mapLabelDenseThreshold]);
+  }, [rowLabelsOn, rowLabelData, electricalRowLabelData, mapLabelStride, mapLabelDenseThreshold, avlRowNums]);
 
   // ---- Tracker labels — dedicated effect --------------------------------
   //
@@ -3319,8 +3332,8 @@ export default function SiteMapMapLibre({
     const visible: [string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }][] = [];
     for (const e of Object.entries(electricalRowLabelDataRef.current)) {
       if (!Number.isFinite(e[1].lng) || !Number.isFinite(e[1].lat)) continue;
-      // Hide row-number labels inside the AVL section (rows 53-107).
-      if (Number(e[1].rowNum) > 52) continue;
+      // Hide row-number labels for the AVL rows (the 2.x section).
+      if (avlRowNumsRef.current.has(Number(e[1].rowNum))) continue;
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
     const stride = 1;

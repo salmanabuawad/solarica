@@ -261,13 +261,12 @@
     "voltageBad": "not ok",
     "img": { "upload": "Upload", "camera": "Camera", "delete": "Delete", "view": "View", "none": "No images", "confirmDelete": "Delete this image?" },
     "status": {
+      "avl": "AVL",
       "new": "New",
-      "opt_installed": "Optimizers Installed",
-      "panels_connected": "Panels Connected",
-      "voltage_passed": "Voltage Passed",
-      "tga_connected": "TGA Connected",
-      "blocked": "Blocked",
-      "avl": "AVL"
+      "optimizer": "Optimizer",
+      "connection": "Connection",
+      "cable_to_tga": "Cable to TGA",
+      "tga_commissioning": "TGA Commissioning"
     },
     "progress": {
       "verified": "verified",

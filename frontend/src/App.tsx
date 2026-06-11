@@ -29,24 +29,20 @@ import { userPrefs } from "./userPrefs";
 const SiteMapMapLibre = lazy(() => import("./components/SiteMapMapLibre"));
 const StringImagesModal = lazy(() => import("./components/StringImagesModal"));
 
-// String Status Engine — 5-stage progression + Blocked (kept in sync with
-// SiteMapMapLibre + backend STRING_STATUS_VALUES). Defined here too so the
-// strings grid colours rows without pulling in the heavy lazy map chunk.
-// Colours run a grey→amber→blue→violet→green progression so the rollout reads
-// at a glance; "Blocked" is a separate red state a string can enter from any
-// stage (driven by the blocker workflow).
+// String Status Engine — AVL (a separate, grayed-out section designation) plus a
+// 5-stage progression: New → Optimizer → Connection → Cable to TGA → TGA
+// Commissioning. Kept in sync with SiteMapMapLibre + backend
+// STRING_STATUS_VALUES. Defined here too so the strings grid colours rows
+// without pulling in the heavy lazy map chunk.
 const STRING_STATUS_META: Record<string, { label: string; icon: string; color: string; bg: string }> = {
-  new:              { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
-  opt_installed:    { label: "Optimizers Installed", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
-  panels_connected: { label: "Panels Connected", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
-  voltage_passed:   { label: "Voltage Passed", icon: "⚡", color: "#a855f7", bg: "#f3e8ff" },
-  tga_connected:    { label: "TGA Connected", icon: "🔗", color: "#16a34a", bg: "#dcfce7" },
-  blocked:          { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
-  // AVL — a separate (grayed-out) section designation, not a workflow stage.
-  // Gray colour for the row/string rendering; the icon keeps the red "AVL" badge.
-  avl:              { label: "AVL", icon: "🏷", color: "#94a3b8", bg: "#f1f5f9" },
+  avl:               { label: "AVL", icon: "🏷", color: "#94a3b8", bg: "#eef2f6" },
+  new:               { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
+  optimizer:         { label: "Optimizer", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
+  connection:        { label: "Connection", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
+  cable_to_tga:      { label: "Cable to TGA", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
+  tga_commissioning: { label: "TGA Commissioning", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
 };
-const STRING_STATUS_ORDER = ["new", "opt_installed", "panels_connected", "voltage_passed", "tga_connected", "blocked", "avl"];
+const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "cable_to_tga", "tga_commissioning"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";
@@ -78,8 +74,8 @@ const naturalCompare = (a: any, b: any) =>
 // Status icon renderer. Some statuses use a custom SVG asset (solar panel +
 // plug, optimizer device); the rest use their emoji glyph.
 const STATUS_SVG: Record<string, string> = {
-  opt_installed: "/optimizer-mounted.svg",
-  panels_connected: "/panel-connected.svg",
+  optimizer: "/optimizer-mounted.svg",
+  connection: "/panel-connected.svg",
   avl: "/avl.svg",
 };
 function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
