@@ -3110,7 +3110,7 @@ export default function SiteMapMapLibre({
       // numbers, shown when Strings OR Routes is on — see below). Disable this
       // electrical label layer so the two don't double-draw on top of each other.
       show("electrical-string-point-labels", false);
-      show("electrical-string-status-icons", stringsOn);
+      show("electrical-string-status-icons", false);
       show("electrical-string-start-panel-labels", false);
       show("electrical-string-end-panel-labels", false);
       const hasPanelBase = (panelBaseRows || []).length > 0;
