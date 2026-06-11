@@ -525,27 +525,11 @@ export default function SiteMapMapLibre({
     return { minx: minx - padX, miny: miny - padY, maxx: maxx + padX, maxy: maxy + padY };
   }, [electricalRows, imageWidth]);
 
-  // "AVL" watermark anchor — the centre of the AVL section. One faint, large
-  // "AVL" label is drawn here (always shown). Empty when no rows above 52 exist.
-  const avlWatermarkGeoJSON = useMemo(() => {
-    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
-    const b = avlRegionBox;
-    if (!b || !imageWidth || imageWidth <= 0) return empty;
-    const [lng, lat] = rotatedToLngLat((b.minx + b.maxx) / 2, (b.miny + b.maxy) / 2, imageWidth);
-    return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [lng, lat] }, properties: {} }] };
-  }, [avlRegionBox, imageWidth]);
-
-  // Gray "AVL section" overlay — the box rotated to the field, filled translucent
-  // gray so the whole rows-53→107 band reads as a separate, de-emphasised section.
-  const avlSectionGeoJSON = useMemo(() => {
-    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
-    const b = avlRegionBox;
-    if (!b || !imageWidth || imageWidth <= 0) return empty;
-    const ring = [
-      [b.minx, b.miny], [b.maxx, b.miny], [b.maxx, b.maxy], [b.minx, b.maxy], [b.minx, b.miny],
-    ].map((c) => rotatedToLngLat(c[0], c[1], imageWidth));
-    return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Polygon" as const, coordinates: [ring] }, properties: {} }] };
-  }, [avlRegionBox, imageWidth]);
+  // AVL watermark + gray section rectangle removed (per request). avlRegionBox
+  // is still computed above and used below to keep the rows-53-107 routes /
+  // string-numbers / row-numbers hidden, so the band stays a clean blank area.
+  const avlWatermarkGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
+  const avlSectionGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
 
   // Panel rectangles (one polygon per E41 panel) so the row reads as a filled
   // strip of modules rather than a bare line.
