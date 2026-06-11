@@ -1173,6 +1173,10 @@ export default function SiteMapMapLibre({
       if (!id) continue;
       if (avlStringCodes.has(id)) continue; // AVL string → hide its number
       const jumping = Number(s?.jump_count || 0) >= 1;
+      // Carry status so clicking a number opens the status modal (this layer is
+      // the string-number layer for the "Strings" toggle, not just routes).
+      const status = normalizeStringStatus(stringStatuses[id]);
+      const statusLabel = STRING_STATUS_LABELS[status];
       // AVL strings already skipped above; render every run of the rest (1.x).
       const runs: [number, number][][] = [];
       for (const seg of (s?.segments || [])) {
@@ -1202,13 +1206,13 @@ export default function SiteMapMapLibre({
           features.push({
             type: "Feature" as const,
             geometry: { type: "Point" as const, coordinates: [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f] },
-            properties: { id, jumping: jumping ? 1 : 0, rot: Math.round(rot * 10) / 10 },
+            properties: { id, jumping: jumping ? 1 : 0, rot: Math.round(rot * 10) / 10, status, status_label: statusLabel },
           });
         }
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, avlStringCodes]);
+  }, [stringTopology, imageWidth, avlStringCodes, stringStatuses]);
 
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
@@ -2690,6 +2694,11 @@ export default function SiteMapMapLibre({
       };
       map.on("click", "electrical-string-point-labels", openStringStatus);
       map.on("click", "electrical-string-status-icons", openStringStatus);
+      // Topology number labels are the visible string-number layer; clicking a
+      // number opens the same status modal.
+      map.on("click", "topology-labels-layer", openStringStatus);
+      map.on("mouseenter", "topology-labels-layer", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "topology-labels-layer", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
       map.on("click", "electrical-zones-layer", (e: MapMouseEvent & { features?: any[] }) => {
         if (isBoxDraggingRef.current) return;
         const f = e.features?.[0];
@@ -3177,10 +3186,10 @@ export default function SiteMapMapLibre({
       show("electrical-string-starts", false);
       show("electrical-string-ends", false);
       show("electrical-string-labels", false);
-      // The string-zones label layer carries EVERY string number (complete),
-      // so use it whenever Strings is on. The topology label layer only covers
-      // routed strings, so it's used only when routes are shown without Strings.
-      show("electrical-string-point-labels", stringsOn);
+      // String NUMBERS are drawn by the topology-labels layer (nice slanted
+      // numbers, shown when Strings OR Routes is on — see below). Disable this
+      // electrical label layer so the two don't double-draw on top of each other.
+      show("electrical-string-point-labels", false);
       show("electrical-string-status-icons", stringsOn);
       show("electrical-string-start-panel-labels", false);
       show("electrical-string-end-panel-labels", false);
@@ -3201,7 +3210,9 @@ export default function SiteMapMapLibre({
       show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
-      show("topology-labels-layer", topologyOn && !stringsOn);
+      // String numbers follow the "Strings" toggle (as well as Routes), so
+      // checking Strings shows the numbers even with Routes off.
+      show("topology-labels-layer", stringsOn || topologyOn);
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);
