@@ -500,34 +500,26 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
-  // Image-space bounding box of the "AVL section" — the ELECTRICAL rows above
-  // row_num 52 (the same rows the on-map "R-53…R-107" labels are drawn from, so
-  // the band lands on the section the user actually sees, not the topology's own
-  // differently-oriented physical_row numbering). Shared by the gray fill, the
-  // watermark, and the route/label hiding below. Padded a touch. null if none.
-  const avlRegionBox = useMemo(() => {
-    if (!imageWidth || imageWidth <= 0) return null as null | { minx: number; miny: number; maxx: number; maxy: number };
-    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity, n = 0;
+  // Set of string codes that sit on the ELECTRICAL rows above row_num 52 (the
+  // map's "R-53…R-107"). Used to hide just those strings' routes / numbers /
+  // markers. Done by CODE rather than a bounding box, because this site is
+  // angled and an axis-aligned box of rows 53-107 over-covered the adjacent
+  // rows 44-52 and hid them too.
+  const avlStringCodes = useMemo(() => {
+    const set = new Set<string>();
     for (const row of (electricalRows || [])) {
-      const rn = Number(row?.row_num);
-      if (!Number.isFinite(rn) || rn <= 52) continue;
-      for (const pt of [[row?.x, row?.y], [row?.south_x, row?.south_y]]) {
-        const x = Number(pt[0]), y = Number(pt[1]);
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          minx = Math.min(minx, x); miny = Math.min(miny, y);
-          maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); n++;
-        }
+      if (Number(row?.row_num) <= 52) continue;
+      for (const sp of (Array.isArray(row?.string_points) ? row.string_points : [])) {
+        const id = String(sp?.id || "").trim();
+        if (id) set.add(id);
       }
     }
-    if (n === 0 || !Number.isFinite(minx)) return null;
-    const padX = (maxx - minx) * 0.02 + 3;
-    const padY = (maxy - miny) * 0.06 + 3;
-    return { minx: minx - padX, miny: miny - padY, maxx: maxx + padX, maxy: maxy + padY };
-  }, [electricalRows, imageWidth]);
+    return set;
+  }, [electricalRows]);
 
-  // AVL watermark + gray section rectangle removed (per request). avlRegionBox
-  // is still computed above and used below to keep the rows-53-107 routes /
-  // string-numbers / row-numbers hidden, so the band stays a clean blank area.
+  // AVL watermark + gray section rectangle removed (per request). avlStringCodes
+  // (above) is still used below to keep the rows-53-107 strings' routes /
+  // string-numbers / markers hidden, so the band stays a clean blank area.
   const avlWatermarkGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
   const avlSectionGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
 
@@ -1018,6 +1010,8 @@ export default function SiteMapMapLibre({
     const features: any[] = [];
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
+      // Hide routes for strings on the AVL section (electrical rows 53-107).
+      if (avlStringCodes.has(id)) continue;
       // Colour each route by its execution status (volt-tested = green, etc.)
       // so the route map reflects field progress, not just topology.
       const status = normalizeStringStatus(stringStatuses[id]);
@@ -1026,12 +1020,6 @@ export default function SiteMapMapLibre({
         if (!Array.isArray(seg) || seg.length < 5) continue;
         const [x0, y0, x1, y1, kind] = seg;
         if (![x0, y0, x1, y1].every((v: any) => Number.isFinite(Number(v)))) continue;
-        // Hide string routes inside the AVL section (rows 53-107) so it reads as
-        // a clean gray block.
-        if (avlRegionBox) {
-          const mx = (Number(x0) + Number(x1)) / 2, my = (Number(y0) + Number(y1)) / 2;
-          if (mx >= avlRegionBox.minx && mx <= avlRegionBox.maxx && my >= avlRegionBox.miny && my <= avlRegionBox.maxy) continue;
-        }
         const isJump = kind === "jump";
         // Runs sit on the row line; jumps cross rows so leave them raw.
         const a = isJump ? [Number(x0), Number(y0)] : snap(Number(x0), Number(y0));
@@ -1047,7 +1035,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, avlRegionBox]);
+  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, avlStringCodes]);
 
   const stringPiersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -1092,12 +1080,8 @@ export default function SiteMapMapLibre({
       const jumps = Number(s?.jump_count || 0);
       const start = s?.start_xy;
       const end = s?.end_xy;
-      // Hide string start/end markers inside the AVL section (rows 53-107).
-      if (avlRegionBox) {
-        const cx = Array.isArray(start) && Array.isArray(end) ? (Number(start[0]) + Number(end[0])) / 2 : (Array.isArray(start) ? Number(start[0]) : NaN);
-        const cy = Array.isArray(start) && Array.isArray(end) ? (Number(start[1]) + Number(end[1])) / 2 : (Array.isArray(start) ? Number(start[1]) : NaN);
-        if (Number.isFinite(cx) && Number.isFinite(cy) && cx >= avlRegionBox.minx && cx <= avlRegionBox.maxx && cy >= avlRegionBox.miny && cy <= avlRegionBox.maxy) continue;
-      }
+      // Hide string start/end markers for strings on the AVL section (rows 53-107).
+      if (avlStringCodes.has(id)) continue;
       if (Array.isArray(start) && start.length === 2) {
         features.push({
           type: "Feature" as const,
@@ -1114,7 +1098,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, avlRegionBox]);
+  }, [stringTopology, imageWidth, avlStringCodes]);
 
   // String-number label points (rendered by a GPU symbol layer — efficient at
   // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
@@ -1129,13 +1113,8 @@ export default function SiteMapMapLibre({
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
       if (!id) continue;
-      // Hide string numbers inside the AVL section (rows 53-107).
-      if (avlRegionBox) {
-        const a = s?.start_xy, e = s?.end_xy;
-        const cx = Array.isArray(a) && Array.isArray(e) ? (Number(a[0]) + Number(e[0])) / 2 : (Array.isArray(a) ? Number(a[0]) : NaN);
-        const cy = Array.isArray(a) && Array.isArray(e) ? (Number(a[1]) + Number(e[1])) / 2 : (Array.isArray(a) ? Number(a[1]) : NaN);
-        if (Number.isFinite(cx) && Number.isFinite(cy) && cx >= avlRegionBox.minx && cx <= avlRegionBox.maxx && cy >= avlRegionBox.miny && cy <= avlRegionBox.maxy) continue;
-      }
+      // Hide string numbers for strings on the AVL section (rows 53-107).
+      if (avlStringCodes.has(id)) continue;
       const jumping = Number(s?.jump_count || 0) >= 1;
       // candidate runs (the per-row horizontal runs) in geo coords
       const runs: [number, number][][] = [];
@@ -1172,7 +1151,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, avlRegionBox]);
+  }, [stringTopology, imageWidth, avlStringCodes]);
 
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
