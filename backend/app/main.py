@@ -962,10 +962,10 @@ def _startup_pier_status_events() -> None:
 ATTACHMENT_MAX_SIZE_MB = 25
 ATTACHMENT_MIME_PREFIXES = ("image/", "video/")
 STRING_IMAGE_MAX_SIZE_MB = 12
-# --- String Status Engine (AVL section + 5-stage progression) ------------
-# NEW -> OPTIMIZER -> CONNECTION -> CABLE_TO_TGA -> TGA_COMMISSIONING ;
+# --- String Status Engine (AVL section + 6-stage progression) ------------
+# NEW -> OPTIMIZER -> CONNECTION -> VOLT_CHECKED -> CABLE_TO_TGA -> TGA_COMMISSIONING ;
 # AVL (the 2.x section) and BLOCKED are separate states enterable from any stage.
-STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "tga_commissioning"]
+STRING_STATUS_STAGES = ["new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning"]
 STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"blocked", "avl"}
 # Linear progression. The manual picker may set any value (validated against
 # STRING_STATUS_VALUES); this table documents the canonical forward/back moves
@@ -1154,12 +1154,12 @@ def api_string_voltage_test(project_id: str, string_id: str, body: dict = Body(.
         if result == "PASS":
             frm, _ = _string_current_status(cur, uu, string_id)
             cur.execute(
-                "INSERT INTO string_records (project_id,string_id,status) VALUES (%s,%s,'voltage_passed')"
-                " ON CONFLICT (project_id,string_id) DO UPDATE SET status='voltage_passed', pre_block_status=NULL, updated_at=NOW()",
+                "INSERT INTO string_records (project_id,string_id,status) VALUES (%s,%s,'volt_checked')"
+                " ON CONFLICT (project_id,string_id) DO UPDATE SET status='volt_checked', pre_block_status=NULL, updated_at=NOW()",
                 (uu, string_id),
             )
-            _string_history(cur, uu, string_id, frm, "voltage_passed", tech, f"voltage {measured}V {result}", gps)
-            new_status = "voltage_passed"
+            _string_history(cur, uu, string_id, frm, "volt_checked", tech, f"voltage {measured}V {result}", gps)
+            new_status = "volt_checked"
         conn.commit()
     return {"string_id": string_id, "result": result, "test_id": vt["id"], "status": new_status}
 

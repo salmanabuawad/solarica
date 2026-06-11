@@ -258,8 +258,10 @@
       "new": "جديد",
       "optimizer": "محسّن",
       "connection": "توصيل",
+      "volt_checked": "فحص الجهد",
       "cable_to_tga": "كابل إلى TGA",
-      "tga_commissioning": "تشغيل TGA"
+      "tga_commissioning": "تشغيل TGA",
+      "blocked": "محظور"
     },
     "progress": {
       "verified": "مُتحقَّق",

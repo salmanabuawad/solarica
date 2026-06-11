@@ -258,8 +258,10 @@
       "new": "חדש",
       "optimizer": "אופטימייזר",
       "connection": "חיבור",
+      "volt_checked": "בדיקת מתח",
       "cable_to_tga": "כבל ל-TGA",
-      "tga_commissioning": "הרצת TGA"
+      "tga_commissioning": "הרצת TGA",
+      "blocked": "חסום"
     },
     "progress": {
       "verified": "מאומת",

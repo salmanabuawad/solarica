@@ -39,14 +39,16 @@ const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
 // String Status Engine — AVL section + a 5-stage progression
 // (New → Optimizer → Connection → Cable to TGA → TGA Commissioning).
 // Shared status presentation, kept in sync with App.tsx STRING_STATUS_META.
-const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "cable_to_tga", "tga_commissioning"] as const;
+const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning", "blocked"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   avl: "AVL",
   new: "New",
   optimizer: "Optimizer",
   connection: "Connection",
+  volt_checked: "Volt Checked",
   cable_to_tga: "Cable to TGA",
   tga_commissioning: "TGA Commissioning",
+  blocked: "Blocked",
 };
 // On the map the status COLOUR (route line + markers) is the primary signal;
 // the icon is a secondary cue.
@@ -55,24 +57,30 @@ const STRING_STATUS_ICONS: Record<string, string> = {
   new: "○",
   optimizer: "🔩",
   connection: "🔌",
+  volt_checked: "⚡",
   cable_to_tga: "🔗",
   tga_commissioning: "✅",
+  blocked: "⛔",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
   avl: "#94a3b8",
   new: "#64748b",
   optimizer: "#f59e0b",
   connection: "#2563eb",
+  volt_checked: "#0891b2",
   cable_to_tga: "#a855f7",
   tga_commissioning: "#16a34a",
+  blocked: "#dc2626",
 };
 const STRING_STATUS_BG: Record<string, string> = {
   avl: "#eef2f6",
   new: "#f1f5f9",
   optimizer: "#fef3c7",
   connection: "#dbeafe",
+  volt_checked: "#cffafe",
   cable_to_tga: "#f3e8ff",
   tga_commissioning: "#dcfce7",
+  blocked: "#fee2e2",
 };
 // Custom SVG icons (served from public/) for the optimizer + connection stages + AVL.
 const STATUS_SVG: Record<string, string> = {
