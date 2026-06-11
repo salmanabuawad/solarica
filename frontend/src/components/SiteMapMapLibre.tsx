@@ -3359,9 +3359,42 @@ export default function SiteMapMapLibre({
       if (avlRowNumsRef.current.has(Number(e[1].rowNum))) continue;
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
-    const stride = 1;
-    for (let i = 0; i < visible.length; i += stride) {
-      const [id, pos] = visible[i];
+    // When the R-chips would overlap, thin them to round numbers (R-1, R-10,
+    // R-20 …). Measure the typical on-screen gap between consecutive rows and
+    // pick the smallest "nice" step that keeps chips clear of each other.
+    const rowOf = (e: any) => Number(e[1]?.rowNum ?? String(e[0]).replace(/\D+/g, ""));
+    const withRow = visible
+      .map((e) => ({ row: rowOf(e), pt: map.project([e[1].lng, e[1].lat]) }))
+      .filter((it) => Number.isFinite(it.row))
+      .sort((a, b) => a.row - b.row);
+    const NICE = [1, 5, 10, 20, 50, 100, 200, 500];
+    const CHIP_GAP = 44; // min px between adjacent chip centers
+    let step = 1;
+    if (withRow.length >= 2) {
+      const gaps: number[] = [];
+      for (let i = 1; i < withRow.length; i++) {
+        const dr = withRow[i].row - withRow[i - 1].row;
+        if (dr <= 0) continue;
+        const dx = withRow[i].pt.x - withRow[i - 1].pt.x;
+        const dy = withRow[i].pt.y - withRow[i - 1].pt.y;
+        gaps.push(Math.hypot(dx, dy) / dr); // px per 1 row of separation
+      }
+      if (gaps.length) {
+        gaps.sort((a, b) => a - b);
+        const med = gaps[Math.floor(gaps.length / 2)];
+        if (med > 0) step = NICE.find((s) => s >= CHIP_GAP / med) ?? NICE[NICE.length - 1];
+      }
+    }
+    // Keep R-1 plus every round multiple of `step` when thinning.
+    const shown = step <= 1
+      ? visible
+      : visible.filter((e) => {
+          const r = rowOf(e);
+          return !Number.isFinite(r) || r === 1 || r % step === 0;
+        });
+
+    for (let i = 0; i < shown.length; i++) {
+      const [id, pos] = shown[i];
       const row = String(pos.rowNum ?? id.split("-row-").pop()?.replace(/^row-/, "").replace(/-(north|south)$/, "") ?? id.replace(/^row-/, "").replace(/-(north|south)$/, ""));
       const stringLabel = (pos.stringLabels || []).join(", ") || formatStringNumbers(pos.stringNumbers || []);
       const splitLabel = (pos.splitStrings || []).join(", ");
