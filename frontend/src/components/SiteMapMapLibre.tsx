@@ -507,28 +507,22 @@ export default function SiteMapMapLibre({
     const empty = { type: "FeatureCollection" as const, features: [] as any[] };
     if (!imageWidth || imageWidth <= 0) return empty;
     let sx = 0, sy = 0, n = 0;
-    for (const s of (stringTopology || [])) {
-      // Only strings ENTIRELY above row 52 — their whole geometry sits in the
-      // 53→107 band, so the centroid/bbox don't get dragged into lower rows by
-      // strings that merely straddle the boundary.
-      let minRow = Infinity;
-      for (const r of (Array.isArray(s?.rows) ? s.rows : [])) {
-        const v = Number(r?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
-      }
-      for (const e of (Array.isArray(s?.events) ? s.events : [])) {
-        const v = Number(e?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
-      }
-      if (!Number.isFinite(minRow) || minRow <= 52) continue;
-      for (const p of [s?.start_xy, s?.end_xy]) {
-        if (Array.isArray(p) && p.length === 2 && Number.isFinite(Number(p[0])) && Number.isFinite(Number(p[1]))) {
-          sx += Number(p[0]); sy += Number(p[1]); n++;
-        }
+    // Use the ELECTRICAL row geometry (the same rows the on-map "R-53…R-107"
+    // labels are drawn from) filtered to row_num > 52, so the band lands on the
+    // section the user actually sees as rows 53-107 — not the topology's own,
+    // differently-oriented physical_row numbering.
+    for (const row of (electricalRows || [])) {
+      const rn = Number(row?.row_num);
+      if (!Number.isFinite(rn) || rn <= 52) continue;
+      for (const pt of [[row?.x, row?.y], [row?.south_x, row?.south_y]]) {
+        const x = Number(pt[0]), y = Number(pt[1]);
+        if (Number.isFinite(x) && Number.isFinite(y)) { sx += x; sy += y; n++; }
       }
     }
     if (n === 0) return empty;
     const [lng, lat] = rotatedToLngLat(sx / n, sy / n, imageWidth);
     return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [lng, lat] }, properties: {} }] };
-  }, [stringTopology, imageWidth]);
+  }, [electricalRows, imageWidth]);
 
   // Gray "AVL section" overlay — the bounding box (rotated to the field) of every
   // string above physical row 52, filled translucent gray so the whole
@@ -542,22 +536,14 @@ export default function SiteMapMapLibre({
       minx = Math.min(minx, x); miny = Math.min(miny, y);
       maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); n++;
     };
-    for (const s of (stringTopology || [])) {
-      // Only strings ENTIRELY above row 52 (every row > 52) so the bbox is the
-      // clean 53→107 band and isn't stretched down by boundary-straddling strings.
-      let minRow = Infinity;
-      for (const r of (Array.isArray(s?.rows) ? s.rows : [])) {
-        const v = Number(r?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
-      }
-      for (const e of (Array.isArray(s?.events) ? s.events : [])) {
-        const v = Number(e?.physical_row); if (Number.isFinite(v)) minRow = Math.min(minRow, v);
-      }
-      if (!Number.isFinite(minRow) || minRow <= 52) continue;
-      if (Array.isArray(s?.start_xy)) add(Number(s.start_xy[0]), Number(s.start_xy[1]));
-      if (Array.isArray(s?.end_xy)) add(Number(s.end_xy[0]), Number(s.end_xy[1]));
-      for (const seg of (Array.isArray(s?.segments) ? s.segments : [])) {
-        if (Array.isArray(seg) && seg.length >= 4) { add(Number(seg[0]), Number(seg[1])); add(Number(seg[2]), Number(seg[3])); }
-      }
+    // Use the ELECTRICAL rows (source of the on-map "R-53…R-107" labels)
+    // filtered to row_num > 52, so the bbox covers the section the user sees as
+    // rows 53-107 rather than the topology's own physical_row orientation.
+    for (const row of (electricalRows || [])) {
+      const rn = Number(row?.row_num);
+      if (!Number.isFinite(rn) || rn <= 52) continue;
+      add(Number(row?.x), Number(row?.y));
+      add(Number(row?.south_x), Number(row?.south_y));
     }
     if (n === 0 || !Number.isFinite(minx)) return empty;
     const padX = (maxx - minx) * 0.02 + 3;
@@ -567,7 +553,7 @@ export default function SiteMapMapLibre({
       [maxx + padX, maxy + padY], [minx - padX, maxy + padY], [minx - padX, miny - padY],
     ].map((c) => rotatedToLngLat(c[0], c[1], imageWidth));
     return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Polygon" as const, coordinates: [ring] }, properties: {} }] };
-  }, [stringTopology, imageWidth]);
+  }, [electricalRows, imageWidth]);
 
   // Panel rectangles (one polygon per E41 panel) so the row reads as a filled
   // strip of modules rather than a bare line.
