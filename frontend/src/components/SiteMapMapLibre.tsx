@@ -543,6 +543,20 @@ export default function SiteMapMapLibre({
   // this sync runs before the label-render effect further down.
   useEffect(() => { avlRowNumsRef.current = avlRowNums; }, [avlRowNums]);
 
+  // Codes whose status is AVL (the 2.x section). Their entire route/markers/
+  // numbers are hidden by IDENTITY — geometry alone misses a 2.x string's
+  // south-origin start point, which sits right on the 52/53 boundary and maps
+  // to the non-AVL side. Combined (OR) with the per-row geometric clip below so
+  // 1.x strings that merely jump through an AVL row are still trimmed per-segment.
+  const avlStringCodes = useMemo(() => {
+    const set = new Set<string>();
+    const ss: any = stringStatuses || {};
+    for (const code of Object.keys(ss)) {
+      if (String(ss[code]).toLowerCase() === "avl") set.add(String(code).trim());
+    }
+    return set;
+  }, [stringStatuses]);
+
   // All physical-row centre lines (north→south) tagged with whether the row is
   // AVL — fed to nearestRowIsAvl to clip any string segment that crosses an AVL
   // row (e.g. a 1.x string that jumps through an AVL/2.x row).
@@ -1051,6 +1065,7 @@ export default function SiteMapMapLibre({
     const features: any[] = [];
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
+      if (avlStringCodes.has(id)) continue; // AVL string → hide its whole route
       // Colour each route by its execution status (volt-tested = green, etc.)
       // so the route map reflects field progress, not just topology.
       const status = normalizeStringStatus(stringStatuses[id]);
@@ -1077,7 +1092,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, allRowLines]);
+  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, allRowLines, avlStringCodes]);
 
   const stringPiersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -1121,6 +1136,7 @@ export default function SiteMapMapLibre({
     const features: any[] = [];
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
+      if (avlStringCodes.has(id)) continue; // AVL string → hide both markers
       const jumps = Number(s?.jump_count || 0);
       const start = s?.start_xy;
       const end = s?.end_xy;
@@ -1141,7 +1157,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, allRowLines]);
+  }, [stringTopology, imageWidth, allRowLines, avlStringCodes]);
 
   // String-number label points (rendered by a GPU symbol layer — efficient at
   // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
@@ -1156,6 +1172,7 @@ export default function SiteMapMapLibre({
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
       if (!id) continue;
+      if (avlStringCodes.has(id)) continue; // AVL string → hide its number
       const jumping = Number(s?.jump_count || 0) >= 1;
       // candidate runs (the per-row horizontal runs) in geo coords. Runs that
       // fall on AVL rows are dropped so AVL-section string numbers stay hidden.
@@ -1195,7 +1212,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, allRowLines]);
+  }, [stringTopology, imageWidth, allRowLines, avlStringCodes]);
 
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
