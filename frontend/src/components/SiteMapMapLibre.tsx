@@ -500,60 +500,52 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
-  // "AVL" watermark anchor — the centroid of every string that reaches above
-  // physical row 52. A single faint "AVL" label is drawn here to mark that
-  // section of the site (always shown). Empty when no rows above 52 exist.
-  const avlWatermarkGeoJSON = useMemo(() => {
-    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
-    if (!imageWidth || imageWidth <= 0) return empty;
-    let sx = 0, sy = 0, n = 0;
-    // Use the ELECTRICAL row geometry (the same rows the on-map "R-53…R-107"
-    // labels are drawn from) filtered to row_num > 52, so the band lands on the
-    // section the user actually sees as rows 53-107 — not the topology's own,
-    // differently-oriented physical_row numbering.
+  // Image-space bounding box of the "AVL section" — the ELECTRICAL rows above
+  // row_num 52 (the same rows the on-map "R-53…R-107" labels are drawn from, so
+  // the band lands on the section the user actually sees, not the topology's own
+  // differently-oriented physical_row numbering). Shared by the gray fill, the
+  // watermark, and the route/label hiding below. Padded a touch. null if none.
+  const avlRegionBox = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) return null as null | { minx: number; miny: number; maxx: number; maxy: number };
+    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity, n = 0;
     for (const row of (electricalRows || [])) {
       const rn = Number(row?.row_num);
       if (!Number.isFinite(rn) || rn <= 52) continue;
       for (const pt of [[row?.x, row?.y], [row?.south_x, row?.south_y]]) {
         const x = Number(pt[0]), y = Number(pt[1]);
-        if (Number.isFinite(x) && Number.isFinite(y)) { sx += x; sy += y; n++; }
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          minx = Math.min(minx, x); miny = Math.min(miny, y);
+          maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); n++;
+        }
       }
     }
-    if (n === 0) return empty;
-    const [lng, lat] = rotatedToLngLat(sx / n, sy / n, imageWidth);
-    return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [lng, lat] }, properties: {} }] };
-  }, [electricalRows, imageWidth]);
-
-  // Gray "AVL section" overlay — the bounding box (rotated to the field) of every
-  // string above physical row 52, filled translucent gray so the whole
-  // rows-53→107 band reads as a separate, de-emphasised section.
-  const avlSectionGeoJSON = useMemo(() => {
-    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
-    if (!imageWidth || imageWidth <= 0) return empty;
-    let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity, n = 0;
-    const add = (x: number, y: number) => {
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-      minx = Math.min(minx, x); miny = Math.min(miny, y);
-      maxx = Math.max(maxx, x); maxy = Math.max(maxy, y); n++;
-    };
-    // Use the ELECTRICAL rows (source of the on-map "R-53…R-107" labels)
-    // filtered to row_num > 52, so the bbox covers the section the user sees as
-    // rows 53-107 rather than the topology's own physical_row orientation.
-    for (const row of (electricalRows || [])) {
-      const rn = Number(row?.row_num);
-      if (!Number.isFinite(rn) || rn <= 52) continue;
-      add(Number(row?.x), Number(row?.y));
-      add(Number(row?.south_x), Number(row?.south_y));
-    }
-    if (n === 0 || !Number.isFinite(minx)) return empty;
+    if (n === 0 || !Number.isFinite(minx)) return null;
     const padX = (maxx - minx) * 0.02 + 3;
     const padY = (maxy - miny) * 0.06 + 3;
+    return { minx: minx - padX, miny: miny - padY, maxx: maxx + padX, maxy: maxy + padY };
+  }, [electricalRows, imageWidth]);
+
+  // "AVL" watermark anchor — the centre of the AVL section. One faint, large
+  // "AVL" label is drawn here (always shown). Empty when no rows above 52 exist.
+  const avlWatermarkGeoJSON = useMemo(() => {
+    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
+    const b = avlRegionBox;
+    if (!b || !imageWidth || imageWidth <= 0) return empty;
+    const [lng, lat] = rotatedToLngLat((b.minx + b.maxx) / 2, (b.miny + b.maxy) / 2, imageWidth);
+    return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Point" as const, coordinates: [lng, lat] }, properties: {} }] };
+  }, [avlRegionBox, imageWidth]);
+
+  // Gray "AVL section" overlay — the box rotated to the field, filled translucent
+  // gray so the whole rows-53→107 band reads as a separate, de-emphasised section.
+  const avlSectionGeoJSON = useMemo(() => {
+    const empty = { type: "FeatureCollection" as const, features: [] as any[] };
+    const b = avlRegionBox;
+    if (!b || !imageWidth || imageWidth <= 0) return empty;
     const ring = [
-      [minx - padX, miny - padY], [maxx + padX, miny - padY],
-      [maxx + padX, maxy + padY], [minx - padX, maxy + padY], [minx - padX, miny - padY],
+      [b.minx, b.miny], [b.maxx, b.miny], [b.maxx, b.maxy], [b.minx, b.maxy], [b.minx, b.miny],
     ].map((c) => rotatedToLngLat(c[0], c[1], imageWidth));
     return { type: "FeatureCollection" as const, features: [{ type: "Feature" as const, geometry: { type: "Polygon" as const, coordinates: [ring] }, properties: {} }] };
-  }, [electricalRows, imageWidth]);
+  }, [avlRegionBox, imageWidth]);
 
   // Panel rectangles (one polygon per E41 panel) so the row reads as a filled
   // strip of modules rather than a bare line.
@@ -1050,6 +1042,12 @@ export default function SiteMapMapLibre({
         if (!Array.isArray(seg) || seg.length < 5) continue;
         const [x0, y0, x1, y1, kind] = seg;
         if (![x0, y0, x1, y1].every((v: any) => Number.isFinite(Number(v)))) continue;
+        // Hide string routes inside the AVL section (rows 53-107) so it reads as
+        // a clean gray block.
+        if (avlRegionBox) {
+          const mx = (Number(x0) + Number(x1)) / 2, my = (Number(y0) + Number(y1)) / 2;
+          if (mx >= avlRegionBox.minx && mx <= avlRegionBox.maxx && my >= avlRegionBox.miny && my <= avlRegionBox.maxy) continue;
+        }
         const isJump = kind === "jump";
         // Runs sit on the row line; jumps cross rows so leave them raw.
         const a = isJump ? [Number(x0), Number(y0)] : snap(Number(x0), Number(y0));
@@ -1065,7 +1063,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses]);
+  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, avlRegionBox]);
 
   const stringPiersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -1110,6 +1108,12 @@ export default function SiteMapMapLibre({
       const jumps = Number(s?.jump_count || 0);
       const start = s?.start_xy;
       const end = s?.end_xy;
+      // Hide string start/end markers inside the AVL section (rows 53-107).
+      if (avlRegionBox) {
+        const cx = Array.isArray(start) && Array.isArray(end) ? (Number(start[0]) + Number(end[0])) / 2 : (Array.isArray(start) ? Number(start[0]) : NaN);
+        const cy = Array.isArray(start) && Array.isArray(end) ? (Number(start[1]) + Number(end[1])) / 2 : (Array.isArray(start) ? Number(start[1]) : NaN);
+        if (Number.isFinite(cx) && Number.isFinite(cy) && cx >= avlRegionBox.minx && cx <= avlRegionBox.maxx && cy >= avlRegionBox.miny && cy <= avlRegionBox.maxy) continue;
+      }
       if (Array.isArray(start) && start.length === 2) {
         features.push({
           type: "Feature" as const,
@@ -1126,7 +1130,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth]);
+  }, [stringTopology, imageWidth, avlRegionBox]);
 
   // String-number label points (rendered by a GPU symbol layer — efficient at
   // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
@@ -1141,6 +1145,13 @@ export default function SiteMapMapLibre({
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
       if (!id) continue;
+      // Hide string numbers inside the AVL section (rows 53-107).
+      if (avlRegionBox) {
+        const a = s?.start_xy, e = s?.end_xy;
+        const cx = Array.isArray(a) && Array.isArray(e) ? (Number(a[0]) + Number(e[0])) / 2 : (Array.isArray(a) ? Number(a[0]) : NaN);
+        const cy = Array.isArray(a) && Array.isArray(e) ? (Number(a[1]) + Number(e[1])) / 2 : (Array.isArray(a) ? Number(a[1]) : NaN);
+        if (Number.isFinite(cx) && Number.isFinite(cy) && cx >= avlRegionBox.minx && cx <= avlRegionBox.maxx && cy >= avlRegionBox.miny && cy <= avlRegionBox.maxy) continue;
+      }
       const jumping = Number(s?.jump_count || 0) >= 1;
       // candidate runs (the per-row horizontal runs) in geo coords
       const runs: [number, number][][] = [];
@@ -1177,7 +1188,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth]);
+  }, [stringTopology, imageWidth, avlRegionBox]);
 
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
@@ -3345,6 +3356,8 @@ export default function SiteMapMapLibre({
     const visible: [string, { lng: number; lat: number; zone: string; rowNum?: any; side?: string; strings?: any; stringNumbers?: number[]; stringLabels?: string[]; optimizerPattern?: string; splitStrings?: string[]; optimizers?: any; modules?: any }][] = [];
     for (const e of Object.entries(electricalRowLabelDataRef.current)) {
       if (!Number.isFinite(e[1].lng) || !Number.isFinite(e[1].lat)) continue;
+      // Hide row-number labels inside the AVL section (rows 53-107).
+      if (Number(e[1].rowNum) > 52) continue;
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
     const stride = 1;
