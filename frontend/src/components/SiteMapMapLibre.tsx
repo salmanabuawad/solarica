@@ -534,42 +534,38 @@ export default function SiteMapMapLibre({
     return set;
   }, [stringStatuses]);
 
-  // Electrical rows whose string_points are a strict majority AVL — only these
-  // get their R-number label hidden. A 50/50 boundary row (e.g. row 51) keeps
-  // its label so the 1.x strings there still read a row number.
+  // Rows above 52 are the blanked band: everything on them is hidden, leaving
+  // only the physical-row lines. Their R-number labels are hidden here.
   const avlRowNums = useMemo(() => {
     const set = new Set<number>();
     for (const row of (electricalRows || [])) {
       const rn = Number(row?.row_num);
-      if (!Number.isFinite(rn)) continue;
-      const pts = Array.isArray(row?.string_points) ? row.string_points : [];
-      if (!pts.length) continue;
-      const avlN = pts.filter((p: any) => avlStringCodes.has(String(p?.id || "").trim())).length;
-      if (avlN > pts.length / 2) set.add(rn);
+      if (Number.isFinite(rn) && rn > 52) set.add(rn);
     }
     return set;
-  }, [electricalRows, avlStringCodes]);
+  }, [electricalRows]);
 
   // Keep avlRowNums in a ref so the once-registered zoom/move label handlers and
   // the label refresh always see the current AVL rows.
   useEffect(() => { avlRowNumsRef.current = avlRowNums; }, [avlRowNums]);
 
-  // Every string's label point tagged AVL/not. The panels-plan start/end glyph
-  // markers carry NO string code, so they're clipped by their nearest string's
-  // identity — which keeps a 1.x boundary string's glyph even when a 2.x string
-  // shares its row.
+  // Every string label point tagged by whether its row is above 52 (the blanked
+  // band). Each string knows its own row_num (reliable), unlike the row-LINE
+  // geometry which is mis-sorted on this angled field. Any map content is then
+  // clipped by its NEAREST string: if that string is in a row > 52 it's dropped.
+  // This blanks rows > 52 while keeping row-51 strings (e.g. 1.2.7.10) and
+  // trimming a 1.x string's broken segments that stray up into the band.
   const avlStringPoints = useMemo<AvlPoint[]>(() => {
     const pts: AvlPoint[] = [];
     for (const row of (electricalRows || [])) {
+      const rowAbove52 = Number(row?.row_num) > 52;
       for (const sp of (Array.isArray(row?.string_points) ? row.string_points : [])) {
         const x = Number(sp?.x), y = Number(sp?.y);
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          pts.push({ x, y, avl: avlStringCodes.has(String(sp?.id || "").trim()) });
-        }
+        if (Number.isFinite(x) && Number.isFinite(y)) pts.push({ x, y, avl: rowAbove52 });
       }
     }
     return pts;
-  }, [electricalRows, avlStringCodes]);
+  }, [electricalRows]);
 
   // AVL watermark + gray section rectangle removed (per request). The AVL (2.x)
   // strings are hidden by identity in the builders above/below; nothing is drawn
@@ -753,6 +749,7 @@ export default function SiteMapMapLibre({
     const segmentEndpointsByKey: Record<string, { id: string; rowNo: number; start: number[]; end: number[] }[]> = {};
     for (const row of electricalRows || []) {
       const rowNo = Number(row?.row_num);
+      if (Number.isFinite(rowNo) && rowNo > 52) continue; // blank rows above 52
       const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
       if (!panelRow) continue;
       const panels = rowPanels(panelRow);
