@@ -2023,10 +2023,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               </div>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
             </div>
-            {/* Row 2: per-status counts on their own line */}
-            <div style={{ display: "flex", gap: 5, flexWrap: "nowrap", overflowX: "auto", alignItems: "center", justifyContent: "flex-start" }}>
+            {/* Row 2: per-status counts on their own line — pills fill the
+                width as equal columns (one row, no horizontal scroll). */}
+            <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", alignItems: "center" }}>
               {STRING_STATUS_ORDER.map((k) => (
-                <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 7px", borderRadius: 999, whiteSpace: "nowrap", flexShrink: 0 }}>
+                <span key={k} style={{ flex: "1 1 0", minWidth: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 4px", borderRadius: 999, whiteSpace: "nowrap" }}>
                   <StatusGlyph code={k} size={12} /> {stringProgress.counts[k] || 0}
                 </span>
               ))}
