@@ -651,7 +651,17 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       .catch((e: any) => { if (!ignore) setError(String(e.message || e)); });
 
     getStringOptimizerModel(projectId, false)
-      .then((model) => { if (!ignore) setStringOptimizerModel(model); })
+      .then((model) => {
+        if (ignore) return;
+        // The endpoint doesn't always lift physical_rows to the top level, but
+        // map_data.layers.physical_rows always has it (with each row's strings).
+        // The map's row labels AND the rows-above-52 clip need this data.
+        if (model && !Array.isArray(model.physical_rows)) {
+          const lyrRows = model?.map_data?.layers?.physical_rows;
+          if (Array.isArray(lyrRows)) model.physical_rows = lyrRows;
+        }
+        setStringOptimizerModel(model);
+      })
       .catch(() => { if (!ignore) setStringOptimizerModel(null); });
 
     Promise.all([

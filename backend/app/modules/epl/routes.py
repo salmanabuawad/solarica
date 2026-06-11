@@ -155,6 +155,11 @@ def get_string_optimizer_model(
                         model["string_zones"] = layers.get("string_zones") or []
                     if not model.get("strings"):
                         model["strings"] = layers.get("strings") or []
+                    # physical_rows carries each row's strings (with x/y + row_num)
+                    # — the frontend needs it for row labels AND for the
+                    # rows-above-52 clip (without it, that clip has no data).
+                    if not model.get("physical_rows"):
+                        model["physical_rows"] = layers.get("physical_rows") or []
                     model["optimizers"] = []
                     model["optimizers_omitted"] = True
                     return attach_map_source_image_url(project_id, project_uuid, model)
