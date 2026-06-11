@@ -1076,6 +1076,9 @@ export default function SiteMapMapLibre({
         if (!Array.isArray(seg) || seg.length < 5) continue;
         const [x0, y0, x1, y1, kind] = seg;
         if (![x0, y0, x1, y1].every((v: any) => Number.isFinite(Number(v)))) continue;
+        // Clip the part of a 1.x route that strays into the 2.x region (nearest
+        // string is AVL) — e.g. 1.2.7.9's broken topology jumps into rows 53+.
+        if (nearestStringIsAvl(avlStringPoints, (Number(x0) + Number(x1)) / 2, (Number(y0) + Number(y1)) / 2)) continue;
         const isJump = kind === "jump";
         // Runs sit on the row line; jumps cross rows so leave them raw.
         const a = isJump ? [Number(x0), Number(y0)] : snap(Number(x0), Number(y0));
@@ -1091,7 +1094,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, avlStringCodes]);
+  }, [stringTopology, panelBaseRows, imageWidth, stringStatuses, avlStringCodes, avlStringPoints]);
 
   const stringPiersGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
@@ -1139,15 +1142,16 @@ export default function SiteMapMapLibre({
       const jumps = Number(s?.jump_count || 0);
       const start = s?.start_xy;
       const end = s?.end_xy;
-      // AVL strings already skipped above; show the rest (1.x) in full.
-      if (Array.isArray(start) && start.length === 2) {
+      // AVL strings skipped above; for the rest (1.x) drop any endpoint that
+      // lands in the 2.x region (broken topology, e.g. 1.2.7.9's end at row 53).
+      if (Array.isArray(start) && start.length === 2 && !nearestStringIsAvl(avlStringPoints, Number(start[0]), Number(start[1]))) {
         features.push({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(start[0]), Number(start[1]), imageWidth) },
           properties: { id, role: "start", jumps },
         });
       }
-      if (Array.isArray(end) && end.length === 2) {
+      if (Array.isArray(end) && end.length === 2 && !nearestStringIsAvl(avlStringPoints, Number(end[0]), Number(end[1]))) {
         features.push({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(end[0]), Number(end[1]), imageWidth) },
@@ -1156,7 +1160,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, avlStringCodes]);
+  }, [stringTopology, imageWidth, avlStringCodes, avlStringPoints]);
 
   // String-number label points (rendered by a GPU symbol layer — efficient at
   // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
@@ -1177,18 +1181,21 @@ export default function SiteMapMapLibre({
       // the string-number layer for the "Strings" toggle, not just routes).
       const status = normalizeStringStatus(stringStatuses[id]);
       const statusLabel = STRING_STATUS_LABELS[status];
-      // AVL strings already skipped above; render every run of the rest (1.x).
+      // AVL strings skipped above; render the rest (1.x) but drop runs that
+      // stray into the 2.x region (broken topology, e.g. 1.2.7.9's rows 53+).
       const runs: [number, number][][] = [];
       for (const seg of (s?.segments || [])) {
         if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h"
             && (Number(seg[0]) !== Number(seg[2]) || Number(seg[1]) !== Number(seg[3]))) {
+          if (nearestStringIsAvl(avlStringPoints, (Number(seg[0]) + Number(seg[2])) / 2, (Number(seg[1]) + Number(seg[3])) / 2)) continue;
           runs.push([rotatedToLngLat(Number(seg[0]), Number(seg[1]), imageWidth),
                      rotatedToLngLat(Number(seg[2]), Number(seg[3]), imageWidth)]);
         }
       }
       if (!runs.length) {
         const a = s?.start_xy, b = s?.end_xy;
-        if (Array.isArray(a) && Array.isArray(b)) {
+        if (Array.isArray(a) && Array.isArray(b)
+            && !nearestStringIsAvl(avlStringPoints, (Number(a[0]) + Number(b[0])) / 2, (Number(a[1]) + Number(b[1])) / 2)) {
           runs.push([rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth),
                      rotatedToLngLat(Number(b[0]), Number(b[1]), imageWidth)]);
         }
@@ -1212,7 +1219,7 @@ export default function SiteMapMapLibre({
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth, avlStringCodes, stringStatuses]);
+  }, [stringTopology, imageWidth, avlStringCodes, stringStatuses, avlStringPoints]);
 
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
