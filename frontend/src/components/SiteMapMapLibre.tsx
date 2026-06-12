@@ -923,34 +923,48 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [stringTopology, imageWidth, stringStatuses]);
 
-  // One status glyph per string, anchored at the midpoint of its longest
-  // horizontal run — the same spot the number label concentrates — so the icon
-  // sits right next to the string number rather than off at the start point.
+  // One status glyph per string, anchored at the midpoint of its longest run
+  // (where the number label sits) but offset PERPENDICULAR to the route, so the
+  // glyph sits beside the number instead of sliding along it — the routes are
+  // near-vertical here, so a straight-up offset would land on the number.
+  // `off` is the screen-space offset vector (scaled by icon-size in the layer).
   const topologyStatusIconsGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    const MAG = 46;
+    // Route dir on screen = (dlng, -dlat); a perpendicular = (dlat, dlng).
+    // Normalise, scale, and flip so it points up-screen (clears the number).
+    const perpUp = (dlng: number, dlat: number): [number, number] => {
+      let ox = dlat, oy = dlng;
+      const L = Math.hypot(ox, oy) || 1;
+      ox = (ox / L) * MAG; oy = (oy / L) * MAG;
+      if (oy > 0) { ox = -ox; oy = -oy; }
+      return [Math.round(ox * 10) / 10, Math.round(oy * 10) / 10];
+    };
     const features: any[] = [];
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
       if (!id) continue;
       const status = normalizeStringStatus(stringStatuses[id]);
       const statusLabel = STRING_STATUS_LABELS[status];
-      let best: { mx: number; my: number; len: number } | null = null;
+      let best: { mx: number; my: number; len: number; dx: number; dy: number } | null = null;
       for (const seg of (s?.segments || [])) {
         if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h"
             && (Number(seg[0]) !== Number(seg[2]) || Number(seg[1]) !== Number(seg[3]))) {
           const p0 = rotatedToLngLat(Number(seg[0]), Number(seg[1]), imageWidth);
           const p1 = rotatedToLngLat(Number(seg[2]), Number(seg[3]), imageWidth);
           const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-          if (!best || len > best.len) best = { mx: (p0[0] + p1[0]) / 2, my: (p0[1] + p1[1]) / 2, len };
+          if (!best || len > best.len) best = { mx: (p0[0] + p1[0]) / 2, my: (p0[1] + p1[1]) / 2, len, dx: p1[0] - p0[0], dy: p1[1] - p0[1] };
         }
       }
       let anchor: [number, number] | null = best ? [best.mx, best.my] : null;
+      let off: [number, number] = best ? perpUp(best.dx, best.dy) : [0, -MAG];
       if (!anchor) {
         const a = s?.start_xy, b = s?.end_xy;
         if (Array.isArray(a) && Array.isArray(b)) {
           const p0 = rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth);
           const p1 = rotatedToLngLat(Number(b[0]), Number(b[1]), imageWidth);
           anchor = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2];
+          off = perpUp(p1[0] - p0[0], p1[1] - p0[1]);
         } else if (Array.isArray(a)) {
           anchor = rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth);
         }
@@ -959,7 +973,7 @@ export default function SiteMapMapLibre({
       features.push({
         type: "Feature" as const,
         geometry: { type: "Point" as const, coordinates: anchor },
-        properties: { id, status, status_label: statusLabel },
+        properties: { id, status, status_label: statusLabel, off },
       });
     }
     return { type: "FeatureCollection" as const, features };
@@ -1930,8 +1944,7 @@ export default function SiteMapMapLibre({
           visibility: "none",
           "icon-image": ["concat", "sstatus-", ["get", "status"]],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 0, 0.20, 10, 0.32, 14, 0.50, 18, 0.75],
-          "icon-anchor": "bottom",
-          "icon-offset": [0, -26],
+          "icon-offset": ["array", "number", 2, ["get", "off"]],
           "icon-allow-overlap": false,
           "icon-ignore-placement": false,
           "symbol-sort-key": 1,
