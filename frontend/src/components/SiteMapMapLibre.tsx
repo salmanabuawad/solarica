@@ -87,6 +87,7 @@ const STATUS_SVG: Record<string, string> = {
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
+  volt_checked: "/volt-test.svg",
   cable_to_tga: "/tga-cable.svg",
   tga_commissioning: "/tga-commissioned.svg",
 };
