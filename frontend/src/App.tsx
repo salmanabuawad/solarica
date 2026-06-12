@@ -373,6 +373,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
   const [stringComments, setStringComments] = useState<Record<string, string>>({});
   const [stringVoltages, setStringVoltages] = useState<Record<string, number | null>>({});
+  // Which status pill's info modal is open (a STRING_STATUS_ORDER key), or null.
+  const [statusInfoKey, setStatusInfoKey] = useState<string | null>(null);
   const [imgModal, setImgModal] = useState<{ code: string } | null>(null);
   const [stringModal, setStringModal] = useState<{ code: string } | null>(null);
   const [layers, setLayers] = useState(() => {
@@ -2027,7 +2029,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 width as equal columns (one row, no horizontal scroll). */}
             <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", alignItems: "center" }}>
               {STRING_STATUS_ORDER.map((k) => (
-                <span key={k} style={{ flex: "1 1 0", minWidth: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 4px", borderRadius: 999, whiteSpace: "nowrap" }}>
+                <span key={k} onClick={() => setStatusInfoKey(k)} title={t(`strings.status.${k}`, STRING_STATUS_META[k].label)} style={{ flex: "1 1 0", minWidth: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 4px", borderRadius: 999, whiteSpace: "nowrap", cursor: "pointer" }}>
                   <StatusGlyph code={k} size={12} /> {stringProgress.counts[k] || 0}
                 </span>
               ))}
@@ -2671,6 +2673,27 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         />
       )}
       {busy && <BusyOverlay message={busy} />}
+      {statusInfoKey && STRING_STATUS_META[statusInfoKey] && (
+        <div
+          onClick={() => setStatusInfoKey(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(15,23,42,0.4)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 12, minWidth: 260, maxWidth: 380, boxShadow: "0 12px 36px rgba(0,0,0,0.28)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "12px 16px", background: STRING_STATUS_META[statusInfoKey].bg, borderBottom: "1px solid #e2e8f0" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontWeight: 700, fontSize: 15, color: STRING_STATUS_META[statusInfoKey].color }}>
+                <StatusGlyph code={statusInfoKey} size={20} /> {t(`strings.status.${statusInfoKey}`, STRING_STATUS_META[statusInfoKey].label)}
+              </span>
+              <button onClick={() => setStatusInfoKey(null)} aria-label="Close" style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 22, lineHeight: 1, color: "#64748b" }}>×</button>
+            </div>
+            <div style={{ padding: "14px 16px", font: "14px Arial, sans-serif", color: "#334155" }}>
+              <div style={{ marginBottom: 10 }}>{t(`strings.statusDesc.${statusInfoKey}`, STRING_STATUS_META[statusInfoKey].label)}</div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: STRING_STATUS_META[statusInfoKey].color, background: STRING_STATUS_META[statusInfoKey].bg, padding: "3px 10px", borderRadius: 999 }}>
+                {stringProgress.counts[statusInfoKey] || 0} {t("strings.title", "strings")}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {stringModal && (() => {
         const code = stringModal.code;
         const info = topologyGridRows.find((r: any) => r.string === code);

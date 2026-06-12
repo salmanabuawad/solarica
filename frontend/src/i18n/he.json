@@ -263,6 +263,16 @@
       "tga_commissioning": "הרצת TGA",
       "blocked": "חסום"
     },
+    "statusDesc": {
+      "avl": "AVL — זמין, לא חלק מהיקף ההרצה הנוכחי.",
+      "new": "חדש — טרם החלה עבודת שטח.",
+      "optimizer": "אופטימייזרים הותקנו על הסטרינג.",
+      "connection": "פאנלים חוברו לסטרינג.",
+      "volt_checked": "מתח הסטרינג נמדד ואומת.",
+      "cable_to_tga": "כבל הסטרינג הועבר ל-TGA / לקומביינר.",
+      "tga_commissioning": "הסטרינג הורץ ב-TGA.",
+      "blocked": "חסום — לא ניתן להמשיך עד לפתרון."
+    },
     "progress": {
       "verified": "מאומת",
       "weighted": "משוקלל",
