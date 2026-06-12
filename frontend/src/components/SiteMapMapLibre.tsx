@@ -1931,7 +1931,7 @@ export default function SiteMapMapLibre({
           "icon-image": ["concat", "sstatus-", ["get", "status"]],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 0, 0.20, 10, 0.32, 14, 0.50, 18, 0.75],
           "icon-anchor": "bottom",
-          "icon-offset": [0, -14],
+          "icon-offset": [0, -26],
           "icon-allow-overlap": false,
           "icon-ignore-placement": false,
           "symbol-sort-key": 1,
