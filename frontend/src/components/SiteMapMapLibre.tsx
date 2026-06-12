@@ -87,6 +87,8 @@ const STATUS_SVG: Record<string, string> = {
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
+  cable_to_tga: "/tga-cable.svg",
+  tga_commissioning: "/tga-commissioned.svg",
 };
 // Inline SVG that reproduces the map's sstatus-<code> sprite art, so the modal
 // and inspector icons are identical to what's drawn on the map: the custom

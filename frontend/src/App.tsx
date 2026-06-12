@@ -79,6 +79,8 @@ const STATUS_SVG: Record<string, string> = {
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
+  cable_to_tga: "/tga-cable.svg",
+  tga_commissioning: "/tga-commissioned.svg",
 };
 // Inline SVG reproducing the map's sstatus-<code> sprite art so every status
 // icon (grid, legend, progress, modals) matches what's drawn on the map: the
