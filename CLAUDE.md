@@ -5,7 +5,7 @@ Solar pier inspection platform. Backend parses construction/ramming PDFs to extr
 ## Architecture
 
 - **Backend**: Python/FastAPI, PostgreSQL, runs on `root@185.229.226.37` as `solarica-backend.service` (uvicorn, 1 worker, port 8010)
-- **Frontend**: React + TypeScript + Vite, deployed to `/opt/solarica/frontend/dist` on the same server, served by nginx at `https://solarica.wavelync.com/`
+- **Frontend**: React + TypeScript + Vite, deployed to `/opt/solarica/frontend/dist` on the same server, served by nginx at `https://solarica.kortexd.com/` (the old `solarica.wavelync.com` vhost was retired)
 - **Map**: MapLibre GL JS (WebGL) — single lazy-loaded chunk, GeoJSON circle layers for 25k+ piers
 - **Grid**: ag-grid-community with checkbox multi-selection
 - **Offline**: IndexedDB cache (`idb` package) + service worker (`vite-plugin-pwa`), optimistic writes with mutation queue
