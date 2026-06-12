@@ -2296,14 +2296,29 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <SimpleGrid
                 rows={topologyGridRows}
                 columns={limitMobileStringCols(orderStringsCols(applyFieldConfigs([
-                  { field: "string", headerName: t("strings.col.string"), width: 96, pinned: "left", comparator: naturalCompare, sort: "asc" },
+                  {
+                    field: "string", headerName: t("strings.col.string"), width: 118, pinned: "left", comparator: naturalCompare, sort: "asc",
+                    cellRenderer: (p: any) => {
+                      const code = String(p.data?.string || "");
+                      const valid = !!code && code !== "(unlabeled)";
+                      return (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                          {valid && (
+                            <button type="button" aria-label={t("strings.img.view", "View")} title={t("strings.img.view", "View")}
+                              onClick={(ev) => { ev.stopPropagation(); setStringModal({ code }); }}
+                              style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", color: "#2563eb", display: "inline-flex", alignItems: "center" }}>
+                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                            </button>
+                          )}
+                          <span>{code}</span>
+                        </span>
+                      );
+                    },
+                  },
                   { field: "row", headerName: t("strings.rowsCol.row"), width: 78, comparator: naturalCompare },
                   {
                     field: "status", headerName: t("strings.col.status"), width: 124,
                     headerTooltip: t("strings.col.status"),
-                    editable: canEdit, singleClickEdit: canEdit,
-                    cellEditor: "agSelectCellEditor",
-                    cellEditorParams: { values: STRING_STATUS_ORDER },
                     valueFormatter: (p: any) => t(`strings.status.${normStringStatus(p.value)}`),
                     cellRenderer: (p: any) => {
                       const code = normStringStatus(p.value);
@@ -2322,8 +2337,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   },
                   {
                     field: "voltage", headerName: t("strings.col.voltage"), width: 138, minWidth: 80, type: "numericColumn",
-                    editable: canEdit, singleClickEdit: canEdit,
-                    valueParser: (p: any) => { const n = parseFloat(p.newValue); return isNaN(n) ? null : Math.round(n * 100) / 100; },
                     valueFormatter: (p: any) => (p.value == null || p.value === "" || isNaN(Number(p.value)) ? "" : `${Number(p.value).toFixed(2)} V`),
                     cellRenderer: (p: any) => {
                       if (p.value == null || p.value === "" || isNaN(Number(p.value))) return <span style={{ color: "#cbd5e1" }}>—</span>;
@@ -2338,10 +2351,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   },
                   {
                     field: "comment", headerName: t("strings.popup.comment"), minWidth: 220, flex: 1,
-                    editable: canEdit, singleClickEdit: false,
-                    cellEditor: "agLargeTextCellEditor",
-                    cellEditorPopup: true,
-                    cellEditorParams: { maxLength: 1000, rows: 5, cols: 44 },
                   },
                   {
                     field: "images", headerName: t("strings.col.images"), width: 80, sortable: false, filter: false,
@@ -2363,14 +2372,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 quickFilterPlaceholder={t("strings.search")}
                 getRowId={(p: any) => p.data?.id}
                 getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
-                onRowDoubleClick={(d: any, colId?: string) => { if (colId !== "string") return; const code = d?.string; if (code && code !== "(unlabeled)") setStringModal({ code }); }}
-                onCellValueChanged={(e: any) => {
-                  const code = e.data?.string;
-                  if (!code || code === "(unlabeled)") return;
-                  if (e?.colDef?.field === "status") handleStringStatusChange(code, String(e.newValue));
-                  else if (e?.colDef?.field === "comment") handleStringCommentChange(code, String(e.newValue ?? ""));
-                  else if (e?.colDef?.field === "voltage") handleStringVoltageChange(code, (e.newValue == null || e.newValue === "") ? null : Number(e.newValue));
-                }}
                 gridApiRef={pierGridApiRef}
               />
             ) : (
