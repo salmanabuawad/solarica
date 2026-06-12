@@ -88,10 +88,22 @@ const STATUS_SVG: Record<string, string> = {
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
 };
+// Inline SVG that reproduces the map's sstatus-<code> sprite art, so the modal
+// and inspector icons are identical to what's drawn on the map: the custom
+// optimizer/connection/AVL artwork, a hollow ring for New, a no-entry sign for
+// Blocked, and a solid status-coloured disc for every other stage.
+function statusIconSrc(code: string): string {
+  if (STATUS_SVG[code]) return STATUS_SVG[code];
+  const svg =
+    code === "new"
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
+      : code === "blocked"
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${STRING_STATUS_COLORS[code] || "#64748b"}" stroke="#ffffff" stroke-width="3"/></svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
 function statusGlyph(code: string, size: number) {
-  return STATUS_SVG[code]
-    ? <img src={STATUS_SVG[code]} alt="" width={size} height={size} style={{ display: "inline-block", verticalAlign: "middle" }} />
-    : STRING_STATUS_ICONS[code];
+  return <img src={statusIconSrc(code)} alt="" width={size} height={size} style={{ display: "inline-block", verticalAlign: "middle" }} />;
 }
 
 function normalizeStringStatus(status: any) {
@@ -3442,7 +3454,7 @@ function TopologyInspector({ info, eRows, status, onClose }: { info: any; eRows:
             background: STRING_STATUS_BG[status] || "#f1f5f9",
             padding: "2px 8px", borderRadius: 999,
           }}>
-            {STRING_STATUS_ICONS[status] || "•"} {STRING_STATUS_LABELS[status] || status}
+            {statusGlyph(status, 13)} {STRING_STATUS_LABELS[status] || status}
           </span>
         </div>
         {Number(info?.total_panels) > 0 && (

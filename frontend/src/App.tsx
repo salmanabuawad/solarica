@@ -80,12 +80,23 @@ const STATUS_SVG: Record<string, string> = {
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
 };
+// Inline SVG reproducing the map's sstatus-<code> sprite art so every status
+// icon (grid, legend, progress, modals) matches what's drawn on the map: the
+// custom optimizer/connection/AVL artwork, a hollow ring for New, a no-entry
+// sign for Blocked, and a solid status-coloured disc for every other stage.
+function statusIconSrc(code: string): string {
+  if (STATUS_SVG[code]) return STATUS_SVG[code];
+  const color = STRING_STATUS_META[code]?.color || "#64748b";
+  const svg =
+    code === "new"
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
+      : code === "blocked"
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
+      : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${color}" stroke="#ffffff" stroke-width="3"/></svg>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
 function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
-  const svg = STATUS_SVG[code];
-  if (svg) {
-    return <img src={svg} alt="" width={size + 2} height={size + 2} style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }} />;
-  }
-  return <span style={{ fontSize: size, lineHeight: 1 }}>{STRING_STATUS_META[code]?.icon}</span>;
+  return <img src={statusIconSrc(code)} alt="" width={size + 2} height={size + 2} style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }} />;
 }
 
 // One-tap "Update app": unregister the service worker + wipe its caches, then
@@ -2716,7 +2727,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   return (
                     <button key={k} disabled={!canEdit} onClick={canEdit ? () => handleStringStatusChange(code, k) : undefined}
                       style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: active ? `2px solid ${m.color}` : "1px solid #dbe4ee", background: active ? m.bg : "#fff", fontWeight: active ? 800 : 600, cursor: canEdit ? "pointer" : "default", textAlign: isRtl ? "right" : "left" }}>
-                      <span style={{ color: m.color, fontSize: 17, width: 20 }}>{m.icon}</span>
+                      <span style={{ width: 20, display: "inline-flex", alignItems: "center" }}><StatusGlyph code={k} size={16} /></span>
                       <span>{t(`strings.status.${k}`)}</span>
                     </button>
                   );
