@@ -28,6 +28,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.config import PROJECTS_ROOT
+from app.image_utils import shrink_image_to_max
 from app.services import db_store
 
 app = FastAPI(title="Solarica Parsing Engine")
@@ -1315,11 +1316,17 @@ async def api_add_string_image(project_id: str, string_id: str, file: UploadFile
     content = await file.read()
     if len(content) / (1024 * 1024) > STRING_IMAGE_MAX_SIZE_MB:
         raise HTTPException(413, f"File '{file.filename}' exceeds the {STRING_IMAGE_MAX_SIZE_MB} MB limit.")
+    # Cap stored images at ~100 KB so the offline bundle stays small on field devices.
+    content, shrunk = shrink_image_to_max(content)
+    if shrunk:
+        mime = "image/jpeg"
     safe_string = _safe_string_id(string_id)
     images_dir = _string_records_dir(project_id) / "images" / safe_string
     images_dir.mkdir(parents=True, exist_ok=True)
     ext = Path(file.filename or "").suffix.lower()
-    if not ext:
+    if shrunk:
+        ext = ".jpg"
+    elif not ext:
         ext = ".jpg" if mime in {"image/jpeg", "image/jpg"} else ".png"
     file_id = str(uuid.uuid4())
     save_name = f"{file_id}{ext}"
