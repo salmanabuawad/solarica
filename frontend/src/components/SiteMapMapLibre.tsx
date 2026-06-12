@@ -508,11 +508,6 @@ export default function SiteMapMapLibre({
   // AVL has no special map handling — it's an ordinary string status, rendered
   // in its status colour like any other. (No hiding, no row/geometry logic.)
 
-  // AVL watermark + gray section rectangle removed (per request). Nothing drawn
-  // here.
-  const avlWatermarkGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
-  const avlSectionGeoJSON = useMemo(() => ({ type: "FeatureCollection" as const, features: [] as any[] }), []);
-
   // Map each string id to the ELECTRICAL row number(s) it sits on — the same
   // numbering as the blue R-labels on the map. The topology layer uses a
   // different per-block physical_row, so the string inspector shows this instead
@@ -2542,43 +2537,6 @@ export default function SiteMapMapLibre({
         },
       });
 
-      // Gray "AVL section" fill over the rows-53→107 band, beneath the AVL
-      // watermark, so all rows and strings in that section read as de-emphasised.
-      map.addSource("avl-section", { type: "geojson", data: avlSectionGeoJSON });
-      map.addLayer({
-        id: "avl-section",
-        type: "fill",
-        source: "avl-section",
-        paint: { "fill-color": "#64748b", "fill-opacity": 0.28 },
-      });
-
-      // "AVL" watermark over the section above physical row 52. SVG <text>
-      // rasterises to an image, so it works even though this style ships no
-      // glyph font (which is why map text-fields elsewhere are avoided). One
-      // faint, large label centred on that section — always shown (no toggle).
-      const avlImg = new Image(560, 240);
-      avlImg.onload = () => { if (!map.hasImage("avl-watermark")) map.addImage("avl-watermark", avlImg); };
-      avlImg.src = "data:image/svg+xml;utf8," + encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="560" height="240" viewBox="0 0 560 240"><text x="280" y="180" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="200" fill="#e11d48" text-anchor="middle" letter-spacing="8">AVL</text></svg>`,
-      );
-      map.addSource("avl-watermark", { type: "geojson", data: avlWatermarkGeoJSON });
-      map.addLayer({
-        id: "avl-watermark",
-        type: "symbol",
-        source: "avl-watermark",
-        layout: {
-          "icon-image": "avl-watermark",
-          "icon-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 0.3, 13, 0.75, 17, 1.7, 20, 3.4,
-          ],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-          "icon-anchor": "center",
-        },
-        paint: { "icon-opacity": 0.5 },
-      });
-
       // Generous internal padding so the site layout doesn't kiss the map's
       // edges — especially on narrow mobile viewports where 40 px was too tight.
       if (bounds) map.fitBounds(bounds, { padding: 56, duration: 0 });
@@ -2990,12 +2948,10 @@ export default function SiteMapMapLibre({
       (map.getSource("panel-rects") as GeoJSONSource | undefined)?.setData(panelRectsGeoJSON as any);
       (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
       (map.getSource("base-trackers") as GeoJSONSource | undefined)?.setData(baseTrackersGeoJSON as any);
-      (map.getSource("avl-watermark") as GeoJSONSource | undefined)?.setData(avlWatermarkGeoJSON as any);
-      (map.getSource("avl-section") as GeoJSONSource | undefined)?.setData(avlSectionGeoJSON as any);
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON, avlWatermarkGeoJSON, avlSectionGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
