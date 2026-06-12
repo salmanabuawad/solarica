@@ -45,7 +45,6 @@
     "createOffline": "Creating a project requires an internet connection."
   },
   "details": {
-    "dcView": "DC view",
     "grid": "Grid",
     "map": "Map",
     "rows": "Rows",

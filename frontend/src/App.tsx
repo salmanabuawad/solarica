@@ -1896,12 +1896,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   style={{ background: "#0ea5e9", border: "none", color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 15, fontWeight: 700, cursor: refreshing ? "default" : "pointer", minHeight: 34, opacity: refreshing ? 0.6 : 1 }}
                 ><span className={refreshing ? "solarica-spin" : undefined}>↻</span></button>
               )}
-              {activeTab === "mapgrid" && electricalDetailsMode && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#0891b2", flexShrink: 0 }} />
-                  {t("details.dcView", "DC view")}
-                </span>
-              )}
               {/* The user menu normally lives in the stats row above; show it
                   here only when that row isn't rendered (e.g. a non-electrical
                   project, which has no stats banner). */}
@@ -2193,12 +2187,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <span className={refreshing ? "solarica-spin" : undefined} style={{ fontSize: 15, lineHeight: 1 }}>↻</span>
             {t("details.refresh", "Refresh data")}
           </button>
-          {electricalDetailsMode && (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginInlineStart: 8, fontSize: 13, fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0891b2", flexShrink: 0 }} />
-              {t("details.dcView", "DC view")}
-            </span>
-          )}
         </div>}
 
         {/* Bulk status toolbar — visible when piers are selected. One
