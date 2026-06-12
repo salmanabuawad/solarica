@@ -1332,13 +1332,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       columns = [
         { header: t("strings.col.string"), key: "string", width: 16, get: (d) => d.string ?? "" },
         { header: t("strings.col.status"), key: "status", width: 18, get: (d) => t(`strings.status.${normStringStatus(d.status)}`) },
-        { header: t("strings.col.voltage"), key: "voltage", width: 12, get: (d) => fmtVolt(d.voltage) },
         { header: t("strings.popup.comment"), key: "comment", width: 44, get: (d) => d.comment || "" },
+        { header: t("strings.col.voltage"), key: "voltage", width: 12, get: (d) => fmtVolt(d.voltage) },
         { header: t("strings.col.images"), key: "images", width: 10, get: (d) => (Array.isArray(d.images) ? d.images.length : 0) },
         { header: t("strings.rowsCol.row"), key: "row", width: 12, get: (d) => d.row ?? "" },
         { header: t("strings.col.type"), key: "type", width: 12, get: (d) => (d.multi_row ? t("strings.type.multi") : t("strings.type.one")) },
-        { header: t("strings.col.startRow"), key: "start_row", width: 12, get: (d) => d.start_row ?? "" },
-        { header: t("strings.col.endRow"), key: "end_row", width: 12, get: (d) => d.end_row ?? "" },
         { header: t("strings.col.optimizers"), key: "optimizer_count", width: 14, get: (d) => d.optimizer_count ?? "" },
       ];
       dataRows = topologyGridRows.slice().sort((a: any, b: any) => naturalCompare(a.string, b.string));
