@@ -2288,7 +2288,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   { field: "string", headerName: t("strings.col.string"), width: 96, pinned: "left", comparator: naturalCompare, sort: "asc" },
                   { field: "row", headerName: t("strings.rowsCol.row"), width: 78, comparator: naturalCompare },
                   {
-                    field: "status", headerName: t("strings.col.status"), width: 168,
+                    field: "status", headerName: t("strings.col.status"), width: 124,
                     headerTooltip: t("strings.col.status"),
                     editable: canEdit, singleClickEdit: canEdit,
                     cellEditor: "agSelectCellEditor",
