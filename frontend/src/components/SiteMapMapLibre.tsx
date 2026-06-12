@@ -833,25 +833,28 @@ export default function SiteMapMapLibre({
     for (const s of stringTopology || []) {
       const id = String(s?.string ?? "").trim();
       const jumps = Number(s?.jump_count || 0);
+      // Carry status so the start point can also drive the status-icon layer.
+      const status = normalizeStringStatus(stringStatuses[id]);
+      const statusLabel = STRING_STATUS_LABELS[status];
       const start = s?.start_xy;
       const end = s?.end_xy;
       if (Array.isArray(start) && start.length === 2) {
         features.push({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(start[0]), Number(start[1]), imageWidth) },
-          properties: { id, role: "start", jumps },
+          properties: { id, role: "start", jumps, status, status_label: statusLabel },
         });
       }
       if (Array.isArray(end) && end.length === 2) {
         features.push({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: rotatedToLngLat(Number(end[0]), Number(end[1]), imageWidth) },
-          properties: { id, role: "end", jumps },
+          properties: { id, role: "end", jumps, status, status_label: statusLabel },
         });
       }
     }
     return { type: "FeatureCollection" as const, features };
-  }, [stringTopology, imageWidth]);
+  }, [stringTopology, imageWidth, stringStatuses]);
 
   // String-number label points (rendered by a GPU symbol layer — efficient at
   // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
@@ -1858,6 +1861,27 @@ export default function SiteMapMapLibre({
           "text-halo-width": 1.6,
         },
       });
+      // Per-string status glyph (the sstatus-* sprite, matching the grid/popup
+      // legend), one per string at its start point. icon-anchor "bottom" floats
+      // it just ABOVE the start so it clears the route line, the number label
+      // and the tiny start circle — which also keeps clicks unambiguous.
+      // Collision-managed (samples at low zoom, fills in as you zoom).
+      map.addLayer({
+        id: "topology-status-icons",
+        type: "symbol",
+        source: "topology-markers",
+        filter: ["==", ["get", "role"], "start"],
+        layout: {
+          visibility: "none",
+          "icon-image": ["concat", "sstatus-", ["get", "status"]],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 0, 0.12, 10, 0.18, 14, 0.30, 18, 0.46],
+          "icon-anchor": "bottom",
+          "icon-offset": [0, -2],
+          "icon-allow-overlap": false,
+          "icon-ignore-placement": false,
+          "symbol-sort-key": 1,
+        },
+      });
       // Panel rectangles — the module grid filling each row.
       map.addLayer({
         id: "panel-rects-layer",
@@ -2127,6 +2151,11 @@ export default function SiteMapMapLibre({
       map.on("click", "topology-labels-layer", openStringStatus);
       map.on("mouseenter", "topology-labels-layer", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "topology-labels-layer", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
+      // The status glyph opens the same status modal. It floats above the start
+      // point, so clicks land on it alone (no overlap with the route/markers).
+      map.on("click", "topology-status-icons", openStringStatus);
+      map.on("mouseenter", "topology-status-icons", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "topology-status-icons", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
       map.on("click", "electrical-zones-layer", (e: MapMouseEvent & { features?: any[] }) => {
         if (isBoxDraggingRef.current) return;
         const f = e.features?.[0];
@@ -2203,7 +2232,8 @@ export default function SiteMapMapLibre({
       // they'd cover the string-number labels. Lift the topology routes,
       // markers and (last, so it ends up on top) the number labels above them.
       for (const lyr of ["topology-runs-layer", "topology-jumps-layer", "topology-highlight-layer",
-                          "topology-start-layer", "topology-end-layer", "topology-labels-layer"]) {
+                          "topology-start-layer", "topology-end-layer", "topology-labels-layer",
+                          "topology-status-icons"]) {
         if (map.getLayer(lyr)) map.moveLayer(lyr);
       }
 
@@ -2613,6 +2643,8 @@ export default function SiteMapMapLibre({
       // String numbers follow the "Strings" toggle (as well as Routes), so
       // checking Strings shows the numbers even with Routes off.
       show("topology-labels-layer", stringsOn || topologyOn);
+      // Per-string status glyph follows the "Strings" toggle.
+      show("topology-status-icons", stringsOn);
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);
