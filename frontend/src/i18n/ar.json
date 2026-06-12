@@ -232,6 +232,7 @@
   },
   "strings": {
     "title": "السلاسل",
+    "filterGrid": "تصفية الجدول",
     "exportPdf": "تصدير PDF",
     "exportTitle": "تقرير حالة السلاسل",
     "generated": "تم الإنشاء",

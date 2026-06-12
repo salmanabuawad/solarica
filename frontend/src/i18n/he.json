@@ -232,6 +232,7 @@
   },
   "strings": {
     "title": "סטרינגים",
+    "filterGrid": "סנן טבלה",
     "exportPdf": "ייצוא ל‑PDF",
     "exportTitle": "דוח סטטוס סטרינגים",
     "generated": "הופק",

@@ -467,6 +467,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [stringVoltages, setStringVoltages] = useState<Record<string, number | null>>({});
   // Which status pill's info modal is open (a STRING_STATUS_ORDER key), or null.
   const [statusInfoKey, setStatusInfoKey] = useState<string | null>(null);
+  // Strings grid filter by status (set from the dashboard status tooltip).
+  const [stringStatusFilter, setStringStatusFilter] = useState<string | null>(null);
   const [imgModal, setImgModal] = useState<{ code: string } | null>(null);
   const [stringModal, setStringModal] = useState<{ code: string } | null>(null);
   const [layers, setLayers] = useState(() => {
@@ -2374,8 +2376,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         ) : electricalDetailsMode ? (
           <div>
             {eplGridTab === "routes" && stringTopology.length > 0 ? (
+              <>
+              {stringStatusFilter && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 10px", marginBottom: 6, width: "fit-content", background: STRING_STATUS_META[stringStatusFilter]?.bg || "#f1f5f9", border: `1px solid ${STRING_STATUS_META[stringStatusFilter]?.color || "#cbd5e1"}`, borderRadius: 8, fontSize: 13, fontWeight: 700, color: STRING_STATUS_META[stringStatusFilter]?.color || "#334155" }}>
+                  <StatusGlyph code={stringStatusFilter} size={14} />
+                  <span>{t(`strings.status.${stringStatusFilter}`)}</span>
+                  <button onClick={() => setStringStatusFilter(null)} aria-label={t("app.clear", "Clear")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "inherit", fontWeight: 800, fontSize: 15, lineHeight: 1, padding: "0 2px" }}>✕</button>
+                </div>
+              )}
               <SimpleGrid
-                rows={topologyGridRows}
+                rows={stringStatusFilter ? topologyGridRows.filter((r: any) => r.status === stringStatusFilter) : topologyGridRows}
                 columns={limitMobileStringCols(orderStringsCols(applyFieldConfigs([
                   {
                     field: "string", headerName: t("strings.col.string"), width: 118, pinned: "left", comparator: naturalCompare, sort: "asc",
@@ -2448,13 +2458,14 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     },
                   },
                 ], stringsFieldConfigs, 1, isRtl)), compact)}
-                height={compact ? "calc(100vh - 230px)" : "calc(100vh - 210px)"}
+                height={compact ? `calc(100vh - ${stringStatusFilter ? 268 : 230}px)` : `calc(100vh - ${stringStatusFilter ? 248 : 210}px)`}
                 enableQuickFilter
                 quickFilterPlaceholder={t("strings.search")}
                 getRowId={(p: any) => p.data?.id}
                 getRowStyle={(p: any) => ({ background: STRING_STATUS_META[p.data?.status]?.bg || "#ffffff" })}
                 gridApiRef={pierGridApiRef}
               />
+              </>
             ) : (
               <SimpleGrid
                 rows={electricalPhysicalRows}
@@ -2776,9 +2787,18 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
               <button onClick={() => setStatusInfoKey(null)} aria-label="Close" style={{ border: "none", background: "transparent", cursor: "pointer", fontSize: 22, lineHeight: 1, color: "#64748b" }}>×</button>
             </div>
             <div style={{ padding: "14px 16px", font: "14px Arial, sans-serif", color: "#334155" }}>
-              <div style={{ marginBottom: 10 }}>{t(`strings.statusDesc.${statusInfoKey}`, STRING_STATUS_META[statusInfoKey].label)}</div>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: STRING_STATUS_META[statusInfoKey].color, background: STRING_STATUS_META[statusInfoKey].bg, padding: "3px 10px", borderRadius: 999 }}>
-                {stringProgress.counts[statusInfoKey] || 0} {t("strings.title", "strings")}
+              <div style={{ marginBottom: 12 }}>{t(`strings.statusDesc.${statusInfoKey}`, STRING_STATUS_META[statusInfoKey].label)}</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: STRING_STATUS_META[statusInfoKey].color, background: STRING_STATUS_META[statusInfoKey].bg, padding: "3px 10px", borderRadius: 999 }}>
+                  {stringProgress.counts[statusInfoKey] || 0} {t("strings.title", "strings")}
+                </div>
+                <button
+                  onClick={() => { setStringStatusFilter(statusInfoKey); setEplGridTab("routes"); setMode("grid"); setStatusInfoKey(null); }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "none", background: "#2563eb", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                  {t("strings.filterGrid", "Filter grid")}
+                </button>
               </div>
             </div>
           </div>

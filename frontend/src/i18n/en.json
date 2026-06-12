@@ -239,6 +239,7 @@
   },
   "strings": {
     "title": "Strings",
+    "filterGrid": "Filter grid",
     "exportPdf": "Export PDF",
     "exportTitle": "String Status Report",
     "generated": "Generated",
