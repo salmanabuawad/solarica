@@ -99,6 +99,84 @@ function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
   return <img src={statusIconSrc(code)} alt="" width={size + 2} height={size + 2} style={{ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }} />;
 }
 
+// String detail / edit modal. Edits are staged locally and only committed on
+// Save; Cancel (and the × / backdrop) discard them. Keyed by string code so the
+// draft resets when a different string is opened. Images are managed in their
+// own sub-modal and upload immediately (outside this Save/Cancel scope).
+function StringDetailModal({
+  code, info, status0, voltage0, comment0, imageCount, canEdit, isRtl, onSave, onOpenImages, onClose,
+}: {
+  code: string;
+  info: any;
+  status0: string;
+  voltage0: number | null;
+  comment0: string;
+  imageCount: number;
+  canEdit: boolean;
+  isRtl: boolean;
+  onSave: (next: { status: string; voltage: number | null; comment: string }) => void;
+  onOpenImages: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState(status0);
+  const [voltageStr, setVoltageStr] = useState(voltage0 == null ? "" : String(voltage0));
+  const [comment, setComment] = useState(comment0);
+  const vNum = voltageStr.trim() === "" || isNaN(Number(voltageStr)) ? null : Math.round(Number(voltageStr) * 100) / 100;
+  const vOk = vNum != null && vNum >= 22 && vNum <= 23;
+  const dirty = status !== status0 || comment !== comment0 || (vNum ?? null) !== (voltage0 ?? null);
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} dir={isRtl ? "rtl" : "ltr"} style={{ background: "#fff", borderRadius: 12, padding: 18, width: "min(440px, 94vw)", maxHeight: "88vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{code}</div>
+            <div style={{ fontSize: 12, color: "#64748b" }}>{t("strings.rowsCol.row")} {info?.row ?? "-"} · {info?.multi_row ? t("strings.type.multi") : t("strings.type.one")}</div>
+          </div>
+          <button onClick={onClose} aria-label={t("app.cancel", "Cancel")} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>✕</button>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.status")}</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ width: 22, display: "inline-flex", alignItems: "center", flexShrink: 0 }}><StatusGlyph code={status} size={18} /></span>
+            <select value={status} disabled={!canEdit} onChange={(e) => setStatus(e.target.value)}
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `2px solid ${STRING_STATUS_META[status]?.color || "#cbd5e1"}`, background: STRING_STATUS_META[status]?.bg || "#fff", color: STRING_STATUS_META[status]?.color || "#0f172a", fontSize: 15, fontWeight: 700, cursor: canEdit ? "pointer" : "default" }}>
+              {STRING_STATUS_ORDER.map((k) => (
+                <option key={k} value={k} style={{ color: "#0f172a" }}>{t(`strings.status.${k}`)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.voltage")}</label>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input type="number" step="0.01" value={voltageStr} readOnly={!canEdit} onChange={(e) => setVoltageStr(e.target.value)}
+              style={{ width: 130, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }} />
+            <span style={{ fontWeight: 700, color: vNum == null ? "#94a3b8" : (vOk ? "#16a34a" : "#dc2626") }}>
+              {vNum == null ? "—" : `${vNum.toFixed(2)} V${vOk ? "" : " ⚠ " + t("strings.voltageBad")}`}
+            </span>
+          </div>
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.popup.comment")}</label>
+          <textarea value={comment} readOnly={!canEdit} placeholder={t("strings.popup.addComment")} onChange={(e) => setComment(e.target.value)}
+            style={{ width: "100%", minHeight: 70, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14, boxSizing: "border-box", resize: "vertical" }} />
+        </div>
+        <button onClick={onOpenImages} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 600 }}>
+          📷 {t("strings.col.images")} ({imageCount})
+        </button>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
+          <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 700, color: "#334155" }}>{t("app.cancel", "Cancel")}</button>
+          {canEdit && (
+            <button onClick={() => onSave({ status, voltage: vNum, comment })} disabled={!dirty}
+              style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: dirty ? "#2563eb" : "#93c5fd", color: "#fff", cursor: dirty ? "pointer" : "default", fontWeight: 800 }}>{t("app.save", "Save")}</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // One-tap "Update app": unregister the service worker + wipe its caches, then
 // reload so the freshest build is fetched from the network. Does NOT touch
 // IndexedDB, so queued offline edits are preserved.
@@ -2706,56 +2784,27 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       {stringModal && (() => {
         const code = stringModal.code;
         const info = topologyGridRows.find((r: any) => r.string === code);
-        const status = normStringStatus(stringStatuses[code]);
-        const voltage = stringVoltages[code];
-        const vNum = (voltage == null || (voltage as any) === "") ? null : Number(voltage);
-        const vOk = vNum != null && !isNaN(vNum) && vNum >= 22 && vNum <= 23;
-        const imgs = stringImages[code] || [];
+        const v0 = (stringVoltages[code] == null || (stringVoltages[code] as any) === "") ? null : Number(stringVoltages[code]);
         return (
-          <div onClick={() => setStringModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-            <div onClick={(e) => e.stopPropagation()} dir={isRtl ? "rtl" : "ltr"} style={{ background: "#fff", borderRadius: 12, padding: 18, width: "min(440px, 94vw)", maxHeight: "88vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{code}</div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>{t("strings.rowsCol.row")} {info?.row ?? "-"} · {info?.multi_row ? t("strings.type.multi") : t("strings.type.one")}</div>
-                </div>
-                <button onClick={() => setStringModal(null)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>✕</button>
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.status")}</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ width: 22, display: "inline-flex", alignItems: "center", flexShrink: 0 }}><StatusGlyph code={status} size={18} /></span>
-                  <select value={status} disabled={!canEdit}
-                    onChange={canEdit ? (e) => handleStringStatusChange(code, e.target.value) : undefined}
-                    style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `2px solid ${STRING_STATUS_META[status]?.color || "#cbd5e1"}`, background: STRING_STATUS_META[status]?.bg || "#fff", color: STRING_STATUS_META[status]?.color || "#0f172a", fontSize: 15, fontWeight: 700, cursor: canEdit ? "pointer" : "default" }}>
-                    {STRING_STATUS_ORDER.map((k) => (
-                      <option key={k} value={k} style={{ color: "#0f172a" }}>{t(`strings.status.${k}`)}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.voltage")}</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="number" step="0.01" defaultValue={vNum ?? ""} readOnly={!canEdit}
-                    onBlur={canEdit ? (e) => { const raw = e.target.value; const n = raw === "" ? null : Math.round(parseFloat(raw) * 100) / 100; handleStringVoltageChange(code, (n != null && !isNaN(n)) ? n : null); } : undefined}
-                    style={{ width: 130, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14 }} />
-                  <span style={{ fontWeight: 700, color: vNum == null ? "#94a3b8" : (vOk ? "#16a34a" : "#dc2626") }}>
-                    {vNum == null ? "—" : `${vNum.toFixed(2)} V${vOk ? "" : " ⚠ " + t("strings.voltageBad")}`}
-                  </span>
-                </div>
-              </div>
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.popup.comment")}</label>
-                <textarea defaultValue={stringComments[code] || ""} readOnly={!canEdit} placeholder={t("strings.popup.addComment")}
-                  onBlur={canEdit ? (e) => handleStringCommentChange(code, e.target.value) : undefined}
-                  style={{ width: "100%", minHeight: 70, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 14, boxSizing: "border-box", resize: "vertical" }} />
-              </div>
-              <button onClick={() => setImgModal({ code })} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 600 }}>
-                📷 {t("strings.col.images")} ({imgs.length})
-              </button>
-            </div>
-          </div>
+          <StringDetailModal
+            key={code}
+            code={code}
+            info={info}
+            status0={normStringStatus(stringStatuses[code])}
+            voltage0={v0}
+            comment0={stringComments[code] || ""}
+            imageCount={(stringImages[code] || []).length}
+            canEdit={canEdit}
+            isRtl={isRtl}
+            onOpenImages={() => setImgModal({ code })}
+            onClose={() => setStringModal(null)}
+            onSave={(next) => {
+              if (next.status !== normStringStatus(stringStatuses[code])) handleStringStatusChange(code, next.status);
+              if ((next.voltage ?? null) !== (v0 ?? null)) handleStringVoltageChange(code, next.voltage);
+              if (next.comment !== (stringComments[code] || "")) handleStringCommentChange(code, next.comment);
+              setStringModal(null);
+            }}
+          />
         );
       })()}
       {imgModal && (
