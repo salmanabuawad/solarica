@@ -1099,7 +1099,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setLayers((prev) => {
       let changed = false;
       const next = prev.map((layer) => {
-        if ((layer.key === "row_labels" || layer.key === "string_zones" || layer.key === "string_topology") && !layer.visible) {
+        if ((layer.key === "row_labels" || layer.key === "string_zones") && !layer.visible) {
           changed = true;
           return { ...layer, visible: true };
         }
@@ -1113,8 +1113,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     const visibleKeys = new Set<string>(["row_labels"]);
     if (piers.length > 0) visibleKeys.add("piers");
     if (blocks.length > 0) visibleKeys.add("blocks");
-    if (electricalZones.length > 0) visibleKeys.add("string_zones");
-    if (stringTopology.length > 0) visibleKeys.add("string_topology");
+    if (electricalZones.length > 0 || stringTopology.length > 0) visibleKeys.add("string_zones");
     if (stringPiers.length > 0) visibleKeys.add("string_piers");
     if (panelBaseRows.length > 0) visibleKeys.add("panels");
     // Hidden from the toggle bar by request: Trackers (both trackers and
@@ -1124,9 +1123,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     return layers.filter((layer) => visibleKeys.has(layer.key));
   }, [baseTrackers.length, blocks.length, dccbs.length, electricalZones.length, inverters.length, layers, optionalFeatures?.cameras, optionalFeatures?.security_devices, optionalFeatures?.weather_sensors, optionalFeatures?.weather_station, panelBaseRows.length, piers.length, securityDevices.length, stringPiers.length, stringTopology.length, trackers.length, weatherSensors.length, weatherStations.length]);
   const mobileMainMapToggles = useMemo(() => {
-    // Final phone/tablet layer set: Row numbers, Strings, String routes,
+    // Final phone/tablet layer set: Row numbers, Strings (drives routes too),
     // Panels — in that order. Nothing else appears on the mobile toggle bar.
-    const order = ["row_labels", "string_zones", "string_topology", "panels"];
+    const order = ["row_labels", "string_zones", "panels"];
     return order
       .map((k) => mapLayerToggles.find((l) => l.key === k))
       .filter(Boolean) as typeof mapLayerToggles;

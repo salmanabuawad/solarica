@@ -2582,7 +2582,9 @@ export default function SiteMapMapLibre({
       show("trackers-line", trackersOn);
       show("trackers-selected", trackersOn);
       const stringsOn = layerVisible(layers, "string_zones", true);
-      const topologyOn = layerVisible(layers, "string_topology", false);
+      // The "Strings" and "String routes" checkboxes were merged into one, so a
+      // single "Strings" toggle drives both the markers/numbers and the routes.
+      const topologyOn = stringsOn;
       const zonesOn = layerVisible(layers, "zones", false);
       show("electrical-zone-bands-fill", zonesOn);
       show("electrical-zone-bands-outline", zonesOn);
@@ -2793,39 +2795,25 @@ export default function SiteMapMapLibre({
       if (!Number.isFinite(e[1].lng) || !Number.isFinite(e[1].lat)) continue;
       if (bounds.contains([e[1].lng, e[1].lat])) visible.push(e);
     }
-    // When the R-chips would overlap, thin them to round numbers (R-1, R-10,
-    // R-20 …). Measure the typical on-screen gap between consecutive rows and
-    // pick the smallest "nice" step that keeps chips clear of each other.
+    // Thin overlapping R-chips by actual on-screen collision (this field is
+    // angled/fanned, so row number doesn't map evenly to pixels). Project each
+    // label, then greedily keep one only if it clears every already-kept chip by
+    // the chip footprint. Round numbers (R-1, R-10 …) are tried first, so when
+    // crowded the survivors read as clean milestones.
     const rowOf = (e: any) => Number(e[1]?.rowNum ?? String(e[0]).replace(/\D+/g, ""));
-    const withRow = visible
-      .map((e) => ({ row: rowOf(e), pt: map.project([e[1].lng, e[1].lat]) }))
-      .filter((it) => Number.isFinite(it.row))
-      .sort((a, b) => a.row - b.row);
-    const NICE = [1, 5, 10, 20, 50, 100, 200, 500];
-    const CHIP_GAP = 44; // min px between adjacent chip centers
-    let step = 1;
-    if (withRow.length >= 2) {
-      const gaps: number[] = [];
-      for (let i = 1; i < withRow.length; i++) {
-        const dr = withRow[i].row - withRow[i - 1].row;
-        if (dr <= 0) continue;
-        const dx = withRow[i].pt.x - withRow[i - 1].pt.x;
-        const dy = withRow[i].pt.y - withRow[i - 1].pt.y;
-        gaps.push(Math.hypot(dx, dy) / dr); // px per 1 row of separation
-      }
-      if (gaps.length) {
-        gaps.sort((a, b) => a - b);
-        const med = gaps[Math.floor(gaps.length / 2)];
-        if (med > 0) step = NICE.find((s) => s >= CHIP_GAP / med) ?? NICE[NICE.length - 1];
-      }
+    const GAP_X = 42, GAP_Y = 17; // chip footprint in px (≈ "R-100" + padding)
+    const cand = visible
+      .map((e) => ({ e, row: rowOf(e), pt: map.project([e[1].lng, e[1].lat]) }))
+      .filter((it) => Number.isFinite(it.pt.x) && Number.isFinite(it.pt.y));
+    const prio = (r: number) => (!Number.isFinite(r) ? 9 : (r === 1 || r % 10 === 0) ? 0 : r % 5 === 0 ? 1 : 2);
+    cand.sort((a, b) => prio(a.row) - prio(b.row) || a.row - b.row);
+    const placed: { x: number; y: number }[] = [];
+    const shown: typeof visible = [];
+    for (const c of cand) {
+      if (placed.some((p) => Math.abs(p.x - c.pt.x) < GAP_X && Math.abs(p.y - c.pt.y) < GAP_Y)) continue;
+      placed.push({ x: c.pt.x, y: c.pt.y });
+      shown.push(c.e);
     }
-    // Keep R-1 plus every round multiple of `step` when thinning.
-    const shown = step <= 1
-      ? visible
-      : visible.filter((e) => {
-          const r = rowOf(e);
-          return !Number.isFinite(r) || r === 1 || r % step === 0;
-        });
 
     for (let i = 0; i < shown.length; i++) {
       const [id, pos] = shown[i];

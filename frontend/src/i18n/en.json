@@ -271,7 +271,7 @@
       "blocked": "Blocked"
     },
     "statusDesc": {
-      "avl": "AVL — available, not part of the current commissioning scope.",
+      "avl": "Under AVL responsibility — the real status cannot be determined.",
       "new": "New — no field work started yet.",
       "optimizer": "Optimizers installed on the string.",
       "connection": "Panels connected to the string.",
