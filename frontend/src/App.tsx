@@ -1873,11 +1873,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         }}>
           {compact && activeTab === "mapgrid" && (
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              {electricalDetailsMode && (
-                <span style={{ display: "inline-flex", alignItems: "center", padding: "4px 9px", borderRadius: 7, background: "#1e293b", color: "#fff", fontSize: 11, fontWeight: 800, whiteSpace: "nowrap" }}>
-                  {t("details.dcView", "DC view")}
-                </span>
-              )}
               <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
               <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
             </div>
@@ -1900,6 +1895,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   aria-label={t("details.refresh", "Refresh data")}
                   style={{ background: "#0ea5e9", border: "none", color: "#fff", borderRadius: 8, padding: "6px 10px", fontSize: 15, fontWeight: 700, cursor: refreshing ? "default" : "pointer", minHeight: 34, opacity: refreshing ? 0.6 : 1 }}
                 ><span className={refreshing ? "solarica-spin" : undefined}>↻</span></button>
+              )}
+              {activeTab === "mapgrid" && electricalDetailsMode && (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>
+                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#0891b2", flexShrink: 0 }} />
+                  {t("details.dcView", "DC view")}
+                </span>
               )}
               {/* The user menu normally lives in the stats row above; show it
                   here only when that row isn't rendered (e.g. a non-electrical
@@ -2137,11 +2138,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             export button sits flush to the right edge so it's always
             visible regardless of which view (grid/map) is active. */}
         {!compact && <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }}>
-          {electricalDetailsMode && (
-            <span style={{ display: "inline-flex", alignItems: "center", padding: "5px 12px", borderRadius: 8, background: "#1e293b", color: "#fff", fontSize: 13, fontWeight: 800, letterSpacing: 0.3, whiteSpace: "nowrap" }}>
-              {t("details.dcView", "DC view")}
-            </span>
-          )}
           <Pill active={mode === "grid"} onClick={() => setMode("grid")}>{t("details.grid")}</Pill>
           <Pill active={mode === "map"} onClick={() => setMode("map")}>{t("details.map")}</Pill>
           <span style={{ flex: 1 }} />
@@ -2197,6 +2193,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             <span className={refreshing ? "solarica-spin" : undefined} style={{ fontSize: 15, lineHeight: 1 }}>↻</span>
             {t("details.refresh", "Refresh data")}
           </button>
+          {electricalDetailsMode && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, marginInlineStart: 8, fontSize: 13, fontWeight: 700, color: "#475569", whiteSpace: "nowrap" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#0891b2", flexShrink: 0 }} />
+              {t("details.dcView", "DC view")}
+            </span>
+          )}
         </div>}
 
         {/* Bulk status toolbar — visible when piers are selected. One
