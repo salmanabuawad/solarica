@@ -590,253 +590,6 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [panelBaseRows, imageWidth]);
 
-  const electricalStringLabelLinesGeoJSON = useMemo(() => {
-    const features: any[] = [];
-    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
-    const panelRowsSorted = [...(panelBaseRows || [])]
-      .filter((row: any) => ["x0", "y0", "x1", "y1"].every((key) => Number.isFinite(Number(row?.[key]))))
-      .sort((a: any, b: any) => Number(a.north_y ?? a.y0) - Number(b.north_y ?? b.y0));
-    const projectToRow = (panelRow: any, x: number, y: number) => {
-      if (!panelRow) return { x, y };
-      const x0 = Number(panelRow.x0);
-      const y0 = Number(panelRow.y0);
-      const x1 = Number(panelRow.x1);
-      const y1 = Number(panelRow.y1);
-      const dx = x1 - x0;
-      const dy = y1 - y0;
-      const denom = dx * dx + dy * dy || 1;
-      const t = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / denom));
-      return { x: x0 + dx * t, y: y0 + dy * t };
-    };
-    for (const row of electricalRows || []) {
-      const rowNo = Number(row?.row_num);
-      const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
-      const dx = panelRow ? Number(panelRow.x1) - Number(panelRow.x0) : 1;
-      const dy = panelRow ? Number(panelRow.y1) - Number(panelRow.y0) : 0;
-      const len = Math.hypot(dx, dy) || 1;
-      const ux = dx / len;
-      const uy = dy / len;
-      for (const stringPoint of row?.string_points || []) {
-        const id = String(stringPoint?.id || "").trim();
-        const xValues = [Number(stringPoint?.x), Number(stringPoint?.x1)].filter(Number.isFinite);
-        const yValues = [Number(stringPoint?.y), Number(stringPoint?.y1)].filter(Number.isFinite);
-        if (!id || !xValues.length || !yValues.length) continue;
-        const cx = xValues.reduce((sum, v) => sum + v, 0) / xValues.length;
-        const cy = yValues.reduce((sum, v) => sum + v, 0) / yValues.length;
-        const projected = projectToRow(panelRow, cx, cy);
-        const halfLen = Math.max(22, Math.min(58, id.length * 3.8));
-        features.push({
-          type: "Feature" as const,
-          id,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: [
-              rotatedToLngLat(projected.x - ux * halfLen, projected.y - uy * halfLen, imageWidth),
-              rotatedToLngLat(projected.x + ux * halfLen, projected.y + uy * halfLen, imageWidth),
-            ],
-          },
-          properties: { id, row: String(rowNo || "") },
-        });
-      }
-    }
-    return { type: "FeatureCollection" as const, features };
-  }, [electricalRows, panelBaseRows, imageWidth]);
-
-  const electricalStringSegmentsGeoJSON = useMemo(() => {
-    const features: any[] = [];
-    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features };
-    const detailPanelCount = Number(stringDetail?.panel_count);
-    const panelsPerString = Math.max(2, Number.isFinite(detailPanelCount) && detailPanelCount > 0
-      ? detailPanelCount
-      : Number(stringDetail?.panel_pair_count || 22) * 2);
-    const panelRowsSorted = [...(panelBaseRows || [])]
-      .filter((row: any) => ["x0", "y0", "x1", "y1"].every((key) => Number.isFinite(Number(row?.[key]))))
-      .sort((a: any, b: any) => Number(a.north_y ?? a.y0) - Number(b.north_y ?? b.y0));
-    const pointAt = (panelRow: any, t: number) => {
-      const x0 = Number.isFinite(Number(panelRow?.south_x)) ? Number(panelRow.south_x) : Number(panelRow?.x0);
-      const y0 = Number.isFinite(Number(panelRow?.south_y)) ? Number(panelRow.south_y) : Number(panelRow?.y0);
-      const x1 = Number.isFinite(Number(panelRow?.north_x)) ? Number(panelRow.north_x) : Number(panelRow?.x1);
-      const y1 = Number.isFinite(Number(panelRow?.north_y)) ? Number(panelRow.north_y) : Number(panelRow?.y1);
-      return [x0 + (x1 - x0) * t, y0 + (y1 - y0) * t];
-    };
-    const projectT = (panelRow: any, x: number, y: number) => {
-      const x0 = Number.isFinite(Number(panelRow?.south_x)) ? Number(panelRow.south_x) : Number(panelRow?.x0);
-      const y0 = Number.isFinite(Number(panelRow?.south_y)) ? Number(panelRow.south_y) : Number(panelRow?.y0);
-      const x1 = Number.isFinite(Number(panelRow?.north_x)) ? Number(panelRow.north_x) : Number(panelRow?.x1);
-      const y1 = Number.isFinite(Number(panelRow?.north_y)) ? Number(panelRow.north_y) : Number(panelRow?.y1);
-      const dx = x1 - x0;
-      const dy = y1 - y0;
-      const denom = dx * dx + dy * dy || 1;
-      return Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / denom));
-    };
-    const rowPanels = (panelRow: any) => Array.isArray(panelRow?.panels)
-      ? panelRow.panels
-          .map((panel: any) => ({
-            panel: Number(panel?.panel),
-            t: Number(panel?.t),
-            cx: Number(panel?.cx),
-            cy: Number(panel?.cy),
-          }))
-          .filter((panel: any) => Number.isFinite(panel.panel) && Number.isFinite(panel.t) && Number.isFinite(panel.cx) && Number.isFinite(panel.cy))
-          .sort((a: any, b: any) => a.panel - b.panel)
-      : [];
-    const pointForPanel = (panelRow: any, panel: any) => {
-      if (panel && Number.isFinite(panel.cx) && Number.isFinite(panel.cy)) return [panel.cx, panel.cy];
-      return pointAt(panelRow, Number(panel?.t) || 0);
-    };
-    const pointForStringStart = (panelRow: any, panels: any[], panelNo: number) => {
-      // Anchor the first string-start to the first actual panel, not the row's
-      // structural endpoint (which over-runs the panel array, leaving the
-      // start marker floating off the edge ahead of panel 1).
-      if (panelNo <= 1) return panels.length ? pointForPanel(panelRow, panels[0]) : pointAt(panelRow, 0);
-      return pointForPanel(panelRow, panels[panelNo - 1] || { t: 0 });
-    };
-    const shiftedPointAt = (panelRow: any, t: number, delta: number) => pointAt(panelRow, Math.max(0, Math.min(1, t + delta)));
-    const labelAngleFromMapLine = (start: number[], end: number[]) => {
-      const [lng0, lat0] = rotatedToLngLat(start[0], start[1], imageWidth);
-      const [lng1, lat1] = rotatedToLngLat(end[0], end[1], imageWidth);
-      let angle = Math.atan2(-(lat1 - lat0), lng1 - lng0) * 180 / Math.PI;
-      while (angle > 90) angle -= 180;
-      while (angle < -90) angle += 180;
-      return angle;
-    };
-    const segmentEndpointsByKey: Record<string, { id: string; rowNo: number; start: number[]; end: number[] }[]> = {};
-    for (const row of electricalRows || []) {
-      const rowNo = Number(row?.row_num);
-      const panelRow = Number.isFinite(rowNo) ? panelRowsSorted[Math.min(Math.max(rowNo - 1, 0), panelRowsSorted.length - 1)] : null;
-      if (!panelRow) continue;
-      const panels = rowPanels(panelRow);
-      const panelCount = panels.length || Number(panelRow?.panel_count) || panelsPerString;
-      const stringPoints = [...(row?.string_points || [])]
-        .map((stringPoint: any) => {
-          const xValues = [Number(stringPoint?.x), Number(stringPoint?.x1)].filter(Number.isFinite);
-          const yValues = [Number(stringPoint?.y), Number(stringPoint?.y1)].filter(Number.isFinite);
-          const cx = xValues.length ? xValues.reduce((sum, v) => sum + v, 0) / xValues.length : NaN;
-          const cy = yValues.length ? yValues.reduce((sum, v) => sum + v, 0) / yValues.length : NaN;
-          return {
-            stringPoint,
-            xValues,
-            yValues,
-            cx,
-            cy,
-            labelT: Number.isFinite(cx) && Number.isFinite(cy) ? projectT(panelRow, cx, cy) : 0,
-          };
-        })
-        .sort((a: any, b: any) => a.labelT - b.labelT);
-      for (const [stringIndex, positioned] of stringPoints.entries()) {
-        const stringPoint = positioned.stringPoint;
-        const id = String(stringPoint?.id || "").trim();
-        const xValues = positioned.xValues;
-        const yValues = positioned.yValues;
-        if (!id || !xValues.length || !yValues.length) continue;
-        const labelT = positioned.labelT;
-        const segmentPanelCount = Math.min(panelsPerString, Math.max(2, panelCount));
-        const startPanelNo = Math.min(panelCount, stringIndex * segmentPanelCount + 1);
-        const endPanelNo = Math.min(panelCount, startPanelNo + segmentPanelCount - 1);
-        const startPanel = panels[startPanelNo - 1];
-        const endPanel = panels[endPanelNo - 1];
-        const startT = startPanelNo <= 1 ? 0 : Number(startPanel?.t ?? 0);
-        const endT = Number(endPanel?.t ?? 1);
-        const boundaryGapT = Math.min(0.012, Math.max(0.004, 7 / Math.max(1, Number(panelRow?.length) || 1)));
-        const visualStartT = startPanelNo <= 1 ? startT : startT + boundaryGapT;
-        const visualEndT = endPanelNo >= panelCount ? endT : endT - boundaryGapT;
-        const start = startPanelNo <= 1 ? pointForStringStart(panelRow, panels, startPanelNo) : shiftedPointAt(panelRow, startT, boundaryGapT);
-        const end = shiftedPointAt(panelRow, endT, endPanelNo >= panelCount ? 0 : -boundaryGapT);
-        const dx = end[0] - start[0];
-        const dy = end[1] - start[1];
-        const len = Math.hypot(dx, dy) || 1;
-        const gapT = Math.min(0.04, Math.max(0.008, 16 / len));
-        const clampedLabelT = (visualStartT + visualEndT) / 2;
-        const gapLow = pointAt(panelRow, Math.max(Math.min(visualStartT, visualEndT), clampedLabelT - gapT));
-        const gapHigh = pointAt(panelRow, Math.min(Math.max(visualStartT, visualEndT), clampedLabelT + gapT));
-        const statusT = Math.max(Math.min(visualStartT, visualEndT), clampedLabelT - gapT * 1.9);
-        const statusPoint = pointAt(panelRow, statusT);
-        const startPanelLabel = `${startPanelNo}/${Math.min(endPanelNo, startPanelNo + 1)}`;
-        const endPanelLabel = `${Math.max(startPanelNo, endPanelNo - 1)}/${endPanelNo}`;
-        const labelPoint = pointAt(panelRow, clampedLabelT);
-        const mapAngle = labelAngleFromMapLine(start, end);
-        const status = normalizeStringStatus(stringStatuses[id]);
-        const statusLabel = STRING_STATUS_LABELS[status];
-        const statusIcon = STRING_STATUS_ICONS[status];
-        const statusColor = STRING_STATUS_COLORS[status];
-        features.push({
-          type: "Feature" as const,
-          id: `${id}-line-a`,
-          geometry: { type: "LineString" as const, coordinates: [rotatedToLngLat(start[0], start[1], imageWidth), rotatedToLngLat(gapLow[0], gapLow[1], imageWidth)] },
-          properties: { id, row: String(rowNo || ""), kind: "line", status, status_color: statusColor },
-        });
-        features.push({
-          type: "Feature" as const,
-          id: `${id}-line-b`,
-          geometry: { type: "LineString" as const, coordinates: [rotatedToLngLat(gapHigh[0], gapHigh[1], imageWidth), rotatedToLngLat(end[0], end[1], imageWidth)] },
-          properties: { id, row: String(rowNo || ""), kind: "line", status, status_color: statusColor },
-        });
-        features.push({
-          type: "Feature" as const,
-          id: `${id}-label`,
-          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(labelPoint[0], labelPoint[1], imageWidth) },
-          properties: { id, row: String(rowNo || ""), kind: "label", angle: mapAngle, status, status_label: statusLabel, status_icon: statusIcon, status_color: statusColor, start_panel_label: startPanelLabel, end_panel_label: endPanelLabel },
-        });
-        features.push({
-          type: "Feature" as const,
-          id: `${id}-status`,
-          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(statusPoint[0], statusPoint[1], imageWidth) },
-          properties: { id, row: String(rowNo || ""), kind: "status-icon", angle: mapAngle, status, status_label: statusLabel, status_icon: statusIcon, status_color: statusColor, start_panel_label: startPanelLabel, end_panel_label: endPanelLabel },
-        });
-        features.push({
-          type: "Feature" as const,
-          id: `${id}-start`,
-          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(start[0], start[1], imageWidth) },
-          properties: { id, row: String(rowNo || ""), kind: "start", panel_label: startPanelLabel },
-        });
-        features.push({
-          type: "Feature" as const,
-          id: `${id}-end`,
-          geometry: { type: "Point" as const, coordinates: rotatedToLngLat(end[0], end[1], imageWidth) },
-          properties: { id, row: String(rowNo || ""), kind: "end", panel_label: endPanelLabel },
-        });
-        const zoneNum = Number((stringPoint as any)?.zone);
-        const sNum = Number((stringPoint as any)?.string_in_zone);
-        const splitKey = Number.isFinite(zoneNum) && zoneNum > 0 && Number.isFinite(sNum) && sNum > 0
-          ? `z${zoneNum}.s${sNum}`
-          : id;
-        (segmentEndpointsByKey[splitKey] ??= []).push({ id, rowNo: Number(rowNo) || 0, start, end });
-      }
-    }
-    // Row-jump connectors: when the same logical string (same zone +
-    // string_in_zone, or same raw label) appears on multiple physical
-    // rows, the wire continues from the end of one row's segment to the
-    // start of the next row's segment. Emit a dashed line so the jump is
-    // visually obvious.
-    for (const [splitKey, entries] of Object.entries(segmentEndpointsByKey)) {
-      if (entries.length < 2) continue;
-      const ordered = [...entries].sort((a, b) => a.rowNo - b.rowNo);
-      for (let i = 0; i < ordered.length - 1; i += 1) {
-        const from = ordered[i].end;
-        const to = ordered[i + 1].start;
-        features.push({
-          type: "Feature" as const,
-          id: `${splitKey}-jump-${i}`,
-          geometry: {
-            type: "LineString" as const,
-            coordinates: [
-              rotatedToLngLat(from[0], from[1], imageWidth),
-              rotatedToLngLat(to[0], to[1], imageWidth),
-            ],
-          },
-          properties: {
-            id: ordered[i].id,
-            split_key: splitKey,
-            kind: "row-jump",
-            from_row: String(ordered[i].rowNo || ""),
-            to_row: String(ordered[i + 1].rowNo || ""),
-          },
-        });
-      }
-    }
-    return { type: "FeatureCollection" as const, features };
-  }, [electricalRows, panelBaseRows, imageWidth, stringDetail, stringStatuses]);
-
   const electricalRowGuideGeoJSON = useMemo(() => {
     const features: any[] = [];
     if (!imageWidth || imageWidth <= 0) {
@@ -1501,8 +1254,6 @@ export default function SiteMapMapLibre({
       map.addSource("electrical-zones", { type: "geojson", data: electricalZonesGeoJSON });
       map.addSource("electrical-row-guides", { type: "geojson", data: electricalRowGuideGeoJSON });
       map.addSource("panel-base-rows", { type: "geojson", data: panelBaseRowsGeoJSON });
-      map.addSource("electrical-string-label-lines", { type: "geojson", data: electricalStringLabelLinesGeoJSON });
-      map.addSource("electrical-string-segments", { type: "geojson", data: electricalStringSegmentsGeoJSON });
       map.addSource("electrical-zone-bands", { type: "geojson", data: electricalZoneBandGeoJSON });
       map.addSource("dccb", { type: "geojson", data: dccbGeoJSON });
       map.addSource("inverters", { type: "geojson", data: inverterGeoJSON });
@@ -1959,224 +1710,6 @@ export default function SiteMapMapLibre({
           "text-halo-blur": 0.5,
         },
       });
-      map.addLayer({
-        id: "electrical-string-labels",
-        type: "symbol",
-        source: "electrical-string-label-lines",
-        layout: {
-          visibility: "none",
-          "symbol-placement": "line",
-          "text-field": ["get", "id"],
-          "text-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 8,
-            8, 10,
-            12, 13,
-            16, 17,
-            20, 22,
-          ],
-          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
-          "text-offset": [0, -0.9],
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-keep-upright": true,
-          "symbol-sort-key": 2,
-        },
-        paint: {
-          "text-color": "#1e3a8a",
-          "text-halo-color": "rgba(255,255,255,0.92)",
-          "text-halo-width": 1.4,
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-lines",
-        type: "line",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "line"],
-        layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
-        paint: {
-          "line-color": ["get", "status_color"],
-          "line-opacity": 0.74,
-          "line-width": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 1.1,
-            8, 1.6,
-            14, 2.4,
-            18, 3.2,
-          ],
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-row-jumps",
-        type: "line",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "row-jump"],
-        layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
-        paint: {
-          "line-color": "#f59e0b",
-          "line-opacity": 0.95,
-          "line-width": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 1.2,
-            8, 1.8,
-            14, 2.6,
-            18, 3.6,
-          ],
-          "line-dasharray": [2, 1.5],
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-point-labels",
-        type: "symbol",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "label"],
-        layout: {
-          visibility: "none",
-          "text-field": ["get", "id"],
-          "text-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 7,
-            6, 8,
-            10, 12,
-            14, 18,
-            18, 28,
-            20, 34,
-          ],
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-rotate": ["get", "angle"],
-          "text-rotation-alignment": "viewport",
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-          "text-anchor": "center",
-          "symbol-sort-key": 3,
-        },
-        paint: {
-          "text-color": ["get", "status_color"],
-          "text-halo-color": "rgba(255,255,255,0.94)",
-          "text-halo-width": 1.2,
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-status-icons",
-        type: "symbol",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "status-icon"],
-        layout: {
-          visibility: "none",
-          // Custom status artwork as map images (panel / optimizer / etc.),
-          // replacing the old text glyph so the on-map markers match the
-          // grid + popup. icon-image needs no glyphs font.
-          // Image id is "sstatus-<status>"; every status registered a matching
-          // 48x48 image above, so this scales to all stages with no per-code list.
-          "icon-image": ["concat", "sstatus-", ["coalesce", ["get", "status"], "new"]],
-          "icon-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 0.14,
-            6, 0.20,
-            10, 0.30,
-            14, 0.42,
-            18, 0.62,
-            20, 0.78,
-          ],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-          "icon-anchor": "center",
-          "symbol-sort-key": 4,
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-starts",
-        type: "symbol",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "start"],
-        layout: {
-          visibility: "none",
-          "icon-image": "string-start-rect",
-          "icon-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 0.38,
-            8, 0.5,
-            14, 0.75,
-            18, 1,
-          ],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-start-panel-labels",
-        type: "symbol",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "start"],
-        layout: {
-          visibility: "none",
-          "text-field": ["get", "panel_label"],
-          "text-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 7,
-            8, 9,
-            14, 12,
-            18, 15,
-          ],
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-anchor": "top",
-          "text-offset": [0, 0.55],
-          "text-allow-overlap": false,
-          "text-ignore-placement": false,
-        },
-        paint: {
-          "text-color": "#111827",
-          "text-halo-color": "rgba(255,255,255,0.95)",
-          "text-halo-width": 1.4,
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-ends",
-        type: "circle",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "end"],
-        layout: { visibility: "none" },
-        paint: {
-          "circle-radius": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 2.4,
-            8, 3.2,
-            14, 4.8,
-            18, 6.5,
-          ],
-          "circle-color": "#ef4444",
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 1.2,
-        },
-      });
-      map.addLayer({
-        id: "electrical-string-end-panel-labels",
-        type: "symbol",
-        source: "electrical-string-segments",
-        filter: ["==", ["get", "kind"], "end"],
-        layout: {
-          visibility: "none",
-          "text-field": ["get", "panel_label"],
-          "text-size": [
-            "interpolate", ["linear"], ["zoom"],
-            0, 7,
-            8, 9,
-            14, 12,
-            18, 15,
-          ],
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-anchor": "top",
-          "text-offset": [0, 1.25],
-          "text-allow-overlap": false,
-          "text-ignore-placement": false,
-        },
-        paint: {
-          "text-color": "#111827",
-          "text-halo-color": "rgba(255,255,255,0.95)",
-          "text-halo-width": 1.4,
-        },
-      });
-
       // --- Electrical devices -------------------------------------------
       //
       // DCCB  = small red dots with a white stroke (~ one per combiner).
@@ -2589,8 +2122,6 @@ export default function SiteMapMapLibre({
           endPanelLabel: p.end_panel_label,
         });
       };
-      map.on("click", "electrical-string-point-labels", openStringStatus);
-      map.on("click", "electrical-string-status-icons", openStringStatus);
       // Topology number labels are the visible string-number layer; clicking a
       // number opens the same status modal.
       map.on("click", "topology-labels-layer", openStringStatus);
@@ -2660,18 +2191,6 @@ export default function SiteMapMapLibre({
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
       });
       map.on("mouseleave", "electrical-zones-layer", () => {
-        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseenter", "electrical-string-point-labels", () => {
-        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "electrical-string-point-labels", () => {
-        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
-      });
-      map.on("mouseenter", "electrical-string-status-icons", () => {
-        if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "electrical-string-status-icons", () => {
         if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "";
       });
 
@@ -2931,8 +2450,6 @@ export default function SiteMapMapLibre({
       (map.getSource("electrical-zones") as GeoJSONSource | undefined)?.setData(electricalZonesGeoJSON as any);
       (map.getSource("electrical-row-guides") as GeoJSONSource | undefined)?.setData(electricalRowGuideGeoJSON as any);
       (map.getSource("panel-base-rows") as GeoJSONSource | undefined)?.setData(panelBaseRowsGeoJSON as any);
-      (map.getSource("electrical-string-label-lines") as GeoJSONSource | undefined)?.setData(electricalStringLabelLinesGeoJSON as any);
-      (map.getSource("electrical-string-segments") as GeoJSONSource | undefined)?.setData(electricalStringSegmentsGeoJSON as any);
       (map.getSource("electrical-zone-bands") as GeoJSONSource | undefined)?.setData(electricalZoneBandGeoJSON as any);
       (map.getSource("dccb") as GeoJSONSource | undefined)?.setData(dccbGeoJSON as any);
       (map.getSource("inverters") as GeoJSONSource | undefined)?.setData(inverterGeoJSON as any);
@@ -2951,7 +2468,7 @@ export default function SiteMapMapLibre({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalStringLabelLinesGeoJSON, electricalStringSegmentsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -3069,25 +2586,11 @@ export default function SiteMapMapLibre({
       const zonesOn = layerVisible(layers, "zones", false);
       show("electrical-zone-bands-fill", zonesOn);
       show("electrical-zone-bands-outline", zonesOn);
-      // "Strings" layer = string NUMBER + status icon (coloured) only — no line
-      // segments, no start/end dots, no panel labels. The line geometry is the
-      // "String routes" (topology) layer's job. When routes are also on, the
-      // number comes from the route label so it isn't drawn twice.
-      show("electrical-string-lines", false);
-      show("electrical-string-row-jumps", false);
-      // "Strings" layer also shows the green start triangle + red end circle.
+      // "Strings" toggle shows the green start triangle + red end circle markers.
+      // String NUMBERS are drawn by the topology-labels layer (shown when Strings
+      // OR Routes is on), so they are not drawn twice.
       show("string-start-markers-layer", stringsOn);
       show("string-end-markers-layer", stringsOn);
-      show("electrical-string-starts", false);
-      show("electrical-string-ends", false);
-      show("electrical-string-labels", false);
-      // String NUMBERS are drawn by the topology-labels layer (nice slanted
-      // numbers, shown when Strings OR Routes is on — see below). Disable this
-      // electrical label layer so the two don't double-draw on top of each other.
-      show("electrical-string-point-labels", false);
-      show("electrical-string-status-icons", false);
-      show("electrical-string-start-panel-labels", false);
-      show("electrical-string-end-panel-labels", false);
       const hasPanelBase = (panelBaseRows || []).length > 0;
       show("panel-base-rows-layer", hasPanelBase);
       const panelsOn = layerVisible(layers, "panels", false);
