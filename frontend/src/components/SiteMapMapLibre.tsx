@@ -3828,6 +3828,7 @@ export default function SiteMapMapLibre({
         <TopologyInspector
           info={selectedTopologyString}
           eRows={stringElectricalRows[String(selectedTopologyString?.string || "").trim()] || []}
+          status={normalizeStringStatus(stringStatuses[String(selectedTopologyString?.string || "").trim()])}
           onClose={() => {
             setSelectedTopologyString(null);
             const src = mapRef.current?.getSource("topology-highlight") as GeoJSONSource | undefined;
@@ -3882,7 +3883,7 @@ function PierDetailModal({ info, onClose }: { info: any; onClose: () => void }) 
   );
 }
 
-function TopologyInspector({ info, eRows, onClose }: { info: any; eRows: number[]; onClose: () => void }) {
+function TopologyInspector({ info, eRows, status, onClose }: { info: any; eRows: number[]; status: string; onClose: () => void }) {
   const events: any[] = Array.isArray(info?.events) ? info.events : [];
   const crossedRows = Array.from(new Set(events.map((e) => e.physical_row).filter((r) => r != null)));
   // Electrical row label(s) — matches the blue R-labels. Falls back to the
@@ -3911,6 +3912,16 @@ function TopologyInspector({ info, eRows, onClose }: { info: any; eRows: number[
         <div style={{ marginBottom: 6, color: "#334155" }}>
           {info?.jump_count ? `${info.jump_count} row jump${info.jump_count > 1 ? "s" : ""}` : "single row"}
           {rowText && ` · ${rowText}`}
+        </div>
+        <div style={{ marginBottom: 6 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 700,
+            color: STRING_STATUS_COLORS[status] || "#334155",
+            background: STRING_STATUS_BG[status] || "#f1f5f9",
+            padding: "2px 8px", borderRadius: 999,
+          }}>
+            {STRING_STATUS_ICONS[status] || "•"} {STRING_STATUS_LABELS[status] || status}
+          </span>
         </div>
         {Number(info?.total_panels) > 0 && (
           <div style={{ marginBottom: 6, color: "#334155" }}>
