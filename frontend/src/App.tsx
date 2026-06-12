@@ -61,8 +61,8 @@ const orderStringsCols = (cols: any[]) => {
 };
 
 // On phone/tablet the strings grid is trimmed to the essentials: string
-// number, status, and images. Desktop keeps the full set.
-const MOBILE_STRING_COLS = new Set(["string", "status", "images"]);
+// number, status, and comment. Desktop keeps the full set.
+const MOBILE_STRING_COLS = new Set(["string", "status", "comment"]);
 const limitMobileStringCols = (cols: any[], compact: boolean) =>
   compact ? cols.filter((c: any) => MOBILE_STRING_COLS.has(c?.field)) : cols;
 
