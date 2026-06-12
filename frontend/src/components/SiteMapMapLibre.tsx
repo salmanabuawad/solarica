@@ -902,15 +902,13 @@ export default function SiteMapMapLibre({
         }
       }
       if (!runs.length) continue;
-      // Repeat the number ALONG each run so any visible part of the string is
-      // labelled (one label at a string's midpoint is invisible when you look
-      // at its ends). Place ~1 label per ~0.10 deg of run length.
+      // One label per row run, at its midpoint — a single-row string shows its
+      // number once, a jumping string once per row it crosses.
       for (const [p0, p1] of runs) {
         const rot = norm(-Math.atan2(p1[1] - p0[1], p1[0] - p0[0]) * 180 / Math.PI);
-        const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
-        const nlab = Math.max(1, Math.min(4, Math.round(L / 0.10)));
+        const nlab = 1;
         for (let i = 0; i < nlab; i++) {
-          const f = nlab === 1 ? 0.5 : (i + 0.5) / nlab;
+          const f = 0.5;
           features.push({
             type: "Feature" as const,
             geometry: { type: "Point" as const, coordinates: [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f] },
@@ -3566,35 +3564,32 @@ function StringStatusModal({
             </div>
           </div>
         </div>
-        <div style={{ display: "grid", gap: 8 }}>
-          {STRING_STATUSES.map((status) => {
-            const active = status === currentStatus;
-            return (
-              <button
-                key={status}
-                disabled={!canEdit}
-                onClick={canEdit ? () => onStatusChange(status) : undefined}
-                style={{
-                  display: (!canEdit && !active) ? "none" : "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 8,
-                  border: active ? `2px solid ${STRING_STATUS_COLORS[status]}` : "1px solid #dbe4ee",
-                  background: active ? "#f8fafc" : "#fff",
-                  color: active ? "#0f172a" : "#334155",
-                  fontWeight: active ? 800 : 600,
-                  cursor: canEdit ? "pointer" : "default",
-                  textAlign: "left",
-                }}
-              >
-                <span style={{ color: STRING_STATUS_COLORS[status], fontSize: 17, width: 20, display: "inline-flex", alignItems: "center" }}>
-                  {statusGlyph(status, 18)}
-                </span>
-                <span>{t(`strings.status.${status}`, STRING_STATUS_LABELS[status])}</span>
-              </button>
-            );
-          })}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ width: 22, display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+            {statusGlyph(currentStatus, 18)}
+          </span>
+          <select
+            value={currentStatus}
+            disabled={!canEdit}
+            onChange={canEdit ? (e) => onStatusChange(e.target.value) : undefined}
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: `2px solid ${STRING_STATUS_COLORS[currentStatus] || "#cbd5e1"}`,
+              background: STRING_STATUS_BG[currentStatus] || "#fff",
+              color: STRING_STATUS_COLORS[currentStatus] || "#0f172a",
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: canEdit ? "pointer" : "default",
+            }}
+          >
+            {STRING_STATUSES.map((status) => (
+              <option key={status} value={status} style={{ color: "#0f172a" }}>
+                {t(`strings.status.${status}`, STRING_STATUS_LABELS[status])}
+              </option>
+            ))}
+          </select>
         </div>
         <div style={{ marginTop: 14, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>

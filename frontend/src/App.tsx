@@ -2720,18 +2720,18 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 </div>
                 <button onClick={() => setStringModal(null)} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>✕</button>
               </div>
-              <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
-                {STRING_STATUS_ORDER.map((k) => {
-                  const m = STRING_STATUS_META[k]; const active = k === status;
-                  if (!canEdit && !active) return null;
-                  return (
-                    <button key={k} disabled={!canEdit} onClick={canEdit ? () => handleStringStatusChange(code, k) : undefined}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: active ? `2px solid ${m.color}` : "1px solid #dbe4ee", background: active ? m.bg : "#fff", fontWeight: active ? 800 : 600, cursor: canEdit ? "pointer" : "default", textAlign: isRtl ? "right" : "left" }}>
-                      <span style={{ width: 20, display: "inline-flex", alignItems: "center" }}><StatusGlyph code={k} size={16} /></span>
-                      <span>{t(`strings.status.${k}`)}</span>
-                    </button>
-                  );
-                })}
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.status")}</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ width: 22, display: "inline-flex", alignItems: "center", flexShrink: 0 }}><StatusGlyph code={status} size={18} /></span>
+                  <select value={status} disabled={!canEdit}
+                    onChange={canEdit ? (e) => handleStringStatusChange(code, e.target.value) : undefined}
+                    style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `2px solid ${STRING_STATUS_META[status]?.color || "#cbd5e1"}`, background: STRING_STATUS_META[status]?.bg || "#fff", color: STRING_STATUS_META[status]?.color || "#0f172a", fontSize: 15, fontWeight: 700, cursor: canEdit ? "pointer" : "default" }}>
+                    {STRING_STATUS_ORDER.map((k) => (
+                      <option key={k} value={k} style={{ color: "#0f172a" }}>{t(`strings.status.${k}`)}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.voltage")}</label>
