@@ -2391,6 +2391,9 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                     cellRenderer: (p: any) => {
                       const code = String(p.data?.string || "");
                       const valid = !!code && code !== "(unlabeled)";
+                      const v = p.data?.voltage;
+                      const vNum = (v == null || v === "" || isNaN(Number(v))) ? null : Number(v);
+                      const vBad = vNum != null && (vNum < 22 || vNum > 23);
                       return (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
                           {valid && (
@@ -2401,6 +2404,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                             </button>
                           )}
                           <span>{code}</span>
+                          {vBad && (
+                            <span title={`${vNum!.toFixed(2)} V — ${t("strings.voltageBad", "not ok")}`} style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+                              <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L22 20 H2 Z" fill="#dc2626" stroke="#ffffff" strokeWidth="1" strokeLinejoin="round" /><rect x="11" y="9" width="2" height="6" rx="1" fill="#ffffff" /><circle cx="12" cy="17.3" r="1.2" fill="#ffffff" /></svg>
+                            </span>
+                          )}
                         </span>
                       );
                     },
