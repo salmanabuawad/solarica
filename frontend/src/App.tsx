@@ -2104,7 +2104,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             the Grid/Map toggle so it's seen in both views and on mobile. */}
         {electricalDetailsMode && stringTopology.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: compact ? 6 : 8, marginBottom: compact ? 6 : 10, padding: compact ? "7px 10px" : 12, border: "1px solid #e2e8f0", borderRadius: 12, background: "#f8fafc" }}>
-            {/* Row 1: the progress bar + verified % */}
+            {/* Row 1: the progress bar */}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ flex: 1, minWidth: 0, height: compact ? 16 : 22, borderRadius: 6, overflow: "hidden", display: "flex", border: "1px solid #e2e8f0", background: "#fff" }}>
                 {STRING_STATUS_ORDER.map((k) => {
@@ -2114,7 +2114,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   return <div key={k} title={`${t(`strings.status.${k}`)}: ${n}`} style={{ width: `${pct}%`, background: STRING_STATUS_META[k].color }} />;
                 })}
               </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", whiteSpace: "nowrap" }}>⚡ {stringProgress.verifiedPct}% {t("strings.progress.verified")}</span>
             </div>
             {/* Row 2: per-status counts on their own line — pills fill the
                 width as equal columns (one row, no horizontal scroll). */}
