@@ -152,14 +152,15 @@ function StringDetailModal({
   const dirty = !sameSet(statuses, statuses0) || comment !== comment0 || (vNum ?? null) !== (voltage0 ?? null);
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} dir={isRtl ? "rtl" : "ltr"} style={{ background: "#fff", borderRadius: 12, padding: 18, width: "min(440px, 94vw)", maxHeight: "88vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+      <div onClick={(e) => e.stopPropagation()} dir={isRtl ? "rtl" : "ltr"} style={{ background: "#fff", borderRadius: 12, width: "min(440px, 94vw)", maxHeight: "88dvh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 12px", flexShrink: 0, borderBottom: "1px solid #eef2f6" }}>
           <div>
             <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a" }}>{code}</div>
             <div style={{ fontSize: 12, color: "#64748b" }}>{t("strings.rowsCol.row")} {info?.row ?? "-"} · {info?.multi_row ? t("strings.type.multi") : t("strings.type.one")}</div>
           </div>
           <button onClick={onClose} aria-label={t("app.cancel", "Cancel")} style={{ border: "1px solid #cbd5e1", background: "#fff", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontWeight: 600 }}>✕</button>
         </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "14px 18px" }}>
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.status")}</label>
           <div style={{ display: "grid", gap: 6 }}>
@@ -193,7 +194,8 @@ function StringDetailModal({
         <button onClick={onOpenImages} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 600 }}>
           📷 {t("strings.col.images")} ({imageCount})
         </button>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0, borderTop: "1px solid #e2e8f0", padding: "12px 18px" }}>
           <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 700, color: "#334155" }}>{t("app.cancel", "Cancel")}</button>
           {canEdit && (
             <button onClick={() => onSave({ statuses, voltage: vNum, comment })} disabled={!dirty}

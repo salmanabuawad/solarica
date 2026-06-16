@@ -3553,10 +3553,11 @@ function StringStatusModal({
         style={{
           background: "#fff",
           borderRadius: 12,
-          padding: "18px 20px",
           width: "min(420px, 94vw)",
-          maxHeight: "90vh",
-          overflowY: "auto",
+          maxHeight: "88dvh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
           boxShadow: "0 16px 42px rgba(15,23,42,0.26)",
           position: "relative",
         }}
@@ -3579,7 +3580,7 @@ function StringStatusModal({
         >
           x
         </button>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, paddingRight: 32, marginBottom: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "16px 20px 12px", paddingInlineEnd: 44, flexShrink: 0, borderBottom: "1px solid #eef2f6" }}>
           <span style={{ color: STRING_STATUS_COLORS[currentStatus], fontSize: 22, lineHeight: 1, display: "inline-flex", alignItems: "center" }}>
             {statusGlyph(currentStatus, 24)}
           </span>
@@ -3590,6 +3591,7 @@ function StringStatusModal({
             </div>
           </div>
         </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "14px 20px 18px" }}>
         <div style={{ display: "grid", gap: 6 }}>
           {STRING_STATUSES.map((status) => {
             const on = currentStatuses.includes(status);
@@ -3684,6 +3686,7 @@ function StringStatusModal({
               ))}
             </div>
           )}
+        </div>
         </div>
       </div>
       {previewImage && (
