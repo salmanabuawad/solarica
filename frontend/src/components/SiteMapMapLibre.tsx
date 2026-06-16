@@ -3555,6 +3555,8 @@ function StringStatusModal({
           borderRadius: 12,
           padding: "18px 20px",
           width: "min(420px, 94vw)",
+          maxHeight: "90vh",
+          overflowY: "auto",
           boxShadow: "0 16px 42px rgba(15,23,42,0.26)",
           position: "relative",
         }}
