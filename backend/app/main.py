@@ -966,7 +966,7 @@ STRING_IMAGE_MAX_SIZE_MB = 12
 # --- String Status Engine (AVL section + 6-stage progression) ------------
 # NEW -> OPTIMIZER -> CONNECTION -> VOLT_CHECKED -> CABLE_TO_TGA -> TGA_COMMISSIONING ;
 # AVL (the 2.x section) and BLOCKED are separate states enterable from any stage.
-STRING_STATUS_STAGES = ["new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning"]
+STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "tga_commissioning", "volt_checked"]
 STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"blocked", "avl"}
 # Linear progression. The manual picker may set any value (validated against
 # STRING_STATUS_VALUES); this table documents the canonical forward/back moves

@@ -38,16 +38,16 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   avl:               { label: "AVL", icon: "🏷", color: "#94a3b8", bg: "#eef2f6" },
   new:               { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
   optimizer:         { label: "Optimizer", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
-  connection:        { label: "Connection", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
-  volt_checked:      { label: "Volt Checked", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
-  cable_to_tga:      { label: "Cable to TGA", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
+  connection:        { label: "Connection between Optimizers", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
+  cable_to_tga:      { label: "Cable installation", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
   tga_commissioning: { label: "TGA Commissioning", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
+  volt_checked:      { label: "Voltage", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
   blocked:           { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
-const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning", "blocked"];
+const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "cable_to_tga", "tga_commissioning", "volt_checked", "blocked"];
 // Commissioning progression (excludes blocked/avl), used to derive a single
 // representative status from a multi-status set — kept in sync with the backend.
-const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning"];
+const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "tga_commissioning", "volt_checked"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";

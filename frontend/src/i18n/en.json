@@ -265,9 +265,9 @@
       "avl": "AVL",
       "new": "New",
       "optimizer": "Optimizer",
-      "connection": "Connection",
-      "volt_checked": "Volt Checked",
-      "cable_to_tga": "Cable to TGA",
+      "connection": "Connection between Optimizers",
+      "volt_checked": "Voltage",
+      "cable_to_tga": "Cable installation",
       "tga_commissioning": "TGA Commissioning",
       "blocked": "Blocked"
     },

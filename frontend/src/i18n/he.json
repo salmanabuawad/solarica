@@ -258,9 +258,9 @@
       "avl": "AVL",
       "new": "חדש",
       "optimizer": "אופטימייזר",
-      "connection": "חיבור",
-      "volt_checked": "בדיקת מתח",
-      "cable_to_tga": "כבל ל-TGA",
+      "connection": "חיבור בין אופטימייזרים",
+      "volt_checked": "מתח",
+      "cable_to_tga": "התקנת כבל",
       "tga_commissioning": "TGA Commissioning",
       "blocked": "חסום"
     },

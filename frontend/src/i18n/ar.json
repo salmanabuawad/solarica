@@ -258,9 +258,9 @@
       "avl": "AVL",
       "new": "جديد",
       "optimizer": "محسّن",
-      "connection": "توصيل",
-      "volt_checked": "فحص الجهد",
-      "cable_to_tga": "كابل إلى TGA",
+      "connection": "التوصيل بين المُحسِّنات",
+      "volt_checked": "الجهد",
+      "cable_to_tga": "تركيب الكابل",
       "tga_commissioning": "TGA Commissioning",
       "blocked": "محظور"
     },
