@@ -41,7 +41,7 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   connection:        { label: "Connection between Optimizers", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
   cable_to_tga:      { label: "Cable installation", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
   volt_checked:      { label: "Voltage", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
-  tga_commissioning: { label: "TGA Commissioning / Label", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
+  tga_commissioning: { label: "TGA Com/Label", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
   error:             { label: "Error", icon: "⚠", color: "#ea580c", bg: "#ffedd5" },
   blocked:           { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
