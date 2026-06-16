@@ -1036,15 +1036,23 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     stages.forEach((k, i) => { weight[k] = stages.length > 1 ? i / (stages.length - 1) : 0; });
     const counts: Record<string, number> = {};
     for (const k of STRING_STATUS_ORDER) counts[k] = 0;
-    for (const r of topologyGridRows) counts[r.status] = (counts[r.status] || 0) + 1;
+    // Multi-status: count a string under EVERY status in its set (so a string
+    // that is both Optimizer and TGA is counted in both).
+    for (const r of topologyGridRows) {
+      const set = Array.isArray(r.statuses) && r.statuses.length ? r.statuses : [r.status];
+      for (const k of set) if (counts[k] != null) counts[k] += 1;
+    }
     const total = topologyGridRows.length || 0;
+    // Sum of memberships (>= total) — used to keep the bar segments at 100%.
+    const memberTotal = STRING_STATUS_ORDER.reduce((a, k) => a + counts[k], 0) || 1;
     const weighted = STRING_STATUS_ORDER.reduce((a, k) => a + (weight[k] || 0) * counts[k], 0);
     const lastStage = stages[stages.length - 1];
     return {
       total,
+      memberTotal,
       counts,
       verifiedPct: total ? Math.round((100 * (counts[lastStage] || 0)) / total) : 0,
-      weightedPct: total ? Math.round((100 * weighted) / total) : 0,
+      weightedPct: memberTotal ? Math.round((100 * weighted) / memberTotal) : 0,
       blocked: counts.blocked || 0,
     };
   }, [topologyGridRows]);
@@ -2157,7 +2165,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 {STRING_STATUS_ORDER.map((k) => {
                   const n = stringProgress.counts[k] || 0;
                   if (!n) return null;
-                  const pct = (100 * n) / (stringProgress.total || 1);
+                  const pct = (100 * n) / (stringProgress.memberTotal || 1);
                   return <div key={k} title={`${t(`strings.status.${k}`)}: ${n}`} style={{ width: `${pct}%`, background: STRING_STATUS_META[k].color }} />;
                 })}
               </div>
