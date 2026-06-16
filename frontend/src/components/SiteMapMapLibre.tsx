@@ -3611,11 +3611,24 @@ function StringStatusModal({
     ? stringInfo.statuses.map((x: any) => normalizeStringStatus(x))
     : [currentStatus];
   const images = Array.isArray(stringInfo?.images) ? stringInfo.images : [];
-  const [comment, setComment] = useState(String(stringInfo?.comment || ""));
+  const comment0 = String(stringInfo?.comment || "");
+  const [draftStatuses, setDraftStatuses] = useState<string[]>(currentStatuses);
+  const [comment, setComment] = useState(comment0);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // Re-seed drafts when a different string is opened.
   useEffect(() => {
     setComment(String(stringInfo?.comment || ""));
-  }, [stringInfo?.id, stringInfo?.comment]);
+    setDraftStatuses(Array.isArray(stringInfo?.statuses) && stringInfo.statuses.length
+      ? stringInfo.statuses.map((x: any) => normalizeStringStatus(x))
+      : [normalizeStringStatus(stringInfo?.status)]);
+  }, [stringInfo?.id]);
+  const sameSet = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
+  const dirty = !sameSet(draftStatuses, currentStatuses) || comment !== comment0;
+  const save = () => {
+    if (!sameSet(draftStatuses, currentStatuses)) onStatusesChange(draftStatuses);
+    if (comment !== comment0) onCommentChange(comment);
+    onClose();
+  };
   const handleImageFile = async (file?: File) => {
     if (!file) return;
     onImageAdd(file);
@@ -3679,7 +3692,7 @@ function StringStatusModal({
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", WebkitOverflowScrolling: "touch", padding: "14px 20px 18px" }}>
         <div style={{ display: "grid", gap: 6 }}>
           {STRING_STATUSES.map((status) => {
-            const on = currentStatuses.includes(status);
+            const on = draftStatuses.includes(status);
             return (
               <label
                 key={status}
@@ -3696,7 +3709,7 @@ function StringStatusModal({
                   type="checkbox"
                   checked={on}
                   disabled={!canEdit}
-                  onChange={canEdit ? () => onStatusesChange(on ? currentStatuses.filter((x) => x !== status) : [...currentStatuses, status]) : undefined}
+                  onChange={canEdit ? () => setDraftStatuses(on ? draftStatuses.filter((x) => x !== status) : [...draftStatuses, status]) : undefined}
                   style={{ width: 16, height: 16, accentColor: STRING_STATUS_COLORS[status], cursor: canEdit ? "pointer" : "default", flexShrink: 0 }}
                 />
                 {statusGlyph(status, 18)}
@@ -3713,11 +3726,7 @@ function StringStatusModal({
             value={comment}
             placeholder={t("strings.popup.addComment")}
             readOnly={!canEdit}
-            onChange={(e) => {
-              if (!canEdit) return;
-              setComment(e.target.value);
-              onCommentChange(e.target.value);
-            }}
+            onChange={(e) => { if (canEdit) setComment(e.target.value); }}
             style={{
               width: "100%",
               minHeight: 84,
@@ -3773,6 +3782,12 @@ function StringStatusModal({
           )}
         </div>
         </div>
+        {canEdit && (
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0, borderTop: "1px solid #e2e8f0", padding: "12px 16px" }}>
+            <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 700, color: "#334155" }}>{t("app.cancel", "Cancel")}</button>
+            <button onClick={save} disabled={!dirty} style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: dirty ? "#2563eb" : "#93c5fd", color: "#fff", cursor: dirty ? "pointer" : "default", fontWeight: 800 }}>{t("app.save", "Save")}</button>
+          </div>
+        )}
       </div>
       {previewImage && (
         <div
