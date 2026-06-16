@@ -464,6 +464,17 @@ export async function updateStringStatus(pid: string, stringId: string, status: 
   });
 }
 
+// Free multi-select: replace a string's full set of statuses. The server keeps a
+// derived primary `status` in sync for the map/progress/payment.
+export async function updateStringStatuses(pid: string, stringId: string, statuses: string[]): Promise<any> {
+  if (!isOnline()) throw new OfflineError("String status updates need a connection.");
+  return j<any>(`${API}/api/projects/${pid}/strings/${encodeURIComponent(stringId)}/statuses`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ statuses }),
+  });
+}
+
 export async function updateStringComment(pid: string, stringId: string, comment: string): Promise<any> {
   if (!isOnline()) throw new OfflineError("String comments need a connection.");
   return j<any>(`${API}/api/projects/${pid}/strings/${encodeURIComponent(stringId)}/comment`, {

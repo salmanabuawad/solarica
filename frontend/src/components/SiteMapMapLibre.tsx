@@ -146,6 +146,7 @@ export default function SiteMapMapLibre({
   weatherAssets = [],
   pierStatuses,
   stringStatuses = {},
+  stringStatusSets = {},
   stringImages = {},
   stringComments = {},
   selectedBlock,
@@ -157,6 +158,7 @@ export default function SiteMapMapLibre({
   onPierClick,
   canEdit = true,
   onStringStatusChange,
+  onStringStatusesChange,
   onStringImageAdd,
   onStringCommentChange,
   onAreaSelect,
@@ -3359,12 +3361,15 @@ export default function SiteMapMapLibre({
           stringInfo={{
             ...selectedString,
             status: normalizeStringStatus(stringStatuses[selectedString.id] || selectedString.status),
+            statuses: (stringStatusSets[selectedString.id] && stringStatusSets[selectedString.id].length)
+              ? stringStatusSets[selectedString.id]
+              : [normalizeStringStatus(stringStatuses[selectedString.id] || selectedString.status)],
             images: stringImages[selectedString.id] || [],
             comment: stringComments[selectedString.id] || "",
           }}
-          onStatusChange={(status) => {
-            onStringStatusChange?.(selectedString.id, status);
-            setSelectedString((prev: any) => prev ? { ...prev, status } : prev);
+          onStatusesChange={(statuses) => {
+            onStringStatusesChange?.(selectedString.id, statuses);
+            setSelectedString((prev: any) => prev ? { ...prev, statuses } : prev);
           }}
           onImageAdd={(file) => onStringImageAdd?.(selectedString.id, file)}
           onCommentChange={(comment) => onStringCommentChange?.(selectedString.id, comment)}
@@ -3500,14 +3505,14 @@ function TopologyInspector({ info, eRows, status, onClose }: { info: any; eRows:
 
 function StringStatusModal({
   stringInfo,
-  onStatusChange,
+  onStatusesChange,
   onImageAdd,
   onCommentChange,
   canEdit = true,
   onClose,
 }: {
   stringInfo: any;
-  onStatusChange: (status: string) => void;
+  onStatusesChange: (statuses: string[]) => void;
   onImageAdd: (file: File) => void;
   onCommentChange: (comment: string) => void;
   canEdit?: boolean;
@@ -3517,6 +3522,9 @@ function StringStatusModal({
   // hook — without it `t(...)` below throws "t is not defined" on render.
   const { t } = useTranslation();
   const currentStatus = normalizeStringStatus(stringInfo?.status);
+  const currentStatuses: string[] = Array.isArray(stringInfo?.statuses) && stringInfo.statuses.length
+    ? stringInfo.statuses.map((x: any) => normalizeStringStatus(x))
+    : [currentStatus];
   const images = Array.isArray(stringInfo?.images) ? stringInfo.images : [];
   const [comment, setComment] = useState(String(stringInfo?.comment || ""));
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -3580,32 +3588,33 @@ function StringStatusModal({
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ width: 22, display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
-            {statusGlyph(currentStatus, 18)}
-          </span>
-          <select
-            value={currentStatus}
-            disabled={!canEdit}
-            onChange={canEdit ? (e) => onStatusChange(e.target.value) : undefined}
-            style={{
-              flex: 1,
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: `2px solid ${STRING_STATUS_COLORS[currentStatus] || "#cbd5e1"}`,
-              background: STRING_STATUS_BG[currentStatus] || "#fff",
-              color: STRING_STATUS_COLORS[currentStatus] || "#0f172a",
-              fontSize: 15,
-              fontWeight: 700,
-              cursor: canEdit ? "pointer" : "default",
-            }}
-          >
-            {STRING_STATUSES.map((status) => (
-              <option key={status} value={status} style={{ color: "#0f172a" }}>
-                {t(`strings.status.${status}`, STRING_STATUS_LABELS[status])}
-              </option>
-            ))}
-          </select>
+        <div style={{ display: "grid", gap: 6 }}>
+          {STRING_STATUSES.map((status) => {
+            const on = currentStatuses.includes(status);
+            return (
+              <label
+                key={status}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8,
+                  border: on ? `2px solid ${STRING_STATUS_COLORS[status]}` : "1px solid #dbe4ee",
+                  background: on ? STRING_STATUS_BG[status] : "#fff",
+                  color: STRING_STATUS_COLORS[status],
+                  fontWeight: on ? 800 : 600,
+                  cursor: canEdit ? "pointer" : "default",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={on}
+                  disabled={!canEdit}
+                  onChange={canEdit ? () => onStatusesChange(on ? currentStatuses.filter((x) => x !== status) : [...currentStatuses, status]) : undefined}
+                  style={{ width: 16, height: 16, accentColor: STRING_STATUS_COLORS[status], cursor: canEdit ? "pointer" : "default", flexShrink: 0 }}
+                />
+                {statusGlyph(status, 18)}
+                <span>{t(`strings.status.${status}`, STRING_STATUS_LABELS[status])}</span>
+              </label>
+            );
+          })}
         </div>
         <div style={{ marginTop: 14, borderTop: "1px solid #e2e8f0", paddingTop: 12 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>

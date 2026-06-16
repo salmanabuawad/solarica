@@ -1,6 +1,6 @@
 import { Suspense, lazy, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, getStringRecords, updateStringStatus, updateStringComment, updateStringVoltage, addStringImage, deleteStringImage, type AuthUser } from "./api";
+import { getProjects, getProject, getPlantInfo, getBlocks, getTrackers, getPiers, getPier, getPierStatuses, updatePierStatus, bulkUpdatePierStatus, createProject, getElectricalDevices, getStringOptimizerModel, getCurrentUser, logout, getEplModel, getProjectFeatures, getEplMapData, downloadEplExport, getStringRecords, updateStringStatus, updateStringStatuses, updateStringComment, updateStringVoltage, addStringImage, deleteStringImage, type AuthUser } from "./api";
 import Login from "./components/Login";
 // LanguageSwitcher + PreferencesPanel are now rendered inside SettingsModal
 // only; no direct imports needed here.
@@ -45,9 +45,29 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   blocked:           { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
 const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning", "blocked"];
+// Commissioning progression (excludes blocked/avl), used to derive a single
+// representative status from a multi-status set — kept in sync with the backend.
+const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";
+};
+// Primary status for the map/progress: Blocked wins, else most-advanced stage,
+// else AVL, else New.
+const deriveStringPrimary = (statuses: string[]): string => {
+  const s = new Set((statuses || []).map((x) => String(x).toLowerCase()));
+  if (s.has("blocked")) return "blocked";
+  for (let i = STRING_STATUS_STAGES.length - 1; i >= 0; i--) if (s.has(STRING_STATUS_STAGES[i])) return STRING_STATUS_STAGES[i];
+  if (s.has("avl")) return "avl";
+  return "new";
+};
+const normStatusList = (arr: any): string[] => {
+  const out: string[] = [];
+  for (const x of Array.isArray(arr) ? arr : []) {
+    const v = String(x || "").toLowerCase();
+    if (STRING_STATUS_META[v] && !out.includes(v)) out.push(v);
+  }
+  return out;
 };
 
 // Fixed display order for the strings grid (after the pinned string number):
@@ -107,27 +127,29 @@ function StatusGlyph({ code, size = 14 }: { code: string; size?: number }) {
 // draft resets when a different string is opened. Images are managed in their
 // own sub-modal and upload immediately (outside this Save/Cancel scope).
 function StringDetailModal({
-  code, info, status0, voltage0, comment0, imageCount, canEdit, isRtl, onSave, onOpenImages, onClose,
+  code, info, statuses0, voltage0, comment0, imageCount, canEdit, isRtl, onSave, onOpenImages, onClose,
 }: {
   code: string;
   info: any;
-  status0: string;
+  statuses0: string[];
   voltage0: number | null;
   comment0: string;
   imageCount: number;
   canEdit: boolean;
   isRtl: boolean;
-  onSave: (next: { status: string; voltage: number | null; comment: string }) => void;
+  onSave: (next: { statuses: string[]; voltage: number | null; comment: string }) => void;
   onOpenImages: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const [status, setStatus] = useState(status0);
+  const [statuses, setStatuses] = useState<string[]>(statuses0);
   const [voltageStr, setVoltageStr] = useState(voltage0 == null ? "" : String(voltage0));
   const [comment, setComment] = useState(comment0);
   const vNum = voltageStr.trim() === "" || isNaN(Number(voltageStr)) ? null : Math.round(Number(voltageStr) * 100) / 100;
   const vOk = vNum != null && vNum >= 22 && vNum <= 23;
-  const dirty = status !== status0 || comment !== comment0 || (vNum ?? null) !== (voltage0 ?? null);
+  const toggleStatus = (k: string) => setStatuses((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
+  const sameSet = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
+  const dirty = !sameSet(statuses, statuses0) || comment !== comment0 || (vNum ?? null) !== (voltage0 ?? null);
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} dir={isRtl ? "rtl" : "ltr"} style={{ background: "#fff", borderRadius: 12, padding: 18, width: "min(440px, 94vw)", maxHeight: "88vh", overflow: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
@@ -140,14 +162,17 @@ function StringDetailModal({
         </div>
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>{t("strings.col.status")}</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 22, display: "inline-flex", alignItems: "center", flexShrink: 0 }}><StatusGlyph code={status} size={18} /></span>
-            <select value={status} disabled={!canEdit} onChange={(e) => setStatus(e.target.value)}
-              style={{ flex: 1, padding: "10px 12px", borderRadius: 8, border: `2px solid ${STRING_STATUS_META[status]?.color || "#cbd5e1"}`, background: STRING_STATUS_META[status]?.bg || "#fff", color: STRING_STATUS_META[status]?.color || "#0f172a", fontSize: 15, fontWeight: 700, cursor: canEdit ? "pointer" : "default" }}>
-              {STRING_STATUS_ORDER.map((k) => (
-                <option key={k} value={k} style={{ color: "#0f172a" }}>{t(`strings.status.${k}`)}</option>
-              ))}
-            </select>
+          <div style={{ display: "grid", gap: 6 }}>
+            {STRING_STATUS_ORDER.map((k) => {
+              const on = statuses.includes(k);
+              return (
+                <label key={k} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, border: on ? `2px solid ${STRING_STATUS_META[k].color}` : "1px solid #dbe4ee", background: on ? STRING_STATUS_META[k].bg : "#fff", cursor: canEdit ? "pointer" : "default", fontWeight: on ? 800 : 600 }}>
+                  <input type="checkbox" checked={on} disabled={!canEdit} onChange={() => toggleStatus(k)} style={{ width: 16, height: 16, accentColor: STRING_STATUS_META[k].color, cursor: canEdit ? "pointer" : "default", flexShrink: 0 }} />
+                  <StatusGlyph code={k} size={16} />
+                  <span style={{ color: STRING_STATUS_META[k].color }}>{t(`strings.status.${k}`)}</span>
+                </label>
+              );
+            })}
           </div>
         </div>
         <div style={{ marginBottom: 14 }}>
@@ -171,7 +196,7 @@ function StringDetailModal({
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16, borderTop: "1px solid #e2e8f0", paddingTop: 14 }}>
           <button onClick={onClose} style={{ padding: "8px 16px", borderRadius: 8, border: "1px solid #cbd5e1", background: "#fff", cursor: "pointer", fontWeight: 700, color: "#334155" }}>{t("app.cancel", "Cancel")}</button>
           {canEdit && (
-            <button onClick={() => onSave({ status, voltage: vNum, comment })} disabled={!dirty}
+            <button onClick={() => onSave({ statuses, voltage: vNum, comment })} disabled={!dirty}
               style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: dirty ? "#2563eb" : "#93c5fd", color: "#fff", cursor: dirty ? "pointer" : "default", fontWeight: 800 }}>{t("app.save", "Save")}</button>
           )}
         </div>
@@ -462,6 +487,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const [eplGridTab, setEplGridTab] = useState<"routes" | "rows">("routes");
   const [pierStatuses, setPierStatuses] = useState<Record<string, string>>({});
   const [stringStatuses, setStringStatuses] = useState<Record<string, string>>({});
+  // Full multi-select set per string; stringStatuses holds the derived primary.
+  const [stringStatusSets, setStringStatusSets] = useState<Record<string, string[]>>({});
   const [stringImages, setStringImages] = useState<Record<string, string[]>>({});
   const [stringComments, setStringComments] = useState<Record<string, string>>({});
   const [stringVoltages, setStringVoltages] = useState<Record<string, number | null>>({});
@@ -560,6 +587,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   useEffect(() => {
     if (!projectId) {
       setStringStatuses({});
+      setStringStatusSets({});
       setStringImages({});
       setStringComments({});
       setStringVoltages({});
@@ -571,11 +599,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         if (ignore) return;
         const records = payload?.strings || {};
         const statuses: Record<string, string> = {};
+        const sets: Record<string, string[]> = {};
         const images: Record<string, string[]> = {};
         const comments: Record<string, string> = {};
         const voltages: Record<string, number | null> = {};
         for (const [stringId, record] of Object.entries(records) as any) {
-          statuses[stringId] = String(record?.status || "new");
+          const set = normStatusList(record?.statuses);
+          const list = set.length ? set : [String(record?.status || "new")];
+          sets[stringId] = list;
+          statuses[stringId] = deriveStringPrimary(list);
           images[stringId] = Array.isArray(record?.images)
             ? record.images.map((img: any) => typeof img === "string" ? img : img?.url).filter(Boolean)
             : [];
@@ -583,6 +615,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
           voltages[stringId] = (record?.voltage ?? null);
         }
         setStringStatuses(statuses);
+        setStringStatusSets(sets);
         setStringImages(images);
         setStringComments(comments);
         setStringVoltages(voltages);
@@ -590,6 +623,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       .catch(() => {
         if (!ignore) {
           setStringStatuses({});
+          setStringStatusSets({});
           setStringImages({});
           setStringComments({});
         }
@@ -606,6 +640,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       return next;
     });
     updateStringStatus(projectId, stringId, status).catch((e: any) => setError(String(e?.message || e)));
+  }, [projectId]);
+
+  // Multi-select: persist the full set; keep the derived primary in sync locally.
+  const handleStringStatusesChange = useCallback((stringId: string, statuses: string[]) => {
+    if (!stringId || !projectId) return;
+    const list = normStatusList(statuses);
+    setStringStatusSets((prev) => ({ ...prev, [stringId]: list }));
+    setStringStatuses((prev) => ({ ...prev, [stringId]: deriveStringPrimary(list) }));
+    updateStringStatuses(projectId, stringId, list).catch((e: any) => setError(String(e?.message || e)));
   }, [projectId]);
 
   const handleStringImageAdd = useCallback((stringId: string, file: File) => {
@@ -967,6 +1010,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         row,
         multi_row: multiRow,
         status: code ? normStringStatus(stringStatuses[code]) : "new",
+        statuses: code ? (stringStatusSets[code] && stringStatusSets[code].length ? stringStatusSets[code] : [normStringStatus(stringStatuses[code])]) : ["new"],
         voltage: code ? (stringVoltages[code] ?? null) : null,
         comment: code ? (stringComments[code] || "") : "",
         images: code ? (stringImages[code] || []) : [],
@@ -980,7 +1024,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         optimizer_count: s?.optimizer_count ?? "",
       };
     });
-  }, [stringTopology, stringStatuses, stringComments, stringImages, stringVoltages]);
+  }, [stringTopology, stringStatuses, stringStatusSets, stringComments, stringImages, stringVoltages]);
 
   // Verified-Progress rollup for the strings grid: status counts + the weighted
   // progress %, spread evenly across the 11 commissioning stages (New=0 …
@@ -1425,7 +1469,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       const fmtVolt = (v: any) => (v == null || v === "" || isNaN(Number(v)) ? "" : Number(v).toFixed(2));
       columns = [
         { header: t("strings.col.string"), key: "string", width: 16, get: (d) => d.string ?? "" },
-        { header: t("strings.col.status"), key: "status", width: 18, get: (d) => t(`strings.status.${normStringStatus(d.status)}`) },
+        // One checkbox column per status (✓ when the string has that status).
+        ...STRING_STATUS_ORDER.map((k) => ({
+          header: t(`strings.status.${k}`), key: `st_${k}`, width: 12,
+          get: (d: any) => ((Array.isArray(d.statuses) && d.statuses.length ? d.statuses : [normStringStatus(d.status)]).includes(k) ? "✓" : ""),
+        })),
         { header: t("strings.popup.comment"), key: "comment", width: 44, get: (d) => d.comment || "" },
         { header: t("strings.col.voltage"), key: "voltage", width: 12, get: (d) => fmtVolt(d.voltage) },
         { header: t("strings.col.images"), key: "images", width: 10, get: (d) => (Array.isArray(d.images) ? d.images.length : 0) },
@@ -2305,6 +2353,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   weatherAssets={weatherAssets}
                   pierStatuses={pierStatuses}
                   stringStatuses={stringStatuses}
+                  stringStatusSets={stringStatusSets}
                   stringImages={stringImages}
                   stringComments={stringComments}
                   selectedBlock={null}
@@ -2342,6 +2391,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   onPierClick={handlePierClick}
                   canEdit={canEdit}
                   onStringStatusChange={handleStringStatusChange}
+                  onStringStatusesChange={handleStringStatusesChange}
                   onStringImageAdd={handleStringImageAdd}
                   onStringCommentChange={handleStringCommentChange}
                   onAreaSelect={handleAreaSelect}
@@ -2384,7 +2434,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 </div>
               )}
               <SimpleGrid
-                rows={stringStatusFilter ? topologyGridRows.filter((r: any) => r.status === stringStatusFilter) : topologyGridRows}
+                rows={stringStatusFilter ? topologyGridRows.filter((r: any) => Array.isArray(r.statuses) ? r.statuses.includes(stringStatusFilter) : r.status === stringStatusFilter) : topologyGridRows}
                 columns={limitMobileStringCols(orderStringsCols(applyFieldConfigs([
                   {
                     field: "string", headerName: t("strings.col.string"), width: 118, pinned: "left", comparator: naturalCompare, sort: "asc",
@@ -2415,16 +2465,20 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                   },
                   { field: "row", headerName: t("strings.rowsCol.row"), width: 78, comparator: naturalCompare },
                   {
-                    field: "status", headerName: t("strings.col.status"), width: 124,
+                    field: "status", headerName: t("strings.col.status"), width: 150, autoHeight: true,
                     headerTooltip: t("strings.col.status"),
                     valueFormatter: (p: any) => t(`strings.status.${normStringStatus(p.value)}`),
                     cellRenderer: (p: any) => {
-                      const code = normStringStatus(p.value);
-                      const m = STRING_STATUS_META[code];
+                      const list = Array.isArray(p.data?.statuses) && p.data.statuses.length ? p.data.statuses : [normStringStatus(p.value)];
+                      const ordered = STRING_STATUS_ORDER.filter((k) => list.includes(k));
                       return (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontWeight: 600, color: m.color }}>
-                          <StatusGlyph code={code} size={14} />
-                          {t(`strings.status.${code}`)}
+                        <span style={{ display: "flex", flexDirection: "column", gap: 2, padding: "4px 0", lineHeight: 1.35 }}>
+                          {ordered.map((k) => (
+                            <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600, color: STRING_STATUS_META[k].color, fontSize: 12, whiteSpace: "nowrap" }}>
+                              <StatusGlyph code={k} size={14} />
+                              {t(`strings.status.${k}`)}
+                            </span>
+                          ))}
                         </span>
                       );
                     },
@@ -2820,7 +2874,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             key={code}
             code={code}
             info={info}
-            status0={normStringStatus(stringStatuses[code])}
+            statuses0={(stringStatusSets[code] && stringStatusSets[code].length) ? stringStatusSets[code] : [normStringStatus(stringStatuses[code])]}
             voltage0={v0}
             comment0={stringComments[code] || ""}
             imageCount={(stringImages[code] || []).length}
@@ -2829,7 +2883,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
             onOpenImages={() => setImgModal({ code })}
             onClose={() => setStringModal(null)}
             onSave={(next) => {
-              if (next.status !== normStringStatus(stringStatuses[code])) handleStringStatusChange(code, next.status);
+              const cur0 = (stringStatusSets[code] && stringStatusSets[code].length) ? stringStatusSets[code] : [normStringStatus(stringStatuses[code])];
+              if ([...next.statuses].sort().join(",") !== [...cur0].sort().join(",")) handleStringStatusesChange(code, next.statuses);
               if ((next.voltage ?? null) !== (v0 ?? null)) handleStringVoltageChange(code, next.voltage);
               if (next.comment !== (stringComments[code] || "")) handleStringCommentChange(code, next.comment);
               setStringModal(null);

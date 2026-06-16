@@ -261,7 +261,7 @@
       "connection": "توصيل",
       "volt_checked": "فحص الجهد",
       "cable_to_tga": "كابل إلى TGA",
-      "tga_commissioning": "تشغيل TGA",
+      "tga_commissioning": "TGA Commissioning",
       "blocked": "محظور"
     },
     "statusDesc": {

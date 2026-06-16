@@ -990,6 +990,7 @@ CREATE TABLE IF NOT EXISTS string_records (
   project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   string_id  TEXT NOT NULL,
   status     TEXT NOT NULL DEFAULT 'new',
+  statuses   JSONB NOT NULL DEFAULT '[]'::jsonb,
   pre_block_status TEXT,
   voltage    NUMERIC,
   comment    TEXT NOT NULL DEFAULT '',
@@ -999,6 +1000,8 @@ CREATE TABLE IF NOT EXISTS string_records (
 );
 ALTER TABLE string_records ADD COLUMN IF NOT EXISTS pre_block_status TEXT;
 ALTER TABLE string_records ADD COLUMN IF NOT EXISTS voltage NUMERIC;
+ALTER TABLE string_records ADD COLUMN IF NOT EXISTS statuses JSONB NOT NULL DEFAULT '[]'::jsonb;
+UPDATE string_records SET statuses = jsonb_build_array(status) WHERE jsonb_array_length(statuses) = 0 AND status IS NOT NULL;
 CREATE TABLE IF NOT EXISTS string_status_history (
   id          BIGSERIAL PRIMARY KEY,
   project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -1064,10 +1067,36 @@ def _string_records_dir(project_id: str) -> Path:
     return d
 
 
+def _derive_primary_status(statuses) -> str:
+    """Single representative status for the map/progress/payment: Blocked wins if
+    set, else the most-advanced commissioning stage, else AVL, else New."""
+    s = {str(x).lower() for x in (statuses or [])}
+    if "blocked" in s:
+        return "blocked"
+    stages = [st for st in STRING_STATUS_STAGES if st in s]
+    if stages:
+        return stages[-1]
+    if "avl" in s:
+        return "avl"
+    return "new"
+
+
 def _normalize_string_record(row: dict) -> dict:
     v = row.get("voltage")
+    statuses = row.get("statuses")
+    if isinstance(statuses, str):
+        try:
+            statuses = json.loads(statuses)
+        except Exception:
+            statuses = None
+    status = row.get("status") or "new"
+    if not statuses:
+        # Legacy rows / endpoints that don't return the array: fall back to the
+        # single status so the client always gets a usable set.
+        statuses = [status] if status else []
     return {
-        "status": row.get("status") or "new",
+        "status": status,
+        "statuses": statuses,
         "voltage": float(v) if v is not None else None,
         "comment": row.get("comment") or "",
         "images": row.get("images") or [],
@@ -1080,7 +1109,7 @@ def api_get_string_records(project_id: str):
     uu = _require_project_uuid(project_id)
     with db_store.get_conn() as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT string_id, status, voltage, comment, images, updated_at FROM string_records WHERE project_id = %s ORDER BY string_id",
+            "SELECT string_id, status, statuses, voltage, comment, images, updated_at FROM string_records WHERE project_id = %s ORDER BY string_id",
             (uu,),
         )
         rows = cur.fetchall()
@@ -1117,17 +1146,54 @@ def api_update_string_status(project_id: str, string_id: str, body: dict = Body(
         pre_block = frm if (to == "blocked" and frm != "blocked") else (pre if to == "blocked" else None)
         cur.execute(
             """
-            INSERT INTO string_records (project_id, string_id, status, pre_block_status)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO string_records (project_id, string_id, status, statuses, pre_block_status)
+            VALUES (%s, %s, %s, %s::jsonb, %s)
             ON CONFLICT (project_id, string_id) DO UPDATE SET
-              status = EXCLUDED.status, pre_block_status = EXCLUDED.pre_block_status, updated_at = NOW()
-            RETURNING status, comment, images, updated_at
+              status = EXCLUDED.status, statuses = EXCLUDED.statuses, pre_block_status = EXCLUDED.pre_block_status, updated_at = NOW()
+            RETURNING status, statuses, comment, images, updated_at
             """,
-            (uu, string_id, to, pre_block),
+            (uu, string_id, to, json.dumps([to]), pre_block),
         )
         row = cur.fetchone()
         if to != frm:
             _string_history(cur, uu, string_id, frm, to, actor, note, gps)
+        conn.commit()
+    return {"string_id": string_id, **_normalize_string_record(row)}
+
+
+@app.put("/api/projects/{project_id}/strings/{string_id}/statuses")
+def api_update_string_statuses(project_id: str, string_id: str, body: dict = Body(...)):
+    """Set the full set of statuses for a string (free multi-select). The single
+    `status` column is kept in sync as the derived primary so the map, progress
+    bar, payment eligibility and status filter keep working unchanged."""
+    uu = _require_project_uuid(project_id)
+    raw = body.get("statuses")
+    if not isinstance(raw, list):
+        raise HTTPException(400, "Body must include a 'statuses' list.")
+    statuses: list[str] = []
+    for x in raw:
+        v = str(x or "").lower()
+        if v not in STRING_STATUS_VALUES:
+            raise HTTPException(400, f"Invalid string status '{v}'. Must be one of: {sorted(STRING_STATUS_VALUES)}")
+        if v not in statuses:
+            statuses.append(v)
+    primary = _derive_primary_status(statuses)
+    actor, note, gps = body.get("actor"), body.get("note"), body.get("gps")
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        frm, _pre = _string_current_status(cur, uu, string_id)
+        cur.execute(
+            """
+            INSERT INTO string_records (project_id, string_id, status, statuses)
+            VALUES (%s, %s, %s, %s::jsonb)
+            ON CONFLICT (project_id, string_id) DO UPDATE SET
+              status = EXCLUDED.status, statuses = EXCLUDED.statuses, updated_at = NOW()
+            RETURNING status, statuses, voltage, comment, images, updated_at
+            """,
+            (uu, string_id, primary, json.dumps(statuses)),
+        )
+        row = cur.fetchone()
+        if primary != frm:
+            _string_history(cur, uu, string_id, frm, primary, actor, note, gps)
         conn.commit()
     return {"string_id": string_id, **_normalize_string_record(row)}
 
