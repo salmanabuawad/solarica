@@ -258,7 +258,7 @@
       "type": "Type",
       "voltage": "Voltage"
     },
-    "type": { "one": "One row", "multi": "Multi row" },
+    "type": { "one": "One row", "multi": "Zigzag" },
     "voltageBad": "not ok",
     "img": { "upload": "Upload", "camera": "Camera", "delete": "Delete", "view": "View", "none": "No images", "confirmDelete": "Delete this image?" },
     "status": {
@@ -268,7 +268,8 @@
       "connection": "Connection between Optimizers",
       "volt_checked": "Voltage",
       "cable_to_tga": "Cable installation",
-      "tga_commissioning": "TGA Commissioning",
+      "tga_commissioning": "TGA Commissioning / Label",
+      "error": "Error",
       "blocked": "Blocked"
     },
     "statusDesc": {
@@ -279,6 +280,7 @@
       "volt_checked": "String voltage measured and verified.",
       "cable_to_tga": "String cable run to the TGA / combiner box.",
       "tga_commissioning": "String commissioned at the TGA.",
+      "error": "Error — something on this string needs attention.",
       "blocked": "Blocked — work cannot proceed until resolved."
     },
     "progress": {

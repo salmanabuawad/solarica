@@ -251,7 +251,7 @@
       "type": "النوع",
       "voltage": "الجهد"
     },
-    "type": { "one": "صف واحد", "multi": "متعدد الصفوف" },
+    "type": { "one": "صف واحد", "multi": "متعرّج" },
     "voltageBad": "غير صالح",
     "img": { "upload": "رفع", "camera": "كاميرا", "delete": "حذف", "view": "عرض", "none": "لا صور", "confirmDelete": "حذف هذه الصورة؟" },
     "status": {
@@ -261,7 +261,8 @@
       "connection": "التوصيل بين المُحسِّنات",
       "volt_checked": "الجهد",
       "cable_to_tga": "تركيب الكابل",
-      "tga_commissioning": "TGA Commissioning",
+      "tga_commissioning": "TGA Commissioning / Label",
+      "error": "خطأ",
       "blocked": "محظور"
     },
     "statusDesc": {
@@ -272,6 +273,7 @@
       "volt_checked": "تم قياس جهد السلسلة والتحقق منه.",
       "cable_to_tga": "تم تمديد كابل السلسلة إلى TGA / علبة التجميع.",
       "tga_commissioning": "تم تشغيل السلسلة في TGA.",
+      "error": "خطأ — تتطلب هذه السلسلة المعالجة.",
       "blocked": "محظور — لا يمكن المتابعة حتى الحل."
     },
     "progress": {

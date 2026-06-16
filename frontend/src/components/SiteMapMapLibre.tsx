@@ -39,15 +39,16 @@ const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
 // String Status Engine — AVL section + a 5-stage progression
 // (New → Optimizer → Connection → Cable to TGA → TGA Commissioning).
 // Shared status presentation, kept in sync with App.tsx STRING_STATUS_META.
-const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "cable_to_tga", "tga_commissioning", "volt_checked", "blocked"] as const;
+const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "error", "blocked"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   avl: "AVL",
   new: "New",
   optimizer: "Optimizer",
   connection: "Connection between Optimizers",
   cable_to_tga: "Cable installation",
-  tga_commissioning: "TGA Commissioning",
   volt_checked: "Voltage",
+  tga_commissioning: "TGA Commissioning / Label",
+  error: "Error",
   blocked: "Blocked",
 };
 // On the map the status COLOUR (route line + markers) is the primary signal;
@@ -60,6 +61,7 @@ const STRING_STATUS_ICONS: Record<string, string> = {
   volt_checked: "⚡",
   cable_to_tga: "🔗",
   tga_commissioning: "✅",
+  error: "⚠",
   blocked: "⛔",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
@@ -70,6 +72,7 @@ const STRING_STATUS_COLORS: Record<string, string> = {
   volt_checked: "#0891b2",
   cable_to_tga: "#a855f7",
   tga_commissioning: "#16a34a",
+  error: "#ea580c",
   blocked: "#dc2626",
 };
 const STRING_STATUS_BG: Record<string, string> = {
@@ -80,6 +83,7 @@ const STRING_STATUS_BG: Record<string, string> = {
   volt_checked: "#cffafe",
   cable_to_tga: "#f3e8ff",
   tga_commissioning: "#dcfce7",
+  error: "#ffedd5",
   blocked: "#fee2e2",
 };
 // Custom SVG icons (served from public/) for the optimizer + connection stages + AVL.
@@ -102,6 +106,8 @@ function statusIconSrc(code: string): string {
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
       : code === "blocked"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
+      : code === "error"
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><path d="M24 7 L43 39 H5 Z" fill="#ea580c" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/><rect x="22" y="18" width="4" height="12" rx="2" fill="#ffffff"/><circle cx="24" cy="34" r="2.3" fill="#ffffff"/></svg>`
       : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${STRING_STATUS_COLORS[code] || "#64748b"}" stroke="#ffffff" stroke-width="3"/></svg>`;
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 }
@@ -1715,6 +1721,7 @@ export default function SiteMapMapLibre({
         if (STATUS_SVG[code]) return { id: `sstatus-${code}`, src: STATUS_SVG[code] };
         if (code === "new") return { id: "sstatus-new", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`) };
         if (code === "blocked") return { id: "sstatus-blocked", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`) };
+        if (code === "error") return { id: "sstatus-error", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><path d="M24 7 L43 39 H5 Z" fill="#ea580c" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/><rect x="22" y="18" width="4" height="12" rx="2" fill="#ffffff"/><circle cx="24" cy="34" r="2.3" fill="#ffffff"/></svg>`) };
         return { id: `sstatus-${code}`, src: disc(STRING_STATUS_COLORS[code] || "#64748b") };
       });
       for (const it of sstatusIcons) {

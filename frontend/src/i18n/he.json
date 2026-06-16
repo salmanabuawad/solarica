@@ -251,7 +251,7 @@
       "type": "סוג",
       "voltage": "מתח"
     },
-    "type": { "one": "שורה אחת", "multi": "רב-שורתי" },
+    "type": { "one": "שורה אחת", "multi": "זיגזאג" },
     "voltageBad": "לא תקין",
     "img": { "upload": "העלאה", "camera": "מצלמה", "delete": "מחיקה", "view": "צפייה", "none": "אין תמונות", "confirmDelete": "למחוק את התמונה?" },
     "status": {
@@ -261,7 +261,8 @@
       "connection": "חיבור בין אופטימייזרים",
       "volt_checked": "מתח",
       "cable_to_tga": "התקנת כבל",
-      "tga_commissioning": "TGA Commissioning",
+      "tga_commissioning": "TGA Commissioning / Label",
+      "error": "שגיאה",
       "blocked": "חסום"
     },
     "statusDesc": {
@@ -272,6 +273,7 @@
       "volt_checked": "מתח הסטרינג נמדד ואומת.",
       "cable_to_tga": "כבל הסטרינג הועבר ל-TGA / לקומביינר.",
       "tga_commissioning": "הסטרינג הורץ ב-TGA.",
+      "error": "שגיאה — נדרש טיפול בסטרינג זה.",
       "blocked": "חסום — לא ניתן להמשיך עד לפתרון."
     },
     "progress": {

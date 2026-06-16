@@ -40,23 +40,25 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   optimizer:         { label: "Optimizer", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
   connection:        { label: "Connection between Optimizers", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
   cable_to_tga:      { label: "Cable installation", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
-  tga_commissioning: { label: "TGA Commissioning", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
   volt_checked:      { label: "Voltage", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
+  tga_commissioning: { label: "TGA Commissioning / Label", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
+  error:             { label: "Error", icon: "⚠", color: "#ea580c", bg: "#ffedd5" },
   blocked:           { label: "Blocked", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
-const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "cable_to_tga", "tga_commissioning", "volt_checked", "blocked"];
-// Commissioning progression (excludes blocked/avl), used to derive a single
+const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "error", "blocked"];
+// Commissioning progression (excludes avl/error/blocked), used to derive a single
 // representative status from a multi-status set — kept in sync with the backend.
-const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "tga_commissioning", "volt_checked"];
+const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";
 };
-// Primary status for the map/progress: Blocked wins, else most-advanced stage,
-// else AVL, else New.
+// Primary status for the map/progress: Blocked wins, then Error, else
+// most-advanced stage, else AVL, else New.
 const deriveStringPrimary = (statuses: string[]): string => {
   const s = new Set((statuses || []).map((x) => String(x).toLowerCase()));
   if (s.has("blocked")) return "blocked";
+  if (s.has("error")) return "error";
   for (let i = STRING_STATUS_STAGES.length - 1; i >= 0; i--) if (s.has(STRING_STATUS_STAGES[i])) return STRING_STATUS_STAGES[i];
   if (s.has("avl")) return "avl";
   return "new";
@@ -115,6 +117,8 @@ function statusIconSrc(code: string): string {
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
       : code === "blocked"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
+      : code === "error"
+      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><path d="M24 7 L43 39 H5 Z" fill="#ea580c" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/><rect x="22" y="18" width="4" height="12" rx="2" fill="#ffffff"/><circle cx="24" cy="34" r="2.3" fill="#ffffff"/></svg>`
       : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${color}" stroke="#ffffff" stroke-width="3"/></svg>`;
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 }
