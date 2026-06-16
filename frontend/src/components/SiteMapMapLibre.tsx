@@ -981,6 +981,68 @@ export default function SiteMapMapLibre({
     return { type: "FeatureCollection" as const, features };
   }, [stringTopology, imageWidth, stringStatuses]);
 
+  // Zoomed-in variant: every status of a string, stacked perpendicular to the
+  // route (primary nearest the number, the rest further out). Shown only at high
+  // zoom; the single-icon layer above is shown when zoomed out.
+  const topologyAllStatusIconsGeoJSON = useMemo(() => {
+    if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
+    const BASE = 40, STEP = 52;
+    const perpUnit = (dlng: number, dlat: number): [number, number] => {
+      let ox = dlat, oy = dlng;
+      const L = Math.hypot(ox, oy) || 1;
+      ox /= L; oy /= L;
+      if (oy > 0) { ox = -ox; oy = -oy; }
+      return [ox, oy];
+    };
+    const features: any[] = [];
+    for (const s of stringTopology || []) {
+      const id = String(s?.string ?? "").trim();
+      if (!id) continue;
+      const raw = (stringStatusSets[id] && stringStatusSets[id].length)
+        ? stringStatusSets[id].map((x: any) => normalizeStringStatus(x))
+        : [normalizeStringStatus(stringStatuses[id])];
+      const primary = normalizeStringStatus(stringStatuses[id]);
+      const ordered = raw.includes(primary)
+        ? [primary, ...STRING_STATUSES.filter((k) => raw.includes(k) && k !== primary)]
+        : STRING_STATUSES.filter((k) => raw.includes(k));
+      if (!ordered.length) continue;
+      let best: { mx: number; my: number; len: number; dx: number; dy: number } | null = null;
+      for (const seg of (s?.segments || [])) {
+        if (Array.isArray(seg) && seg.length >= 5 && seg[4] === "h"
+            && (Number(seg[0]) !== Number(seg[2]) || Number(seg[1]) !== Number(seg[3]))) {
+          const p0 = rotatedToLngLat(Number(seg[0]), Number(seg[1]), imageWidth);
+          const p1 = rotatedToLngLat(Number(seg[2]), Number(seg[3]), imageWidth);
+          const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+          if (!best || len > best.len) best = { mx: (p0[0] + p1[0]) / 2, my: (p0[1] + p1[1]) / 2, len, dx: p1[0] - p0[0], dy: p1[1] - p0[1] };
+        }
+      }
+      let anchor: [number, number] | null = best ? [best.mx, best.my] : null;
+      let dir: [number, number] = best ? [best.dx, best.dy] : [1, 0];
+      if (!anchor) {
+        const a = s?.start_xy, b = s?.end_xy;
+        if (Array.isArray(a) && Array.isArray(b)) {
+          const p0 = rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth);
+          const p1 = rotatedToLngLat(Number(b[0]), Number(b[1]), imageWidth);
+          anchor = [(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2];
+          dir = [p1[0] - p0[0], p1[1] - p0[1]];
+        } else if (Array.isArray(a)) {
+          anchor = rotatedToLngLat(Number(a[0]), Number(a[1]), imageWidth);
+        }
+      }
+      if (!anchor) continue;
+      const [ux, uy] = perpUnit(dir[0], dir[1]);
+      ordered.forEach((status, i) => {
+        const d = BASE + i * STEP;
+        features.push({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: anchor },
+          properties: { id, status, status_label: STRING_STATUS_LABELS[status], off: [Math.round(ux * d * 10) / 10, Math.round(uy * d * 10) / 10] },
+        });
+      });
+    }
+    return { type: "FeatureCollection" as const, features };
+  }, [stringTopology, imageWidth, stringStatuses, stringStatusSets]);
+
   const inverterGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) {
       return { type: "FeatureCollection" as const, features: [] };
@@ -1340,6 +1402,7 @@ export default function SiteMapMapLibre({
       map.addSource("topology-markers", { type: "geojson", data: topologyMarkersGeoJSON });
       map.addSource("topology-labels", { type: "geojson", data: topologyLabelsGeoJSON });
       map.addSource("topology-status", { type: "geojson", data: topologyStatusIconsGeoJSON });
+      map.addSource("topology-status-all", { type: "geojson", data: topologyAllStatusIconsGeoJSON });
       map.addSource("topology-highlight", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addSource("panel-numbers", { type: "geojson", data: panelNumbersGeoJSON });
       map.addSource("panel-rects", { type: "geojson", data: panelRectsGeoJSON });
@@ -1942,6 +2005,7 @@ export default function SiteMapMapLibre({
         id: "topology-status-icons",
         type: "symbol",
         source: "topology-status",
+        maxzoom: 14,                              // zoomed out: just the one most-advanced icon
         layout: {
           visibility: "none",
           "icon-image": ["concat", "sstatus-", ["get", "status"]],
@@ -1949,6 +2013,22 @@ export default function SiteMapMapLibre({
           "icon-offset": ["array", "number", 2, ["get", "off"]],
           "icon-allow-overlap": false,
           "icon-ignore-placement": false,
+          "symbol-sort-key": 1,
+        },
+      });
+      // Zoomed in (>=14): show every status of each string, stacked.
+      map.addLayer({
+        id: "topology-status-icons-all",
+        type: "symbol",
+        source: "topology-status-all",
+        minzoom: 14,
+        layout: {
+          visibility: "none",
+          "icon-image": ["concat", "sstatus-", ["get", "status"]],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 14, 0.50, 18, 0.75],
+          "icon-offset": ["array", "number", 2, ["get", "off"]],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
           "symbol-sort-key": 1,
         },
       });
@@ -2226,6 +2306,9 @@ export default function SiteMapMapLibre({
       map.on("click", "topology-status-icons", openStringStatus);
       map.on("mouseenter", "topology-status-icons", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "topology-status-icons", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
+      map.on("click", "topology-status-icons-all", openStringStatus);
+      map.on("mouseenter", "topology-status-icons-all", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "topology-status-icons-all", () => { if (!isBoxDraggingRef.current) map.getCanvas().style.cursor = ""; });
       map.on("click", "electrical-zones-layer", (e: MapMouseEvent & { features?: any[] }) => {
         if (isBoxDraggingRef.current) return;
         const f = e.features?.[0];
@@ -2303,7 +2386,7 @@ export default function SiteMapMapLibre({
       // markers and (last, so it ends up on top) the number labels above them.
       for (const lyr of ["topology-runs-layer", "topology-jumps-layer", "topology-highlight-layer",
                           "topology-start-layer", "topology-end-layer", "topology-labels-layer",
-                          "topology-status-icons"]) {
+                          "topology-status-icons", "topology-status-icons-all"]) {
         if (map.getLayer(lyr)) map.moveLayer(lyr);
       }
 
@@ -2562,6 +2645,7 @@ export default function SiteMapMapLibre({
       (map.getSource("topology-markers") as GeoJSONSource | undefined)?.setData(topologyMarkersGeoJSON as any);
       (map.getSource("topology-labels") as GeoJSONSource | undefined)?.setData(topologyLabelsGeoJSON as any);
       (map.getSource("topology-status") as GeoJSONSource | undefined)?.setData(topologyStatusIconsGeoJSON as any);
+      (map.getSource("topology-status-all") as GeoJSONSource | undefined)?.setData(topologyAllStatusIconsGeoJSON as any);
       (map.getSource("panel-numbers") as GeoJSONSource | undefined)?.setData(panelNumbersGeoJSON as any);
       (map.getSource("panel-rects") as GeoJSONSource | undefined)?.setData(panelRectsGeoJSON as any);
       (map.getSource("string-piers") as GeoJSONSource | undefined)?.setData(stringPiersGeoJSON as any);
@@ -2569,7 +2653,7 @@ export default function SiteMapMapLibre({
     };
     if (map.isStyleLoaded()) apply();
     else map.once("load", apply);
-  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, topologyStatusIconsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
+  }, [electricalZonesGeoJSON, electricalRowGuideGeoJSON, panelBaseRowsGeoJSON, electricalZoneBandGeoJSON, dccbGeoJSON, inverterGeoJSON, securityDevicesGeoJSON, weatherStationsGeoJSON, weatherSensorsGeoJSON, stringStartMarkersGeoJSON, stringEndMarkersGeoJSON, topologyLinesGeoJSON, topologyMarkersGeoJSON, topologyLabelsGeoJSON, topologyStatusIconsGeoJSON, topologyAllStatusIconsGeoJSON, panelNumbersGeoJSON, panelRectsGeoJSON, stringPiersGeoJSON, baseTrackersGeoJSON]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -2716,6 +2800,7 @@ export default function SiteMapMapLibre({
       show("topology-labels-layer", stringsOn || topologyOn);
       // Per-string status glyph follows the "Strings" toggle.
       show("topology-status-icons", stringsOn);
+      show("topology-status-icons-all", stringsOn);
       show("topology-highlight-layer", topologyOn);
       if (!topologyOn) {
         setSelectedTopologyString(null);
