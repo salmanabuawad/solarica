@@ -239,6 +239,7 @@
     "project": "פרויקט",
     "col": {
       "string": "סטרינג",
+      "progress": "התקדמות",
       "status": "סטטוס",
       "startRow": "שורת התחלה",
       "endRow": "שורת סיום",

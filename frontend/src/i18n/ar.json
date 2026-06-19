@@ -239,6 +239,7 @@
     "project": "المشروع",
     "col": {
       "string": "السلسلة",
+      "progress": "التقدم",
       "status": "الحالة",
       "startRow": "صف البداية",
       "endRow": "صف النهاية",

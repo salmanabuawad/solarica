@@ -246,6 +246,7 @@
     "project": "Project",
     "col": {
       "string": "String",
+      "progress": "Progress",
       "status": "Status",
       "startRow": "Start row",
       "endRow": "End row",

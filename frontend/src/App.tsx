@@ -1481,8 +1481,16 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
     if (isStrings) {
       const fmtVolt = (v: any) => (v == null || v === "" || isNaN(Number(v)) ? "" : Number(v).toFixed(2));
+      // % through the commissioning stages — the most-advanced stage in the set.
+      const progressPct = (d: any) => {
+        const set = (Array.isArray(d.statuses) && d.statuses.length ? d.statuses : [normStringStatus(d.status)]).map((x: any) => String(x).toLowerCase());
+        let idx = -1;
+        STRING_STATUS_STAGES.forEach((s, i) => { if (set.includes(s)) idx = Math.max(idx, i); });
+        return idx < 0 ? 0 : Math.round((idx / (STRING_STATUS_STAGES.length - 1)) * 100);
+      };
       columns = [
         { header: t("strings.col.string"), key: "string", width: 16, get: (d) => d.string ?? "" },
+        { header: t("strings.col.progress", "Progress"), key: "progress", width: 16, get: (d) => progressPct(d) },
         // One checkbox column per status (✓ when the string has that status).
         ...STRING_STATUS_ORDER.map((k) => ({
           header: t(`strings.status.${k}`), key: `st_${k}`, width: 12,
@@ -1529,16 +1537,32 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
         cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       });
+      // string=1, progress=2 — keep the progress cell white so its data bar reads.
+      const progressColIdx = isStrings ? 2 : -1;
       for (const d of dataRows) {
         const bg = toArgb(rowBg(d));
         const row = ws.addRow(columns.map((c) => { const v = c.get(d); return v == null ? "" : v; }));
-        row.eachCell({ includeEmpty: true }, (cell: any) => {
-          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: bg } };
+        row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colNumber === progressColIdx ? "FFFFFFFF" : bg } };
           cell.border = {
             top: { style: "thin", color: { argb: "FFE2E8F0" } }, bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
             left: { style: "thin", color: { argb: "FFE2E8F0" } }, right: { style: "thin", color: { argb: "FFE2E8F0" } },
           };
         });
+      }
+      // Sortable/filterable headers across the whole table.
+      const lastRow = ws.rowCount;
+      ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: Math.max(1, lastRow), column: columns.length } };
+      if (isStrings) {
+        const pcol = ws.getColumn("progress");
+        pcol.numFmt = '0"%"';
+        pcol.alignment = { horizontal: "center" };
+        if (lastRow > 1) {
+          ws.addConditionalFormatting({
+            ref: `${pcol.letter}2:${pcol.letter}${lastRow}`,
+            rules: [{ type: "dataBar", gradient: false, cfvo: [{ type: "num", value: 0 }, { type: "num", value: 100 }], color: { argb: "FF16A34A" } }],
+          });
+        }
       }
       const buf = await wb.xlsx.writeBuffer();
       const today = new Date().toISOString().slice(0, 10);
