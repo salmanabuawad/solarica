@@ -1469,6 +1469,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const exportCurrentGrid = async () => {
     const isStrings = electricalDetailsMode && eplGridTab === "routes";
     const toArgb = (hex: string) => "FF" + String(hex || "#ffffff").replace("#", "").toUpperCase().slice(0, 6);
+    // Pick black/white text for legibility on a given fill colour.
+    const contrastText = (hex: string) => {
+      const h = String(hex || "#000000").replace("#", "");
+      const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? "FF0F172A" : "FFFFFFFF";
+    };
 
     // Build (columns, rows, rowBg). For the strings table we export the FULL
     // dataset — every string, every field — straight from topologyGridRows,
@@ -1533,10 +1539,14 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       const ws = wb.addWorksheet("Export", { views: [{ rightToLeft: isRtl, state: "frozen", ySplit: 1 }] });
       ws.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width }));
       const head = ws.getRow(1);
-      head.eachCell((cell: any) => {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
-        cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-        cell.alignment = { vertical: "middle", horizontal: isRtl ? "right" : "left" };
+      head.eachCell((cell: any, colNumber: number) => {
+        const key = columns[colNumber - 1]?.key || "";
+        // Status columns get their own status colour; the rest a soft slate.
+        const code = key.startsWith("st_") ? key.slice(3) : "";
+        const fill = code && STRING_STATUS_META[code] ? STRING_STATUS_META[code].color : "#334155";
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: toArgb(fill) } };
+        cell.font = { bold: true, color: { argb: contrastText(fill) } };
+        cell.alignment = { vertical: "middle", horizontal: code ? "center" : (isRtl ? "right" : "left") };
       });
       // string=1, progress=2 — keep the progress cell white so its data bar reads.
       const progressColIdx = isStrings ? 2 : -1;
