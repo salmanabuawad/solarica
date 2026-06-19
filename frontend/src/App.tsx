@@ -1536,6 +1536,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       head.eachCell((cell: any) => {
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
         cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        cell.alignment = { vertical: "middle", horizontal: isRtl ? "right" : "left" };
       });
       // string=1, progress=2 — keep the progress cell white so its data bar reads.
       const progressColIdx = isStrings ? 2 : -1;
@@ -1544,6 +1545,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         const row = ws.addRow(columns.map((c) => { const v = c.get(d); return v == null ? "" : v; }));
         row.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
           cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: colNumber === progressColIdx ? "FFFFFFFF" : bg } };
+          cell.alignment = { vertical: "middle", horizontal: colNumber === progressColIdx ? "center" : (isRtl ? "right" : "left") };
           cell.border = {
             top: { style: "thin", color: { argb: "FFE2E8F0" } }, bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
             left: { style: "thin", color: { argb: "FFE2E8F0" } }, right: { style: "thin", color: { argb: "FFE2E8F0" } },
