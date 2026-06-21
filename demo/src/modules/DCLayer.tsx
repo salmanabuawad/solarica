@@ -20,7 +20,7 @@ function badge(v: string) {
   return <Chip size="small" label={v} sx={{ bgcolor: `${c}22`, color: c, fontWeight: 700, height: 20 }} />;
 }
 
-export default function DCLayer() {
+export default function DCLayer({ embedded = false }: { embedded?: boolean }) {
   const { open } = useDrawer();
   const [filter, setFilter] = useState<string>("all");
   const counts = useMemo(() => statusCounts(), []);
@@ -51,18 +51,18 @@ export default function DCLayer() {
 
   return (
     <Box>
-      <PageHeader title="Construction · DC Layer" subtitle="String-level commissioning pipeline — click a row to open the asset drawer"
-        right={
-          <ToggleButtonGroup size="small" exclusive value={filter} onChange={(_, v) => v && setFilter(v)}>
-            <ToggleButton value="all" sx={{ fontSize: 12 }}>All {STRINGS.length}</ToggleButton>
-            <ToggleButton value="optimizer" sx={{ fontSize: 12 }}>Optimizer {counts.optimizer || 0}</ToggleButton>
-            <ToggleButton value="cable_to_tga" sx={{ fontSize: 12 }}>TGA {counts.cable_to_tga || 0}</ToggleButton>
-            <ToggleButton value="tested" sx={{ fontSize: 12 }}>Tested</ToggleButton>
-            <ToggleButton value="blocked" sx={{ fontSize: 12 }}>Blocked {counts.blocked || 0}</ToggleButton>
-          </ToggleButtonGroup>
-        } />
+      {!embedded && <PageHeader title="Construction · DC Layer" subtitle="String-level commissioning pipeline — click a row to open the asset drawer" />}
+      <Box sx={{ mb: 1.5 }}>
+        <ToggleButtonGroup size="small" exclusive value={filter} onChange={(_, v) => v && setFilter(v)}>
+          <ToggleButton value="all" sx={{ fontSize: 12 }}>All {STRINGS.length}</ToggleButton>
+          <ToggleButton value="optimizer" sx={{ fontSize: 12 }}>Optimizer {counts.optimizer || 0}</ToggleButton>
+          <ToggleButton value="cable_to_tga" sx={{ fontSize: 12 }}>TGA {counts.cable_to_tga || 0}</ToggleButton>
+          <ToggleButton value="tested" sx={{ fontSize: 12 }}>Tested</ToggleButton>
+          <ToggleButton value="blocked" sx={{ fontSize: 12 }}>Blocked {counts.blocked || 0}</ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
       <Panel sx={{ p: 0, overflow: "hidden" }}>
-        <Box sx={{ height: "calc(100vh - 180px)" }}>
+        <Box sx={{ height: embedded ? "calc(100vh - 240px)" : "calc(100vh - 210px)" }}>
           <AgGridReact<StringRow>
             theme={gridTheme}
             rowData={rows}
