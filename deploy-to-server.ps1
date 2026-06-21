@@ -6,8 +6,8 @@
 $ErrorActionPreference = "Stop"
 $SERVER = if ($env:DEPLOY_HOST) { $env:DEPLOY_HOST } else { "185.229.226.37" }
 $USER = if ($env:DEPLOY_USER) { $env:DEPLOY_USER } else { "root" }
-$REMOTE_PATH = if ($env:DEPLOY_PATH) { $env:DEPLOY_PATH.TrimEnd("/") } else { "/opt/solarica/frontend/dist" }
-$APP_URL = if ($env:DEPLOY_APP_URL) { $env:DEPLOY_APP_URL } else { "https://solarica.wavelync.com/" }
+$REMOTE_PATH = if ($env:DEPLOY_PATH) { $env:DEPLOY_PATH.TrimEnd("/") } else { "/opt/solarica2/frontend/dist" }
+$APP_URL = if ($env:DEPLOY_APP_URL) { $env:DEPLOY_APP_URL } else { "https://solarica2.kortexd.com/" }
 
 Write-Host ""
 Write-Host "========== DEPLOY TARGET ==========" -ForegroundColor Yellow

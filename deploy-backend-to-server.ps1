@@ -6,9 +6,9 @@
 $ErrorActionPreference = "Stop"
 $SERVER = if ($env:DEPLOY_HOST) { $env:DEPLOY_HOST } else { "185.229.226.37" }
 $USER = if ($env:DEPLOY_USER) { $env:DEPLOY_USER } else { "root" }
-$REMOTE_APP = if ($env:BACKEND_REMOTE_PATH) { $env:BACKEND_REMOTE_PATH.TrimEnd("/") } else { "/opt/solarica" }
-$REMOTE_TEMP = "/tmp/solarica_backend_deploy"
-$SERVICE_NAME = "solarica-backend"
+$REMOTE_APP = if ($env:BACKEND_REMOTE_PATH) { $env:BACKEND_REMOTE_PATH.TrimEnd("/") } else { "/opt/solarica2" }
+$REMOTE_TEMP = "/tmp/solarica2_backend_deploy"
+$SERVICE_NAME = if ($env:BACKEND_SERVICE) { $env:BACKEND_SERVICE } else { "solarica2-backend" }
 
 Write-Host ""
 Write-Host "========== BACKEND DEPLOY TARGET ==========" -ForegroundColor Yellow

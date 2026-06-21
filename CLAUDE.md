@@ -52,14 +52,18 @@ $env:DEPLOY_SKIP_CONFIRM="1"; .\deploy-backend-to-server.ps1
 $env:DEPLOY_SKIP_CONFIRM="1"; .\deploy-all-to-server.ps1
 ```
 
-Target: `root@185.229.226.37`, frontend at `/opt/solarica/frontend/dist`, backend at `/opt/solarica/backend/`
+**Default target is now solarica2** (`root@185.229.226.37`): frontend `/opt/solarica2/frontend/dist`, backend `/opt/solarica2/backend/`, service `solarica2-backend` (port 8011), DB `solarica2_parser`, served at `https://solarica2.kortexd.com/`. The deploy scripts default to solarica2; override env vars (`DEPLOY_PATH`, `BACKEND_REMOTE_PATH`, `BACKEND_SERVICE`, `DEPLOY_APP_URL`) to target the original solarica instead.
+
+The original instance still runs alongside: `/opt/solarica` + `solarica-backend` (port 8010), DB `solarica_parser`, at `https://solarica.kortexd.com/`.
 
 ## Server notes
 
-- **1 uvicorn worker** (was 2, reduced to prevent OOM during parse — server has 3.9 GB RAM)
-- Service: `systemctl restart solarica-backend`
-- Nginx serves frontend as static files + proxies `/api/*` to `127.0.0.1:8010`
-- scipy is pre-installed in `/opt/solarica/venv/`
+- Two independent instances on the same box: **solarica** (8010, DB `solarica_parser`, `/opt/solarica`) and **solarica2** (8011, DB `solarica2_parser`, `/opt/solarica2`). solarica2 reuses the shared venv via a symlink `/opt/solarica2/venv -> /opt/solarica/venv`.
+- **1 uvicorn worker** each (server has 3.9 GB RAM; keep it at 1 to avoid OOM during parse)
+- Service: `systemctl restart solarica-backend` / `systemctl restart solarica2-backend`
+- Nginx serves each frontend as static files + proxies `/api/*` to its backend (8010 / 8011)
+- scipy/Pillow/etc. are pre-installed in `/opt/solarica/venv/` (shared)
+- **solarica2 DNS**: `solarica2.kortexd.com` is not live yet — add an A record → `185.229.226.37`, then run certbot for HTTPS (the vhost is HTTP-only until then).
 
 ## Parser algorithm (extract_trackers_from_pdf_vector)
 
