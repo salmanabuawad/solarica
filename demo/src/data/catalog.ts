@@ -41,7 +41,7 @@ export const MODULES: ModuleDef[] = [
   { id: "qa", label: "QA & Testing", group: "Quality", icon: "verified", roles: ["qa","commissioning","dc","pm","site"] },
   { id: "operations", label: "Operations", group: "Operate", icon: "bolt", roles: ["owner","exec","om","pm"] },
   { id: "maintenance", label: "Maintenance", group: "Operate", icon: "handyman", roles: ["om","tech","foreman","exec"] },
-  { id: "cyber", label: "Cyber", group: "Security", icon: "security", roles: ["cyber","om","exec","owner"] },
+  { id: "cyber", label: "Cyber", group: "Security", icon: "security", roles: ["cyber","om","exec","owner","pm"] },
   { id: "attackgraph", label: "Attack Graph", group: "Security", icon: "hub", roles: ["cyber","om","exec","owner"] },
 ];
 
