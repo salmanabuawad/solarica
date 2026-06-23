@@ -1507,7 +1507,6 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         })),
         { header: t("strings.popup.comment"), key: "comment", width: 44, get: (d) => d.comment || "" },
         { header: t("strings.col.voltage"), key: "voltage", width: 12, get: (d) => fmtVolt(d.voltage) },
-        { header: t("strings.rowsCol.row"), key: "row", width: 18, get: (d) => d.row ?? "" },
         { header: t("strings.col.type"), key: "type", width: 12, get: (d) => (d.multi_row ? t("strings.type.multi") : t("strings.type.one")) },
         { header: t("strings.col.optimizers"), key: "optimizer_count", width: 14, get: (d) => d.optimizer_count ?? "" },
       ];
