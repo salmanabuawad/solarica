@@ -42,21 +42,21 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   cable_to_tga:      { label: "Cable installation", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
   volt_checked:      { label: "Voltage", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
   tga_commissioning: { label: "TGA Com/Label", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
-  problem:           { label: "Problem", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
+  issue:             { label: "Issue", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
-const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "problem"];
-// Commissioning progression (excludes avl/problem), used to derive a single
+const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "issue"];
+// Commissioning progression (excludes avl/issue), used to derive a single
 // representative status from a multi-status set — kept in sync with the backend.
 const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";
 };
-// Primary status for the map/progress: Problem wins, then the
+// Primary status for the map/progress: Issue wins, then the
 // most-advanced stage, else AVL, else New.
 const deriveStringPrimary = (statuses: string[]): string => {
   const s = new Set((statuses || []).map((x) => String(x).toLowerCase()));
-  if (s.has("problem")) return "problem";
+  if (s.has("issue")) return "issue";
   for (let i = STRING_STATUS_STAGES.length - 1; i >= 0; i--) if (s.has(STRING_STATUS_STAGES[i])) return STRING_STATUS_STAGES[i];
   if (s.has("avl")) return "avl";
   return "new";
@@ -106,14 +106,14 @@ const STATUS_SVG: Record<string, string> = {
 // Inline SVG reproducing the map's sstatus-<code> sprite art so every status
 // icon (grid, legend, progress, modals) matches what's drawn on the map: the
 // custom optimizer/connection/AVL artwork, a hollow ring for New, a no-entry
-// sign for Problem, and a solid status-coloured disc for every other stage.
+// sign for Issue, and a solid status-coloured disc for every other stage.
 function statusIconSrc(code: string): string {
   if (STATUS_SVG[code]) return STATUS_SVG[code];
   const color = STRING_STATUS_META[code]?.color || "#64748b";
   const svg =
     code === "new"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
-      : code === "problem"
+      : code === "issue"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
       : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${color}" stroke="#ffffff" stroke-width="3"/></svg>`;
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
@@ -1030,11 +1030,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
   // Verified-Progress rollup for the strings grid: status counts + the weighted
   // progress %, spread evenly across the 11 commissioning stages (New=0 …
-  // Commissioned=1). Problem is a separate state and contributes 0.
+  // Commissioned=1). Issue is a separate state and contributes 0.
   // "Verified" = the Commissioned share only.
   const stringProgress = useMemo(() => {
-    const stages = STRING_STATUS_ORDER.filter((k) => k !== "problem" && k !== "avl");
-    const weight: Record<string, number> = { problem: 0 };
+    const stages = STRING_STATUS_ORDER.filter((k) => k !== "issue" && k !== "avl");
+    const weight: Record<string, number> = { issue: 0 };
     stages.forEach((k, i) => { weight[k] = stages.length > 1 ? i / (stages.length - 1) : 0; });
     const counts: Record<string, number> = {};
     for (const k of STRING_STATUS_ORDER) counts[k] = 0;
@@ -1055,7 +1055,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       counts,
       verifiedPct: total ? Math.round((100 * (counts[lastStage] || 0)) / total) : 0,
       weightedPct: memberTotal ? Math.round((100 * weighted) / memberTotal) : 0,
-      problem: counts.problem || 0,
+      issue: counts.issue || 0,
     };
   }, [topologyGridRows]);
 

@@ -270,7 +270,7 @@
       "volt_checked": "Voltage",
       "cable_to_tga": "Cable installation",
       "tga_commissioning": "TGA Com/Label",
-      "problem": "Problem"
+      "issue": "Issue"
     },
     "statusDesc": {
       "avl": "Under AVL responsibility — the real status cannot be determined.",
@@ -280,7 +280,7 @@
       "volt_checked": "String voltage measured and verified.",
       "cable_to_tga": "String cable run to the TGA / combiner box.",
       "tga_commissioning": "String commissioned at the TGA.",
-      "problem": "Problem — work cannot proceed until resolved."
+      "issue": "Issue — work cannot proceed until resolved."
     },
     "progress": {
       "verified": "verified",
