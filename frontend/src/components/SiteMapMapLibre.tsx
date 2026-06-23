@@ -49,7 +49,7 @@ const STRING_STATUS_LABELS: Record<string, string> = {
   volt_checked: "Voltage",
   tga_commissioning: "TGA Com/Label",
   error: "Error",
-  blocked: "Blocked",
+  blocked: "Problem",
 };
 // On the map the status COLOUR (route line + markers) is the primary signal;
 // the icon is a secondary cue.

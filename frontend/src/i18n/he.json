@@ -264,7 +264,7 @@
       "cable_to_tga": "התקנת כבל",
       "tga_commissioning": "TGA Com/Label",
       "error": "שגיאה",
-      "blocked": "חסום"
+      "blocked": "תקלה"
     },
     "statusDesc": {
       "avl": "באחריות AVL — לא ניתן לקבוע את הסטטוס האמיתי.",
@@ -275,7 +275,7 @@
       "cable_to_tga": "כבל הסטרינג הועבר ל-TGA / לקומביינר.",
       "tga_commissioning": "הסטרינג הורץ ב-TGA.",
       "error": "שגיאה — נדרש טיפול בסטרינג זה.",
-      "blocked": "חסום — לא ניתן להמשיך עד לפתרון."
+      "blocked": "תקלה — לא ניתן להמשיך עד לפתרון."
     },
     "progress": {
       "verified": "מאומת",
