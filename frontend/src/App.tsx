@@ -1004,8 +1004,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       const erN = Number(end?.physical_row);
       const sv = Number.isFinite(srN) ? srN : null;
       const ev = Number.isFinite(erN) ? erN : null;
-      const row = (sv != null && ev != null && sv !== ev) ? `${sv}–${ev}` : (sv ?? ev ?? "");
-      const multiRow = Number(s?.jump_count || 0) > 0 || (sv != null && ev != null && sv !== ev);
+      // The row(s) a string actually occupies — the full sorted set of physical
+      // rows from the topology. The start/end events alone are unreliable: they
+      // can be out of order (107–106) and skip the rows a jumping string passes
+      // through (e.g. a string in rows 99,101,102,104 has start=102, end=104).
+      const rowNums = Array.from(new Set((Array.isArray(s?.rows) ? s.rows : [])
+        .map((r: any) => Number(r?.physical_row))
+        .filter((n: number) => Number.isFinite(n)))).sort((a: number, b: number) => a - b);
+      const row = rowNums.length ? rowNums.join(", ") : (sv ?? ev ?? "");
+      const multiRow = rowNums.length > 1 || Number(s?.jump_count || 0) > 0;
       return {
         id: String(s?.string || `str-${s?.ribbon_idx ?? idx}`),
         string: s?.string || "(unlabeled)",
@@ -1500,7 +1507,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         })),
         { header: t("strings.popup.comment"), key: "comment", width: 44, get: (d) => d.comment || "" },
         { header: t("strings.col.voltage"), key: "voltage", width: 12, get: (d) => fmtVolt(d.voltage) },
-        { header: t("strings.rowsCol.row"), key: "row", width: 12, get: (d) => d.row ?? "" },
+        { header: t("strings.rowsCol.row"), key: "row", width: 18, get: (d) => d.row ?? "" },
         { header: t("strings.col.type"), key: "type", width: 12, get: (d) => (d.multi_row ? t("strings.type.multi") : t("strings.type.one")) },
         { header: t("strings.col.optimizers"), key: "optimizer_count", width: 14, get: (d) => d.optimizer_count ?? "" },
       ];
