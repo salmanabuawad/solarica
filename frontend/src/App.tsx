@@ -39,8 +39,8 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   new:               { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
   optimizer:         { label: "Optimizer", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
   connection:        { label: "Connection between Optimizers", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
-  cable_to_tga:      { label: "Voltage", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
-  volt_checked:      { label: "Cable installation", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
+  cable_to_tga:      { label: "Voltage", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
+  volt_checked:      { label: "Cable installation", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
   tga_commissioning: { label: "TGA Com/Label", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
   issue:             { label: "Issue", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };

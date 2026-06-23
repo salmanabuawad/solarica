@@ -57,8 +57,8 @@ const STRING_STATUS_ICONS: Record<string, string> = {
   new: "○",
   optimizer: "🔩",
   connection: "🔌",
-  volt_checked: "⚡",
-  cable_to_tga: "🔗",
+  volt_checked: "🔗",
+  cable_to_tga: "⚡",
   tga_commissioning: "✅",
   issue: "⛔",
 };
@@ -67,8 +67,8 @@ const STRING_STATUS_COLORS: Record<string, string> = {
   new: "#64748b",
   optimizer: "#f59e0b",
   connection: "#2563eb",
-  volt_checked: "#0891b2",
-  cable_to_tga: "#a855f7",
+  volt_checked: "#a855f7",
+  cable_to_tga: "#0891b2",
   tga_commissioning: "#16a34a",
   issue: "#dc2626",
 };
@@ -77,8 +77,8 @@ const STRING_STATUS_BG: Record<string, string> = {
   new: "#f1f5f9",
   optimizer: "#fef3c7",
   connection: "#dbeafe",
-  volt_checked: "#cffafe",
-  cable_to_tga: "#f3e8ff",
+  volt_checked: "#f3e8ff",
+  cable_to_tga: "#cffafe",
   tga_commissioning: "#dcfce7",
   issue: "#fee2e2",
 };
@@ -87,8 +87,8 @@ const STATUS_SVG: Record<string, string> = {
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
-  volt_checked: "/volt-test.svg",
-  cable_to_tga: "/tga-cable.svg",
+  volt_checked: "/tga-cable.svg",
+  cable_to_tga: "/volt-test.svg",
   tga_commissioning: "/tga-commissioned.svg",
 };
 // Inline SVG that reproduces the map's sstatus-<code> sprite art, so the modal
