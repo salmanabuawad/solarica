@@ -99,8 +99,8 @@ const STATUS_SVG: Record<string, string> = {
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
-  volt_checked: "/volt-test.svg",
-  cable_to_tga: "/tga-cable.svg",
+  volt_checked: "/tga-cable.svg",
+  cable_to_tga: "/volt-test.svg",
   tga_commissioning: "/tga-commissioned.svg",
 };
 // Inline SVG reproducing the map's sstatus-<code> sprite art so every status
