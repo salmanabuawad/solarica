@@ -39,15 +39,15 @@ const STRING_STATUS_META: Record<string, { label: string; icon: string; color: s
   new:               { label: "New", icon: "○", color: "#64748b", bg: "#f1f5f9" },
   optimizer:         { label: "Optimizer", icon: "🔩", color: "#f59e0b", bg: "#fef3c7" },
   connection:        { label: "Connection between Optimizers", icon: "🔌", color: "#2563eb", bg: "#dbeafe" },
-  cable_to_tga:      { label: "Voltage", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
-  volt_checked:      { label: "Cable installation", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
+  volt_checked:      { label: "Voltage", icon: "⚡", color: "#0891b2", bg: "#cffafe" },
+  cable_to_tga:      { label: "Cable to TGA", icon: "🔗", color: "#a855f7", bg: "#f3e8ff" },
   tga_commissioning: { label: "TGA Com/Label", icon: "✅", color: "#16a34a", bg: "#dcfce7" },
   issue:             { label: "Issue", icon: "⛔", color: "#dc2626", bg: "#fee2e2" },
 };
-const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "issue"];
+const STRING_STATUS_ORDER = ["avl", "new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning", "issue"];
 // Commissioning progression (excludes avl/issue), used to derive a single
 // representative status from a multi-status set — kept in sync with the backend.
-const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning"];
+const STRING_STATUS_STAGES = ["new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning"];
 const normStringStatus = (s: any) => {
   const v = String(s || "new").toLowerCase();
   return STRING_STATUS_META[v] ? v : "new";
@@ -99,8 +99,8 @@ const STATUS_SVG: Record<string, string> = {
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
-  volt_checked: "/tga-cable.svg",
-  cable_to_tga: "/volt-test.svg",
+  volt_checked: "/volt-test.svg",
+  cable_to_tga: "/tga-cable.svg",
   tga_commissioning: "/tga-commissioned.svg",
 };
 // Inline SVG reproducing the map's sstatus-<code> sprite art so every status

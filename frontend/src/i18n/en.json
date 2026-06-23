@@ -267,8 +267,8 @@
       "new": "New",
       "optimizer": "Optimizer",
       "connection": "Connection between Optimizers",
-      "volt_checked": "Cable installation",
-      "cable_to_tga": "Voltage",
+      "volt_checked": "Voltage",
+      "cable_to_tga": "Cable to TGA",
       "tga_commissioning": "TGA Com/Label",
       "issue": "Issue"
     },
@@ -277,8 +277,8 @@
       "new": "New — no field work started yet.",
       "optimizer": "Optimizers installed on the string.",
       "connection": "Panels connected to the string.",
-      "volt_checked": "String cable run to the TGA / combiner box.",
-      "cable_to_tga": "String voltage measured and verified.",
+      "volt_checked": "String voltage measured and verified.",
+      "cable_to_tga": "String cable run to the TGA / combiner box.",
       "tga_commissioning": "String commissioned at the TGA.",
       "issue": "Issue — work cannot proceed until resolved."
     },

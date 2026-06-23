@@ -260,8 +260,8 @@
       "new": "חדש",
       "optimizer": "אופטימייזר",
       "connection": "חיבור בין אופטימייזרים",
-      "volt_checked": "התקנת כבל",
-      "cable_to_tga": "מתח",
+      "volt_checked": "מתח",
+      "cable_to_tga": "כבל ל-TGA",
       "tga_commissioning": "TGA Com/Label",
       "issue": "תקלה"
     },
@@ -270,8 +270,8 @@
       "new": "חדש — טרם החלה עבודת שטח.",
       "optimizer": "אופטימייזרים הותקנו על הסטרינג.",
       "connection": "פאנלים חוברו לסטרינג.",
-      "volt_checked": "כבל הסטרינג הועבר ל-TGA / לקומביינר.",
-      "cable_to_tga": "מתח הסטרינג נמדד ואומת.",
+      "volt_checked": "מתח הסטרינג נמדד ואומת.",
+      "cable_to_tga": "כבל הסטרינג הועבר ל-TGA / לקומביינר.",
       "tga_commissioning": "הסטרינג הורץ ב-TGA.",
       "issue": "תקלה — לא ניתן להמשיך עד לפתרון."
     },

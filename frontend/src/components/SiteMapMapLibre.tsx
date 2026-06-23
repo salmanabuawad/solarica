@@ -39,14 +39,14 @@ const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
 // String Status Engine — AVL section + a 5-stage progression
 // (New → Optimizer → Connection → Cable to TGA → TGA Commissioning).
 // Shared status presentation, kept in sync with App.tsx STRING_STATUS_META.
-const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "issue"] as const;
+const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "volt_checked", "cable_to_tga", "tga_commissioning", "issue"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   avl: "AVL",
   new: "New",
   optimizer: "Optimizer",
   connection: "Connection between Optimizers",
-  cable_to_tga: "Voltage",
-  volt_checked: "Cable installation",
+  cable_to_tga: "Cable to TGA",
+  volt_checked: "Voltage",
   tga_commissioning: "TGA Com/Label",
   issue: "Issue",
 };
@@ -57,8 +57,8 @@ const STRING_STATUS_ICONS: Record<string, string> = {
   new: "○",
   optimizer: "🔩",
   connection: "🔌",
-  volt_checked: "🔗",
-  cable_to_tga: "⚡",
+  volt_checked: "⚡",
+  cable_to_tga: "🔗",
   tga_commissioning: "✅",
   issue: "⛔",
 };
@@ -67,8 +67,8 @@ const STRING_STATUS_COLORS: Record<string, string> = {
   new: "#64748b",
   optimizer: "#f59e0b",
   connection: "#2563eb",
-  volt_checked: "#a855f7",
-  cable_to_tga: "#0891b2",
+  volt_checked: "#0891b2",
+  cable_to_tga: "#a855f7",
   tga_commissioning: "#16a34a",
   issue: "#dc2626",
 };
@@ -77,8 +77,8 @@ const STRING_STATUS_BG: Record<string, string> = {
   new: "#f1f5f9",
   optimizer: "#fef3c7",
   connection: "#dbeafe",
-  volt_checked: "#f3e8ff",
-  cable_to_tga: "#cffafe",
+  volt_checked: "#cffafe",
+  cable_to_tga: "#f3e8ff",
   tga_commissioning: "#dcfce7",
   issue: "#fee2e2",
 };
@@ -87,8 +87,8 @@ const STATUS_SVG: Record<string, string> = {
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
-  volt_checked: "/tga-cable.svg",
-  cable_to_tga: "/volt-test.svg",
+  volt_checked: "/volt-test.svg",
+  cable_to_tga: "/tga-cable.svg",
   tga_commissioning: "/tga-commissioned.svg",
 };
 // Inline SVG that reproduces the map's sstatus-<code> sprite art, so the modal
@@ -1976,7 +1976,7 @@ export default function SiteMapMapLibre({
         layout: {
           visibility: "none",
           "text-field": ["get", "id"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 9, 10, 13, 14, 16, 18, 20, 23],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 9, 13, 13, 17, 16, 22, 20, 28],
           "text-font": [
             "case", ["==", ["get", "jumping"], 1],
             ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
