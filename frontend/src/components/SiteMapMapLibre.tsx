@@ -45,8 +45,8 @@ const STRING_STATUS_LABELS: Record<string, string> = {
   new: "New",
   optimizer: "Optimizer",
   connection: "Connection between Optimizers",
-  cable_to_tga: "Cable installation",
-  volt_checked: "Voltage",
+  cable_to_tga: "Voltage",
+  volt_checked: "Cable installation",
   tga_commissioning: "TGA Com/Label",
   issue: "Issue",
 };
