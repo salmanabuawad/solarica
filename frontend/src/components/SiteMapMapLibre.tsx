@@ -1976,7 +1976,7 @@ export default function SiteMapMapLibre({
         layout: {
           visibility: "none",
           "text-field": ["get", "id"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 9, 7, 13, 10, 16, 13, 20, 17],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 9, 10, 13, 14, 16, 18, 20, 23],
           "text-font": [
             "case", ["==", ["get", "jumping"], 1],
             ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
