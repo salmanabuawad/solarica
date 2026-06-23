@@ -263,7 +263,6 @@
       "volt_checked": "מתח",
       "cable_to_tga": "התקנת כבל",
       "tga_commissioning": "TGA Com/Label",
-      "error": "שגיאה",
       "problem": "תקלה"
     },
     "statusDesc": {
@@ -274,7 +273,6 @@
       "volt_checked": "מתח הסטרינג נמדד ואומת.",
       "cable_to_tga": "כבל הסטרינג הועבר ל-TGA / לקומביינר.",
       "tga_commissioning": "הסטרינג הורץ ב-TGA.",
-      "error": "שגיאה — נדרש טיפול בסטרינג זה.",
       "problem": "תקלה — לא ניתן להמשיך עד לפתרון."
     },
     "progress": {

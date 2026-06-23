@@ -263,7 +263,6 @@
       "volt_checked": "الجهد",
       "cable_to_tga": "تركيب الكابل",
       "tga_commissioning": "TGA Com/Label",
-      "error": "خطأ",
       "problem": "محظور"
     },
     "statusDesc": {
@@ -274,7 +273,6 @@
       "volt_checked": "تم قياس جهد السلسلة والتحقق منه.",
       "cable_to_tga": "تم تمديد كابل السلسلة إلى TGA / علبة التجميع.",
       "tga_commissioning": "تم تشغيل السلسلة في TGA.",
-      "error": "خطأ — تتطلب هذه السلسلة المعالجة.",
       "problem": "محظور — لا يمكن المتابعة حتى الحل."
     },
     "progress": {

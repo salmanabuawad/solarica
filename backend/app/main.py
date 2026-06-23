@@ -967,7 +967,7 @@ STRING_IMAGE_MAX_SIZE_MB = 12
 # NEW -> OPTIMIZER -> CONNECTION -> VOLT_CHECKED -> CABLE_TO_TGA -> TGA_COMMISSIONING ;
 # AVL (the 2.x section) and PROBLEM are separate states enterable from any stage.
 STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning"]
-STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"problem", "avl", "error"}
+STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"problem", "avl"}
 # Linear progression. The manual picker may set any value (validated against
 # STRING_STATUS_VALUES); this table documents the canonical forward/back moves
 # for guided flows. Problem can be entered from / restored to any stage.
@@ -984,7 +984,6 @@ STRING_STATUS_ALLOWED["avl"] = set(STRING_STATUS_STAGES) | {"problem"}
 STRING_STATUS_WEIGHT = {s: i / (len(STRING_STATUS_STAGES) - 1) for i, s in enumerate(STRING_STATUS_STAGES)}
 STRING_STATUS_WEIGHT["problem"] = 0.0
 STRING_STATUS_WEIGHT["avl"] = 0.0
-STRING_STATUS_WEIGHT["error"] = 0.0
 PAYMENT_ELIGIBLE_STATUS = STRING_STATUS_STAGES[-1]
 STRING_RECORDS_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS string_records (
@@ -1074,8 +1073,6 @@ def _derive_primary_status(statuses) -> str:
     s = {str(x).lower() for x in (statuses or [])}
     if "problem" in s:
         return "problem"
-    if "error" in s:
-        return "error"
     stages = [st for st in STRING_STATUS_STAGES if st in s]
     if stages:
         return stages[-1]
