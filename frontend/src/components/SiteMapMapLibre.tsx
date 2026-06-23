@@ -39,7 +39,7 @@ const pt2lat = (pt: number) => -pt * DEG_PER_PT; // flip y so +y is down
 // String Status Engine — AVL section + a 5-stage progression
 // (New → Optimizer → Connection → Cable to TGA → TGA Commissioning).
 // Shared status presentation, kept in sync with App.tsx STRING_STATUS_META.
-const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "error", "blocked"] as const;
+const STRING_STATUSES = ["avl", "new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning", "error", "problem"] as const;
 const STRING_STATUS_LABELS: Record<string, string> = {
   avl: "AVL",
   new: "New",
@@ -49,7 +49,7 @@ const STRING_STATUS_LABELS: Record<string, string> = {
   volt_checked: "Voltage",
   tga_commissioning: "TGA Com/Label",
   error: "Error",
-  blocked: "Problem",
+  problem: "Problem",
 };
 // On the map the status COLOUR (route line + markers) is the primary signal;
 // the icon is a secondary cue.
@@ -62,7 +62,7 @@ const STRING_STATUS_ICONS: Record<string, string> = {
   cable_to_tga: "🔗",
   tga_commissioning: "✅",
   error: "⚠",
-  blocked: "⛔",
+  problem: "⛔",
 };
 const STRING_STATUS_COLORS: Record<string, string> = {
   avl: "#94a3b8",
@@ -73,7 +73,7 @@ const STRING_STATUS_COLORS: Record<string, string> = {
   cable_to_tga: "#a855f7",
   tga_commissioning: "#16a34a",
   error: "#ea580c",
-  blocked: "#dc2626",
+  problem: "#dc2626",
 };
 const STRING_STATUS_BG: Record<string, string> = {
   avl: "#eef2f6",
@@ -84,7 +84,7 @@ const STRING_STATUS_BG: Record<string, string> = {
   cable_to_tga: "#f3e8ff",
   tga_commissioning: "#dcfce7",
   error: "#ffedd5",
-  blocked: "#fee2e2",
+  problem: "#fee2e2",
 };
 // Custom SVG icons (served from public/) for the optimizer + connection stages + AVL.
 const STATUS_SVG: Record<string, string> = {
@@ -98,13 +98,13 @@ const STATUS_SVG: Record<string, string> = {
 // Inline SVG that reproduces the map's sstatus-<code> sprite art, so the modal
 // and inspector icons are identical to what's drawn on the map: the custom
 // optimizer/connection/AVL artwork, a hollow ring for New, a no-entry sign for
-// Blocked, and a solid status-coloured disc for every other stage.
+// Problem, and a solid status-coloured disc for every other stage.
 function statusIconSrc(code: string): string {
   if (STATUS_SVG[code]) return STATUS_SVG[code];
   const svg =
     code === "new"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
-      : code === "blocked"
+      : code === "problem"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
       : code === "error"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><path d="M24 7 L43 39 H5 Z" fill="#ea580c" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/><rect x="22" y="18" width="4" height="12" rx="2" fill="#ffffff"/><circle cx="24" cy="34" r="2.3" fill="#ffffff"/></svg>`
@@ -1713,14 +1713,14 @@ export default function SiteMapMapLibre({
       // markers match the grid/popup. All 48x48 so icon-size scales uniformly.
       // One 48x48 image per status id "sstatus-<code>": the custom panel
       // artwork where defined, a hollow ring for New, a no-entry disc for
-      // Blocked, and a solid coloured disc (status colour) for every other
+      // Problem, and a solid coloured disc (status colour) for every other
       // commissioning stage. Generated from STRING_STATUSES so adding a stage
       // needs no extra wiring here.
       const disc = (fill: string) => "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${fill}" stroke="#ffffff" stroke-width="3"/></svg>`);
       const sstatusIcons: { id: string; src: string }[] = (STRING_STATUSES as readonly string[]).map((code) => {
         if (STATUS_SVG[code]) return { id: `sstatus-${code}`, src: STATUS_SVG[code] };
         if (code === "new") return { id: "sstatus-new", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`) };
-        if (code === "blocked") return { id: "sstatus-blocked", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`) };
+        if (code === "problem") return { id: "sstatus-problem", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`) };
         if (code === "error") return { id: "sstatus-error", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><path d="M24 7 L43 39 H5 Z" fill="#ea580c" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round"/><rect x="22" y="18" width="4" height="12" rx="2" fill="#ffffff"/><circle cx="24" cy="34" r="2.3" fill="#ffffff"/></svg>`) };
         return { id: `sstatus-${code}`, src: disc(STRING_STATUS_COLORS[code] || "#64748b") };
       });

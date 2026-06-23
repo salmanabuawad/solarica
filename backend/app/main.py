@@ -965,24 +965,24 @@ ATTACHMENT_MIME_PREFIXES = ("image/", "video/")
 STRING_IMAGE_MAX_SIZE_MB = 12
 # --- String Status Engine (AVL section + 6-stage progression) ------------
 # NEW -> OPTIMIZER -> CONNECTION -> VOLT_CHECKED -> CABLE_TO_TGA -> TGA_COMMISSIONING ;
-# AVL (the 2.x section) and BLOCKED are separate states enterable from any stage.
+# AVL (the 2.x section) and PROBLEM are separate states enterable from any stage.
 STRING_STATUS_STAGES = ["new", "optimizer", "connection", "cable_to_tga", "volt_checked", "tga_commissioning"]
-STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"blocked", "avl", "error"}
+STRING_STATUS_VALUES = set(STRING_STATUS_STAGES) | {"problem", "avl", "error"}
 # Linear progression. The manual picker may set any value (validated against
 # STRING_STATUS_VALUES); this table documents the canonical forward/back moves
-# for guided flows. Blocked can be entered from / restored to any stage.
+# for guided flows. Problem can be entered from / restored to any stage.
 STRING_STATUS_ALLOWED = {
-    s: ({"blocked"}
+    s: ({"problem"}
         | ({STRING_STATUS_STAGES[i + 1]} if i + 1 < len(STRING_STATUS_STAGES) else set())
         | ({STRING_STATUS_STAGES[i - 1]} if i > 0 else set()))
     for i, s in enumerate(STRING_STATUS_STAGES)
 }
-STRING_STATUS_ALLOWED["blocked"] = set(STRING_STATUS_STAGES)
+STRING_STATUS_ALLOWED["problem"] = set(STRING_STATUS_STAGES)
 # AVL is a separate section designation, not a workflow stage.
-STRING_STATUS_ALLOWED["avl"] = set(STRING_STATUS_STAGES) | {"blocked"}
+STRING_STATUS_ALLOWED["avl"] = set(STRING_STATUS_STAGES) | {"problem"}
 # Verified Progress weights spread evenly across stages (New=0 … last stage=1).
 STRING_STATUS_WEIGHT = {s: i / (len(STRING_STATUS_STAGES) - 1) for i, s in enumerate(STRING_STATUS_STAGES)}
-STRING_STATUS_WEIGHT["blocked"] = 0.0
+STRING_STATUS_WEIGHT["problem"] = 0.0
 STRING_STATUS_WEIGHT["avl"] = 0.0
 STRING_STATUS_WEIGHT["error"] = 0.0
 PAYMENT_ELIGIBLE_STATUS = STRING_STATUS_STAGES[-1]
@@ -1069,11 +1069,11 @@ def _string_records_dir(project_id: str) -> Path:
 
 
 def _derive_primary_status(statuses) -> str:
-    """Single representative status for the map/progress/payment: Blocked wins if
+    """Single representative status for the map/progress/payment: Problem wins if
     set, else the most-advanced commissioning stage, else AVL, else New."""
     s = {str(x).lower() for x in (statuses or [])}
-    if "blocked" in s:
-        return "blocked"
+    if "problem" in s:
+        return "problem"
     if "error" in s:
         return "error"
     stages = [st for st in STRING_STATUS_STAGES if st in s]
@@ -1146,7 +1146,7 @@ def api_update_string_status(project_id: str, string_id: str, body: dict = Body(
     # allowed-transition table (STRING_STATUS_ALLOWED) is kept for those.
     with db_store.get_conn() as conn, conn.cursor() as cur:
         frm, pre = _string_current_status(cur, uu, string_id)
-        pre_block = frm if (to == "blocked" and frm != "blocked") else (pre if to == "blocked" else None)
+        pre_block = frm if (to == "problem" and frm != "problem") else (pre if to == "problem" else None)
         cur.execute(
             """
             INSERT INTO string_records (project_id, string_id, status, statuses, pre_block_status)
@@ -1247,16 +1247,16 @@ def api_string_blocker(project_id: str, string_id: str, body: dict = Body(...)):
         )
         b = cur.fetchone()
         frm, pre = _string_current_status(cur, uu, string_id)
-        keep_pre = frm if frm != "blocked" else pre
+        keep_pre = frm if frm != "problem" else pre
         cur.execute(
-            "INSERT INTO string_records (project_id,string_id,status,pre_block_status) VALUES (%s,%s,'blocked',%s)"
-            " ON CONFLICT (project_id,string_id) DO UPDATE SET status='blocked', pre_block_status=%s, updated_at=NOW()",
+            "INSERT INTO string_records (project_id,string_id,status,pre_block_status) VALUES (%s,%s,'problem',%s)"
+            " ON CONFLICT (project_id,string_id) DO UPDATE SET status='problem', pre_block_status=%s, updated_at=NOW()",
             (uu, string_id, keep_pre, keep_pre),
         )
-        if frm != "blocked":
-            _string_history(cur, uu, string_id, frm, "blocked", actor, reason, gps)
+        if frm != "problem":
+            _string_history(cur, uu, string_id, frm, "problem", actor, reason, gps)
         conn.commit()
-    return {"string_id": string_id, "blocker_id": b["id"], "status": "blocked"}
+    return {"string_id": string_id, "blocker_id": b["id"], "status": "problem"}
 
 
 @app.post("/api/projects/{project_id}/string-blockers/{blocker_id}/resolve")

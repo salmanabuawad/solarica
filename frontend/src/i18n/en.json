@@ -271,7 +271,7 @@
       "cable_to_tga": "Cable installation",
       "tga_commissioning": "TGA Com/Label",
       "error": "Error",
-      "blocked": "Problem"
+      "problem": "Problem"
     },
     "statusDesc": {
       "avl": "Under AVL responsibility — the real status cannot be determined.",
@@ -282,7 +282,7 @@
       "cable_to_tga": "String cable run to the TGA / combiner box.",
       "tga_commissioning": "String commissioned at the TGA.",
       "error": "Error — something on this string needs attention.",
-      "blocked": "Problem — work cannot proceed until resolved."
+      "problem": "Problem — work cannot proceed until resolved."
     },
     "progress": {
       "verified": "verified",
