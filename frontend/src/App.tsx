@@ -672,19 +672,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
 
   const handleStringCommentChange = useCallback((stringId: string, comment: string) => {
     if (!stringId || !projectId) return;
-    setStringComments((prev) => ({ ...prev, [stringId]: comment }));
-    updateStringComment(projectId, stringId, comment)
-      .then((resp: any) => {
-        // Server rule: a commented string is flagged Issue and its voltage is
-        // cleared. Mirror the returned record so the grid/map/dashboard reflect
-        // it immediately instead of only after a reload.
-        if (resp && typeof resp === "object") {
-          if (resp.status != null) setStringStatuses((prev) => ({ ...prev, [stringId]: normStringStatus(resp.status) }));
-          if (Array.isArray(resp.statuses)) setStringStatusSets((prev) => ({ ...prev, [stringId]: resp.statuses as string[] }));
-          setStringVoltages((prev) => ({ ...prev, [stringId]: resp.voltage ?? null }));
-        }
-      })
-      .catch((e: any) => setError(String(e?.message || e)));
+    setStringComments((prev) => {
+      const next = { ...prev, [stringId]: comment };
+      return next;
+    });
+    updateStringComment(projectId, stringId, comment).catch((e: any) => setError(String(e?.message || e)));
   }, [projectId]);
 
   const handleStringVoltageChange = useCallback((stringId: string, voltage: number | null) => {

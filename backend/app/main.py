@@ -1336,35 +1336,15 @@ def api_update_string_comment(project_id: str, string_id: str, body: dict = Body
     uu = _require_project_uuid(project_id)
     comment = str(body.get("comment") or "")
     with db_store.get_conn() as conn, conn.cursor() as cur:
-        if comment.strip():
-            # Business rule: a commented string is flagged as an ISSUE and its
-            # voltage reading is cleared — a comment means it needs attention.
-            cur.execute("SELECT statuses FROM string_records WHERE project_id=%s AND string_id=%s", (uu, string_id))
-            ex = cur.fetchone()
-            statuses = list((ex and ex.get("statuses")) or [])
-            if "issue" not in statuses:
-                statuses.append("issue")
-            cur.execute(
-                """
-                INSERT INTO string_records (project_id, string_id, comment, statuses, status, voltage)
-                VALUES (%s, %s, %s, %s::jsonb, %s, NULL)
-                ON CONFLICT (project_id, string_id) DO UPDATE SET
-                  comment = EXCLUDED.comment, statuses = EXCLUDED.statuses,
-                  status = EXCLUDED.status, voltage = NULL, updated_at = NOW()
-                RETURNING status, statuses, voltage, comment, images, updated_at
-                """,
-                (uu, string_id, comment, json.dumps(statuses), _derive_primary_status(statuses)),
-            )
-        else:
-            cur.execute(
-                """
-                INSERT INTO string_records (project_id, string_id, comment)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (project_id, string_id) DO UPDATE SET comment = EXCLUDED.comment, updated_at = NOW()
-                RETURNING status, statuses, voltage, comment, images, updated_at
-                """,
-                (uu, string_id, comment),
-            )
+        cur.execute(
+            """
+            INSERT INTO string_records (project_id, string_id, comment)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (project_id, string_id) DO UPDATE SET comment = EXCLUDED.comment, updated_at = NOW()
+            RETURNING status, comment, images, updated_at
+            """,
+            (uu, string_id, comment),
+        )
         row = cur.fetchone()
         conn.commit()
     return {"string_id": string_id, **_normalize_string_record(row)}
