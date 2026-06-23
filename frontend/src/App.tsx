@@ -2208,14 +2208,29 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
                 })}
               </div>
             </div>
-            {/* Row 2: per-status counts on their own line — pills fill the
-                width as equal columns (one row, no horizontal scroll). */}
-            <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", alignItems: "center" }}>
-              {STRING_STATUS_ORDER.map((k) => (
-                <span key={k} onClick={() => setStatusInfoKey(k)} title={t(`strings.status.${k}`, STRING_STATUS_META[k].label)} style={{ flex: "1 1 0", minWidth: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 3, fontSize: 11, fontWeight: 600, color: STRING_STATUS_META[k].color, background: STRING_STATUS_META[k].bg, padding: "2px 4px", borderRadius: 999, whiteSpace: "nowrap", cursor: "pointer" }}>
-                  <StatusGlyph code={k} size={12} /> {stringProgress.counts[k] || 0}
-                </span>
-              ))}
+            {/* Row 2: status dashboard cards — Total Strings + a card per
+                status (count + share of all strings), styled like the asset
+                status dashboard so the whole UI tells one story. Click a card
+                to read that status's description. Horizontal-scrolls if narrow. */}
+            <div style={{ display: "flex", gap: 6, flexWrap: "nowrap", alignItems: "stretch", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+              <div style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "6px 10px", background: "#16335c", color: "#fff", borderRadius: 8, boxShadow: "0 1px 2px rgba(15,23,42,0.08)" }}>
+                <div style={{ fontSize: 9, fontWeight: 600, opacity: 0.85, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap" }}>{t("strings.title", "Strings")}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.1, marginTop: 1 }}>{stringProgress.total.toLocaleString()}</div>
+              </div>
+              {STRING_STATUS_ORDER.map((k) => {
+                const n = stringProgress.counts[k] || 0;
+                const pct = stringProgress.total > 0 ? Math.round((100 * n) / stringProgress.total) : 0;
+                const color = STRING_STATUS_META[k].color;
+                return (
+                  <div key={k} onClick={() => setStatusInfoKey(k)} title={`${n} / ${stringProgress.total}`} style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "6px 10px", background: "#fff", border: `1px solid ${color}33`, borderLeft: `3px solid ${color}`, borderRadius: 8, boxShadow: "0 1px 2px rgba(15,23,42,0.04)", cursor: "pointer" }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 4 }}><StatusGlyph code={k} size={11} /> {t(`strings.status.${k}`)}</div>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 1, color: "#0f172a" }}>
+                      <span style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.1 }}>{n.toLocaleString()}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "#64748b" }}>{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
