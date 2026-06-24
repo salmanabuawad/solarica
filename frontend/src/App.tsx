@@ -151,7 +151,7 @@ function StringDetailModal({
   const sameSet = (a: string[], b: string[]) => a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
   const dirty = !sameSet(statuses, statuses0) || comment !== comment0 || (vNum ?? null) !== (voltage0 ?? null);
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} dir={isRtl ? "rtl" : "ltr"} style={{ background: "#fff", borderRadius: 12, width: "min(440px, 94vw)", maxHeight: "88dvh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 10px 40px rgba(0,0,0,0.4)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 18px 12px", flexShrink: 0, borderBottom: "1px solid #eef2f6" }}>
           <div>
