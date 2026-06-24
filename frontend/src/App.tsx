@@ -1509,6 +1509,12 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         { header: t("strings.col.voltage"), key: "voltage", width: 12, get: (d) => fmtVolt(d.voltage) },
         { header: t("strings.col.type"), key: "type", width: 12, get: (d) => (d.multi_row ? t("strings.type.multi") : t("strings.type.one")) },
         { header: t("strings.col.optimizers"), key: "optimizer_count", width: 14, get: (d) => d.optimizer_count ?? "" },
+        // Admin-only: the physical row(s) the string occupies plus its start/end row.
+        ...(authUser.role === "admin" ? [
+          { header: t("strings.rowsCol.row", "Row"), key: "row", width: 16, get: (d: any) => d.row ?? "" },
+          { header: t("strings.col.startRow", "Starting Row"), key: "start_row", width: 14, get: (d: any) => d.start_row ?? "" },
+          { header: t("strings.col.endRow", "Ending Row"), key: "end_row", width: 14, get: (d: any) => d.end_row ?? "" },
+        ] : []),
       ];
       dataRows = topologyGridRows.slice().sort((a: any, b: any) => naturalCompare(a.string, b.string));
       rowBg = (d) => STRING_STATUS_META[normStringStatus(d.status)]?.bg || "#ffffff";
