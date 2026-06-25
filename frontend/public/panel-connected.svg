@@ -1,20 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <!-- solar panel -->
-  <rect x="4.5" y="4.5" width="30" height="22" rx="2.6" fill="#cdeaf3" stroke="#16202e" stroke-width="2.6"/>
-  <!-- grid lines -->
-  <path d="M4.5 15.5 H34.5 M14.8 4.5 V26.5 M24.2 4.5 V26.5" fill="none" stroke="#16202e" stroke-width="1.8"/>
-  <!-- cell nodes -->
-  <g fill="#2f9fc4">
-    <circle cx="14.8" cy="15.5" r="2"/>
-    <circle cx="24.2" cy="15.5" r="2"/>
-    <circle cx="14.8" cy="10" r="1.5"/>
-    <circle cx="24.2" cy="10" r="1.5"/>
-    <circle cx="14.8" cy="21" r="1.5"/>
-    <circle cx="24.2" cy="21" r="1.5"/>
+  <!-- connecting cable across the three optimizers, with plug ends -->
+  <path d="M2 24 H46" fill="none" stroke="#16202e" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- three solar panels -->
+  <g stroke="#16202e">
+    <rect x="3" y="6" width="12" height="10" rx="1.4" fill="#cdeaf3" stroke-width="1.6"/>
+    <rect x="18" y="6" width="12" height="10" rx="1.4" fill="#cdeaf3" stroke-width="1.6"/>
+    <rect x="33" y="6" width="12" height="10" rx="1.4" fill="#cdeaf3" stroke-width="1.6"/>
+    <g fill="none" stroke-width="1.1">
+      <path d="M3 11 H15 M7 6 V16 M11 6 V16"/>
+      <path d="M18 11 H30 M22 6 V16 M26 6 V16"/>
+      <path d="M33 11 H45 M37 6 V16 M41 6 V16"/>
+    </g>
   </g>
-  <!-- cable -->
-  <path d="M19.5 26.5 V33.5 a5.5 5.5 0 0 0 5.5 5.5 H30.5" fill="none" stroke="#16202e" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- plug -->
-  <rect x="30.5" y="35" width="7.5" height="8" rx="1.6" fill="#5cb6d6" stroke="#16202e" stroke-width="2.2"/>
-  <path d="M38 37.5 h4 M38 40.5 h4" fill="none" stroke="#16202e" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- drop cables panel -> optimizer -->
+  <g fill="none" stroke="#16202e" stroke-width="1.6">
+    <path d="M9 16 V20"/><path d="M24 16 V20"/><path d="M39 16 V20"/>
+  </g>
+  <!-- optimizer boxes -->
+  <g fill="#1f2a3a" stroke="#16202e" stroke-width="1.4">
+    <rect x="5" y="20" width="8" height="7.6" rx="1.4"/>
+    <rect x="20" y="20" width="8" height="7.6" rx="1.4"/>
+    <rect x="35" y="20" width="8" height="7.6" rx="1.4"/>
+  </g>
+  <!-- bolts -->
+  <g fill="#fbbf24">
+    <path d="M10 21 L7.2 24 L8.8 24 L8 26.4 L10.8 23 L9.2 23 Z"/>
+    <path d="M25 21 L22.2 24 L23.8 24 L23 26.4 L25.8 23 L24.2 23 Z"/>
+    <path d="M40 21 L37.2 24 L38.8 24 L38 26.4 L40.8 23 L39.2 23 Z"/>
+  </g>
+  <!-- end plugs -->
+  <g fill="#5cb6d6" stroke="#16202e" stroke-width="1.5">
+    <rect x="0.5" y="21.6" width="3.5" height="4.8" rx="1"/>
+    <rect x="44" y="21.6" width="3.5" height="4.8" rx="1"/>
+  </g>
 </svg>
