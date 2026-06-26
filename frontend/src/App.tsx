@@ -23,6 +23,7 @@ import { BusyOverlay, ConfirmModal } from "./components/Modals";
 import SyncQueuePanel from "./components/SyncQueuePanel";
 import { useResponsive } from "./hooks/useResponsive";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { useIdleLogout } from "./hooks/useIdleLogout";
 import { userPrefs } from "./userPrefs";
 
 // MapLibre is our single map engine. Lazy-loaded so the initial bundle
@@ -459,6 +460,8 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
   const canEdit = authUser.role !== "viewer";
   const isRtl = i18n.language === "he" || i18n.language === "ar";
   const { online, pending, syncing, refreshPending } = useOnlineStatus();
+  // Auto sign-out after 30 min of inactivity (AppMain only renders when signed in).
+  useIdleLogout(true);
   const [showSyncQueue, setShowSyncQueue] = useState(false);
   const [mode, setMode] = useState<"grid" | "map">("map");
   const [activeTab, setActiveTab] = useState<string>("details");

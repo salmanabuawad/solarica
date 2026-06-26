@@ -33,6 +33,9 @@ const API = (import.meta as any).env?.VITE_API_URL ?? "";
 
 const AUTH_TOKEN_KEY = "solarica.auth_token";
 const AUTH_USER_KEY = "solarica.auth_user";
+const LAST_ACTIVITY_KEY = "solarica.last_activity";
+// Auto sign-out after this much inactivity (idle session timeout).
+export const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface AuthUser { username: string; role: string; }
 
@@ -62,6 +65,7 @@ export async function login(username: string, password: string): Promise<AuthUse
   const data = await r.json();
   localStorage.setItem(AUTH_TOKEN_KEY, data.access_token);
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
+  touchSession();
   return data.user;
 }
 
@@ -69,7 +73,33 @@ export function logout(): void {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(LAST_ACTIVITY_KEY);
   location.reload();
+}
+
+// ── Idle session timeout helpers ──────────────────────────────────────
+// Activity is a single localStorage timestamp shared across tabs, so any tab's
+// activity keeps the whole session alive.
+
+export function touchSession(): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()));
+}
+
+export function hasSessionActivity(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  return !!localStorage.getItem(LAST_ACTIVITY_KEY);
+}
+
+// True only if a last-activity timestamp exists AND is older than the idle
+// limit. A missing timestamp returns false (no baseline yet → don't force out).
+export function isSessionIdleExpired(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  const raw = localStorage.getItem(LAST_ACTIVITY_KEY);
+  if (!raw) return false;
+  const ts = Number(raw);
+  if (!Number.isFinite(ts) || ts <= 0) return false;
+  return Date.now() - ts >= IDLE_TIMEOUT_MS;
 }
 
 function authHeaders(extra?: HeadersInit): Headers {
