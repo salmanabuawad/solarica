@@ -87,7 +87,7 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
   );
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: WORKSPACE, pr: isMobile ? 0 : `${NAV_W}px` }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: WORKSPACE, pr: isMobile ? 0 : `${NAV_W}px`, width: "100%", overflowX: "hidden" }}>
       {/* Top bar */}
       <Box sx={{
         position: "fixed", top: 0, left: 0, right: isMobile ? 0 : NAV_W, height: 52, zIndex: 30,
@@ -135,8 +135,8 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
       )}
 
       {/* Workspace */}
-      <Box sx={{ pt: "52px", minHeight: "100vh" }}>
-        <Box sx={{ p: isMobile ? 1 : 2 }}><Outlet /></Box>
+      <Box sx={{ pt: "52px", minHeight: "100vh", minWidth: 0 }}>
+        <Box sx={{ p: isMobile ? 1 : 2, minWidth: 0, maxWidth: "100%", overflowX: "hidden" }}><Outlet /></Box>
       </Box>
     </Box>
   );
