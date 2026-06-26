@@ -1974,7 +1974,7 @@ export default function SiteMapMapLibre({
         layout: {
           visibility: "none",
           "text-field": ["get", "id"],
-          "text-size": ["interpolate", ["linear"], ["zoom"], 9, 13, 13, 17, 16, 22, 20, 28],
+          "text-size": ["interpolate", ["linear"], ["zoom"], 9, 16, 13, 22, 16, 28, 20, 35],
           "text-font": [
             "case", ["==", ["get", "jumping"], 1],
             ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
@@ -2788,8 +2788,10 @@ export default function SiteMapMapLibre({
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));
-      // "String routes" layer = the full route: lines + endpoints + numbers.
-      show("topology-runs-layer", topologyOn);
+      // Route lines hidden: the "Strings" view shows numbers + status icons +
+      // start/end markers only (no line under each number). The selected string
+      // still highlights its route via topology-highlight-layer on click.
+      show("topology-runs-layer", false);
       show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
