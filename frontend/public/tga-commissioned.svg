@@ -1,13 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <!-- output cable connectors -->
-  <g stroke="#16202e" stroke-width="2.2" stroke-linecap="round">
-    <path d="M13 36 V42"/><path d="M18.5 36 V43"/><path d="M24 36 V42"/><path d="M29.5 36 V43"/><path d="M35 36 V42"/>
+  <!-- Scaled up ~1.2x about the centre so the TGA-commissioned icon reads larger. -->
+  <g transform="translate(24 24) scale(1.2) translate(-24 -24)">
+    <!-- output cable connectors -->
+    <g stroke="#16202e" stroke-width="2.2" stroke-linecap="round">
+      <path d="M13 36 V42"/><path d="M18.5 36 V43"/><path d="M24 36 V42"/><path d="M29.5 36 V43"/><path d="M35 36 V42"/>
+    </g>
+    <!-- TGA combiner box — green background = commissioned -->
+    <rect x="9" y="6.5" width="30" height="31" rx="4" fill="#16a34a" stroke="#16202e" stroke-width="2.6"/>
+    <!-- TGA label -->
+    <text x="24" y="20" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="10.5" fill="#ffffff">TGA</text>
+    <!-- commissioned check badge -->
+    <circle cx="24" cy="29.5" r="6.2" fill="#ffffff" stroke="#166534" stroke-width="1.2"/>
+    <path d="M21 29.7 l2 2 l4.2 -4.4" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <!-- TGA combiner box — green background = commissioned -->
-  <rect x="9" y="6.5" width="30" height="31" rx="4" fill="#16a34a" stroke="#16202e" stroke-width="2.6"/>
-  <!-- TGA label -->
-  <text x="24" y="20" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="10.5" fill="#ffffff">TGA</text>
-  <!-- commissioned check badge -->
-  <circle cx="24" cy="29.5" r="6.2" fill="#ffffff" stroke="#166534" stroke-width="1.2"/>
-  <path d="M21 29.7 l2 2 l4.2 -4.4" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
