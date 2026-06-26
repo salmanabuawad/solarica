@@ -45,8 +45,8 @@ export default function LoginActivity() {
         <Stat label={t("loginlog.logins7", "Logins (7 days)")} value={s?.last7_logins} accent="#db2777" />
       </div>
 
-      <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div style={{ border: "1px solid #e2e8f0", borderRadius: 12, overflowX: "auto", background: "#fff" }}>
+        <table style={{ width: "100%", minWidth: 460, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#f1f5f9", color: "#334155", textAlign: "left" }}>
               <th style={th}>{t("login.username", "Username")}</th>

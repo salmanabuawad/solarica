@@ -1990,8 +1990,8 @@ export default function SiteMapMapLibre({
         },
         paint: {
           "text-color": ["case", ["==", ["get", "jumping"], 1], "#dc2626", "#1e3a8a"],
-          "text-halo-color": "rgba(255,255,255,0.95)",
-          "text-halo-width": 1.6,
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 3,
         },
       });
       // Per-string status glyph (the sstatus-* sprite, matching the grid/popup
@@ -2788,10 +2788,10 @@ export default function SiteMapMapLibre({
       show("electrical-row-guides-layer", !hasPanelBase);
       show("electrical-zones-layer", layerVisible(layers, "zones", false));
       show("electrical-zones-labels", layerVisible(layers, "zones", false));
-      // Route lines hidden: the "Strings" view shows numbers + status icons +
-      // start/end markers only (no line under each number). The selected string
-      // still highlights its route via topology-highlight-layer on click.
-      show("topology-runs-layer", false);
+      // Route line is drawn, but each number's opaque white text-halo knocks the
+      // line out right under the digits (labels render above the line) — so the
+      // number stays clear while the rest of the route line remains visible.
+      show("topology-runs-layer", topologyOn);
       show("topology-jumps-layer", false);   // jump lines hidden for now
       show("topology-start-layer", topologyOn);
       show("topology-end-layer", topologyOn);
