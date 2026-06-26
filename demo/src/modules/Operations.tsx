@@ -19,8 +19,8 @@ export default function Operations() {
         { label: "Active alarms", value: INVERTERS.reduce((a, i) => a + i.alarms, 0), color: "#dc2626" },
         { label: "Revenue / day", value: `₪${INVERTERS.reduce((a, i) => a + i.revenue, 0).toLocaleString()}` },
       ]} />
-      <Box sx={{ display: "flex", gap: 1.5 }}>
-        <Panel sx={{ width: 200, maxHeight: "calc(100vh - 260px)", overflow: "auto" }}>
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 1.5 }}>
+        <Panel sx={{ width: { xs: "100%", md: 200 }, maxHeight: { xs: 240, md: "calc(100vh - 260px)" }, overflow: "auto" }}>
           {INVERTERS.map((i) => (
             <Box key={i.id} onClick={() => setSel(i.id)} sx={{ px: 1.5, py: 1, cursor: "pointer", borderBottom: `1px solid ${BORDER}`, bgcolor: i.id === sel ? "#eff6ff" : "transparent", borderLeft: i.id === sel ? "3px solid #1e3a8a" : "3px solid transparent" }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

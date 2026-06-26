@@ -33,9 +33,9 @@ export default function QA() {
         { label: "Polarity", node: <SimpleTable cols={[{ key: "id", label: "String", render: (s: StringRow) => <b>{s.id}</b> }, { key: "row", label: "Row" }, { key: "p", label: "Polarity", render: (s: StringRow) => badge(s.voltage != null && s.voltage < 0 ? "fail" : "pass") }] as Col<StringRow>[]} rows={voltRows} onRow={onRow} /> },
         { label: "Megger", node: <SimpleTable cols={[{ key: "id", label: "String", render: (s: StringRow) => <b>{s.id}</b> }, { key: "row", label: "Row" }, { key: "megger", label: "Insulation", render: (s: StringRow) => badge(s.megger) }] as Col<StringRow>[]} rows={tested} onRow={onRow} /> },
         { label: "IV Curve", node: (
-          <Box sx={{ display: "flex", gap: 1.5 }}>
-            <Box sx={{ flex: 1 }}><SimpleTable cols={[{ key: "id", label: "String", render: (s: StringRow) => <b>{s.id}</b> }, { key: "ivCurve", label: "IV Curve", render: (s: StringRow) => badge(s.ivCurve) }] as Col<StringRow>[]} rows={tested} onRow={onRow} /></Box>
-            <Panel sx={{ width: 320, p: 1.5 }}>
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 1.5 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}><SimpleTable cols={[{ key: "id", label: "String", render: (s: StringRow) => <b>{s.id}</b> }, { key: "ivCurve", label: "IV Curve", render: (s: StringRow) => badge(s.ivCurve) }] as Col<StringRow>[]} rows={tested} onRow={onRow} /></Box>
+            <Panel sx={{ width: { xs: "100%", md: 320 }, p: 1.5 }}>
               <Box sx={{ fontWeight: 800, mb: 0.5 }}>IV Curve — expected vs actual</Box>
               <svg width="100%" height="150" viewBox="0 0 300 150">
                 <line x1="20" y1="130" x2="290" y2="130" stroke="#cbd5e1" /><line x1="20" y1="10" x2="20" y2="130" stroke="#cbd5e1" />

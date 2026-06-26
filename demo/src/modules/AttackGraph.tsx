@@ -51,14 +51,14 @@ export default function AttackGraph() {
         { label: "Revenue impact", value: "₪40k/day", color: "#dc2626" },
         { label: "Critical CVEs", value: ASSETS.reduce((a, x) => a + (x.cves || 0), 0) },
       ]} />
-      <Box sx={{ display: "flex", gap: 1.5 }}>
-        <Panel sx={{ flex: 1, height: "calc(100vh - 250px)", overflow: "hidden" }}>
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 1.5 }}>
+        <Panel sx={{ flex: 1, minWidth: 0, height: { xs: 360, md: "calc(100vh - 250px)" }, overflow: "hidden" }}>
           <ReactFlow nodes={nodes} edges={edges} fitView proOptions={{ hideAttribution: true }} nodesDraggable={false} nodesConnectable={false}>
             <Background color="#cbd5e1" gap={18} />
             <Controls showInteractive={false} />
           </ReactFlow>
         </Panel>
-        <Panel sx={{ width: 300, p: 1.5 }}>
+        <Panel sx={{ width: { xs: "100%", md: 300 }, p: 1.5 }}>
           <Box sx={{ fontWeight: 800, mb: 1 }}>Impact & Mitigation</Box>
           {[
             ["Criticality", "Critical"],

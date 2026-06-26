@@ -34,7 +34,7 @@ export default function ExecutionTwin() {
       ]} />
 
       <Panel sx={{ p: 1.5, mb: 1.5 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 1 }}>
           <Box sx={{ fontWeight: 700, fontSize: 13 }}>{layer} Layer</Box>
           <Legend />
         </Box>

@@ -4,7 +4,7 @@ import { BORDER, STATUS } from "../theme";
 
 export function PageHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   return (
-    <Box sx={{ display: "flex", alignItems: "flex-end", mb: 1.5 }}>
+    <Box sx={{ display: "flex", alignItems: "flex-end", flexWrap: "wrap", gap: 1, mb: 1.5 }}>
       <Box>
         <Box sx={{ fontSize: 19, fontWeight: 800, color: "#0f172a" }}>{title}</Box>
         {subtitle && <Box sx={{ fontSize: 12.5, color: "#64748b" }}>{subtitle}</Box>}
