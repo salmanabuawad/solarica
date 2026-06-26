@@ -6,6 +6,7 @@ import maplibregl, {
   MapMouseEvent,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { STATUS_ICON_URI } from "../statusIcons";
 import {
   PIER_COLORS,
   STATUS_COLORS,
@@ -83,15 +84,9 @@ const STRING_STATUS_BG: Record<string, string> = {
   issue: "#fee2e2",
 };
 // Custom SVG icons (served from public/) for the optimizer + connection stages + AVL.
-const STATUS_SVG: Record<string, string> = {
-  new: "/new.svg",
-  optimizer: "/optimizer-mounted.svg",
-  connection: "/panel-connected.svg",
-  avl: "/avl.svg",
-  volt_checked: "/volt-test.svg",
-  cable_to_tga: "/tga-cable.svg",
-  tga_commissioning: "/tga-commissioned.svg",
-};
+// Inlined data URIs (see statusIcons.ts) so map sprites + grid icons ship inside
+// the JS bundle and never go stale behind a file/service-worker cache.
+const STATUS_SVG = STATUS_ICON_URI;
 // Inline SVG that reproduces the map's sstatus-<code> sprite art, so the modal
 // and inspector icons are identical to what's drawn on the map: the custom
 // optimizer/connection/AVL/New artwork, a no-entry sign for Issue, and a solid

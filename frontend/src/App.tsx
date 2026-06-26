@@ -25,6 +25,7 @@ import { useResponsive } from "./hooks/useResponsive";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useIdleLogout } from "./hooks/useIdleLogout";
 import { useKeepAlive } from "./hooks/useKeepAlive";
+import { STATUS_ICON_URI } from "./statusIcons";
 import { userPrefs } from "./userPrefs";
 
 // MapLibre is our single map engine. Lazy-loaded so the initial bundle
@@ -98,15 +99,10 @@ const naturalCompare = (a: any, b: any) =>
 
 // Status icon renderer. Some statuses use a custom SVG asset (solar panel +
 // plug, optimizer device); the rest use their emoji glyph.
-const STATUS_SVG: Record<string, string> = {
-  new: "/new.svg",
-  optimizer: "/optimizer-mounted.svg",
-  connection: "/panel-connected.svg",
-  avl: "/avl.svg",
-  volt_checked: "/volt-test.svg",
-  cable_to_tga: "/tga-cable.svg",
-  tga_commissioning: "/tga-commissioned.svg",
-};
+// Inlined data URIs (see statusIcons.ts) so icons ship inside the JS bundle and
+// never go stale behind a file/service-worker cache — fixes map sprites not
+// refreshing when an SVG is edited.
+const STATUS_SVG = STATUS_ICON_URI;
 // Inline SVG reproducing the map's sstatus-<code> sprite art so every status
 // icon (grid, legend, progress, modals) matches what's drawn on the map: the
 // custom optimizer/connection/AVL/New artwork, a no-entry sign for Issue, and
