@@ -1,12 +1,14 @@
 import { createTheme } from "@mui/material/styles";
 
-// Solarica visual language — carried over from the MVP:
-// dark-navy chrome, light-gray workspace, dense engineering tables,
-// muted operational status colors. NOT a colourful SaaS dashboard.
-export const NAV_BG = "#0f172a";        // slate-900 — right navigation
-export const NAV_BG2 = "#1e293b";       // slate-800 — hover / sections
+// Solarica visual language — matched to the MVP (solarica.kortexd.com):
+// teal-slate sidebar, light-gray workspace, BLUE action accent, dense
+// engineering tables. Amber is reserved for the brand mark only.
+export const NAV_BG = "#2f4d52";        // sidebar — matches the MVP
+export const NAV_BG2 = "#3d6971";       // sidebar hover / active
 export const NAV_TEXT = "#cbd5e1";      // slate-300
-export const ACCENT = "#f59e0b";        // amber — Solarica accent
+export const NAV_MUTED = "#94a3b8";     // slate-400 — section labels on the dark nav
+export const BRAND = "#f59e0b";         // amber — logo mark only
+export const ACCENT = "#2196f3";        // blue — UI accent (buttons, active, links)
 export const WORKSPACE = "#f1f5f9";     // slate-100 — workspace
 export const BORDER = "#e2e8f0";        // slate-200
 export const INK = "#0f172a";
@@ -35,15 +37,15 @@ export const SEVERITY: Record<string, string> = {
 export const theme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#1e3a8a" },
-    secondary: { main: ACCENT },
+    primary: { main: ACCENT },
+    secondary: { main: BRAND },
     background: { default: WORKSPACE, paper: "#ffffff" },
     text: { primary: INK, secondary: "#475569" },
     divider: BORDER,
   },
   shape: { borderRadius: 8 },
   typography: {
-    fontFamily: 'Inter, "Segoe UI", Arial, sans-serif',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     fontSize: 13,
     h6: { fontWeight: 800, fontSize: 16 },
     subtitle2: { fontWeight: 700 },

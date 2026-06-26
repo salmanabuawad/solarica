@@ -18,7 +18,7 @@ import SecurityOutlined from "@mui/icons-material/SecurityOutlined";
 import HubOutlined from "@mui/icons-material/HubOutlined";
 import SearchOutlined from "@mui/icons-material/SearchOutlined";
 import FileDownloadOutlined from "@mui/icons-material/FileDownloadOutlined";
-import { NAV_BG, NAV_BG2, NAV_TEXT, ACCENT, BORDER, WORKSPACE } from "../theme";
+import { NAV_BG, NAV_BG2, NAV_TEXT, NAV_MUTED, ACCENT, BRAND, BORDER, WORKSPACE } from "../theme";
 import { ROLES, modulesForRole, type ModuleDef } from "../data/catalog";
 
 const ICONS: Record<string, any> = {
@@ -50,7 +50,7 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
         bgcolor: "#fff", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 1.5, px: 2,
       }}>
         <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.6, mr: 1 }}>
-          <Box sx={{ fontWeight: 900, letterSpacing: 1, color: "#0f172a", fontSize: 18 }}>SOLAR<span style={{ color: ACCENT }}>I</span>CA</Box>
+          <Box sx={{ fontWeight: 900, letterSpacing: 1, color: "#0f172a", fontSize: 18 }}>SOLAR<span style={{ color: BRAND }}>I</span>CA</Box>
           <Box sx={{ fontSize: 10, color: "#94a3b8", fontWeight: 700 }}>V2</Box>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: WORKSPACE, border: `1px solid ${BORDER}`, borderRadius: 2, px: 1, height: 32, width: 280 }}>
@@ -76,13 +76,13 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
         display: "flex", flexDirection: "column", zIndex: 40, overflowY: "auto",
       }}>
         <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${NAV_BG2}` }}>
-          <Box sx={{ fontWeight: 900, color: "#fff", fontSize: 16, letterSpacing: 0.5 }}>SOLAR<span style={{ color: ACCENT }}>I</span>CA</Box>
-          <Box sx={{ fontSize: 10.5, color: "#64748b" }}>Single Source of Truth · Renewable Assets</Box>
+          <Box sx={{ fontWeight: 900, color: "#fff", fontSize: 16, letterSpacing: 0.5 }}>SOLAR<span style={{ color: BRAND }}>I</span>CA</Box>
+          <Box sx={{ fontSize: 10.5, color: NAV_MUTED }}>Single Source of Truth · Renewable Assets</Box>
         </Box>
         <Box sx={{ py: 1, flex: 1 }}>
           {Object.entries(groups).map(([group, items]) => (
             <Box key={group} sx={{ mb: 0.5 }}>
-              <Box sx={{ px: 2, pt: 1.2, pb: 0.4, fontSize: 10, letterSpacing: 1.2, color: "#475569", fontWeight: 800, textTransform: "uppercase" }}>{group}</Box>
+              <Box sx={{ px: 2, pt: 1.2, pb: 0.4, fontSize: 10, letterSpacing: 1.2, color: NAV_MUTED, fontWeight: 800, textTransform: "uppercase" }}>{group}</Box>
               {items.map((m) => {
                 const Icon = ICONS[m.icon] || MapOutlined;
                 const on = active === m.id;
@@ -94,7 +94,7 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
                     borderRight: on ? `3px solid ${ACCENT}` : "3px solid transparent",
                     "&:hover": { bgcolor: NAV_BG2 },
                   }}>
-                    <Icon sx={{ fontSize: 19, color: on ? ACCENT : "#64748b" }} />
+                    <Icon sx={{ fontSize: 19, color: on ? ACCENT : NAV_MUTED }} />
                     <Box sx={{ fontSize: 13, fontWeight: on ? 700 : 600 }}>{m.label}</Box>
                   </Box>
                 );
@@ -102,7 +102,7 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
             </Box>
           ))}
         </Box>
-        <Box sx={{ px: 2, py: 1.2, borderTop: `1px solid ${NAV_BG2}`, fontSize: 10.5, color: "#475569", display: "flex", justifyContent: "space-between" }}>
+        <Box sx={{ px: 2, py: 1.2, borderTop: `1px solid ${NAV_BG2}`, fontSize: 10.5, color: NAV_MUTED, display: "flex", justifyContent: "space-between" }}>
           <span>Design → EPL → Build → QA → Ops</span><span style={{ color: "#16a34a" }}>● live</span>
         </Box>
       </Box>

@@ -11,7 +11,7 @@ export function SimpleTable<T extends { id?: string | number }>({ cols, rows, on
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>{cols.map((c) => (
-            <TableCell key={String(c.key)} align={c.num ? "right" : "left"} sx={{ fontWeight: 800, fontSize: 11.5, color: "#475569", textTransform: "uppercase", letterSpacing: 0.4, bgcolor: "#f8fafc", width: c.width }}>{c.label}</TableCell>
+            <TableCell key={String(c.key)} align={c.num ? "right" : "left"} sx={{ fontWeight: 700, fontSize: 12, color: "#0f172a", letterSpacing: "0.02em", bgcolor: "#f1f5f9", borderBottom: "2px solid #cbd5e1", width: c.width }}>{c.label}</TableCell>
           ))}</TableRow>
         </TableHead>
         <TableBody>
