@@ -34,7 +34,8 @@
     "config": "الإعدادات",
     "fieldConfig": "إعداد الحقول",
     "configurations": "الإعدادات",
-    "users": "المستخدمون"
+    "users": "المستخدمون",
+    "loginlog": "نشاط تسجيل الدخول"
   },
   "project": {
     "existing": "المشاريع الحالية",

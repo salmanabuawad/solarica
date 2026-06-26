@@ -7,6 +7,7 @@ import Login from "./components/Login";
 import SettingsModal from "./components/SettingsModal";
 import StatusChangeModal from "./components/StatusChangeModal";
 const UsersManager = lazy(() => import("./components/UsersManager"));
+const LoginActivity = lazy(() => import("./components/LoginActivity"));
 import { useFieldConfigs, applyFieldConfigs } from "./hooks/useFieldConfigs";
 const FieldConfigManager = lazy(() => import("./components/FieldConfigManager"));
 import SimpleGrid from "./components/SimpleGrid";
@@ -1390,6 +1391,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
       ...(authUser.role === "admin" ? [
         { key: "fields", label: t("nav.fieldConfig") },
         { key: "users",  label: t("nav.users") },
+        { key: "loginlog", label: t("nav.loginlog") },
       ] : []),
     ]},
   ];
@@ -2862,6 +2864,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         <div>
           <Suspense fallback={<div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>{t("app.loading")}</div>}>
             <UsersManager />
+          </Suspense>
+        </div>
+      )}
+
+      {/* ---- TAB: Login activity (admin only) ---- */}
+      {authUser.role === "admin" && activeTab === "loginlog" && (
+        <div>
+          <Suspense fallback={<div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>{t("app.loading")}</div>}>
+            <LoginActivity />
           </Suspense>
         </div>
       )}

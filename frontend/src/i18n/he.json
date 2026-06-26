@@ -34,7 +34,8 @@
     "config": "הגדרות",
     "fieldConfig": "שדות טבלה",
     "configurations": "הגדרות",
-    "users": "משתמשים"
+    "users": "משתמשים",
+    "loginlog": "פעילות התחברות"
   },
   "project": {
     "existing": "פרויקטים קיימים",

@@ -605,6 +605,32 @@ export async function upsertFieldConfigs(rows: FieldConfig[]): Promise<{ updated
   });
 }
 
+// ── Login activity (admin) ───────────────────────────────────────────
+
+export interface LoginEvent {
+  username: string;
+  role?: string | null;
+  ip?: string | null;
+  user_agent?: string | null;
+  created_at?: string | null;
+}
+
+export interface LoginLog {
+  summary: {
+    total_logins: number;
+    distinct_users: number;
+    distinct_ips: number;
+    last7_logins: number;
+    last7_users: number;
+    last7_ips: number;
+  };
+  events: LoginEvent[];
+}
+
+export async function getLoginLog(limit = 500): Promise<LoginLog> {
+  return j<LoginLog>(`${API}/api/login-log?limit=${limit}`);
+}
+
 // ── Users (admin CRUD) ────────────────────────────────────────────────
 
 export interface UserRow {

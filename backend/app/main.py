@@ -99,11 +99,26 @@ CREATE TABLE IF NOT EXISTS user_project_access (
 );
 """
 
+# Audit log of successful logins — who signed in, from which IP, and when. Used
+# to gauge how many distinct users/IPs are actually using the system over time.
+LOGIN_EVENTS_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS login_events (
+  id         SERIAL PRIMARY KEY,
+  username   TEXT NOT NULL,
+  role       TEXT,
+  ip         TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_login_events_created_at ON login_events (created_at DESC);
+"""
+
 
 def _ensure_users_schema() -> None:
     with db_store.get_conn() as conn, conn.cursor() as cur:
         cur.execute(USERS_SCHEMA_SQL)
         cur.execute(USER_PROJECT_ACCESS_SCHEMA_SQL)
+        cur.execute(LOGIN_EVENTS_SCHEMA_SQL)
         # Seed the configured admin if no user exists (first-boot bootstrap).
         cur.execute("SELECT COUNT(*) AS n FROM users")
         row = cur.fetchone()
@@ -227,14 +242,42 @@ def _require_admin(request: Request) -> dict:
     return data
 
 
+# --- Login audit log --------------------------------------------------
+
+def _client_ip(request: Request) -> str:
+    # Behind nginx the socket peer is 127.0.0.1, so prefer the proxy headers
+    # (X-Forwarded-For lists "client, proxy1, ..." — the first hop is the user).
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    xri = request.headers.get("x-real-ip")
+    if xri:
+        return xri.strip()
+    return request.client.host if request.client else ""
+
+
+def _record_login(username: str, role: str, request: Request) -> None:
+    try:
+        ua = (request.headers.get("user-agent") or "")[:500]
+        with db_store.get_conn() as conn, conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO login_events (username, role, ip, user_agent) VALUES (%s, %s, %s, %s)",
+                (username, role, _client_ip(request), ua),
+            )
+            conn.commit()
+    except Exception as exc:  # noqa: BLE001 — logging must never break login
+        print(f"[login_log] record failed: {exc}")
+
+
 @app.post("/api/auth/login")
-async def api_login(creds: dict = Body(...)):
+async def api_login(request: Request, creds: dict = Body(...)):
     username = str(creds.get("username") or "")
     password = str(creds.get("password") or "")
     # Try DB first
     row = _db_user_row(username)
     if row and row.get("is_active") and _verify_pw(password, row.get("password_hash") or ""):
         role = row.get("role") or "viewer"
+        _record_login(username, role, request)
         return {
             "access_token": _sign_token(username, role),
             "token_type": "bearer",
@@ -242,6 +285,7 @@ async def api_login(creds: dict = Body(...)):
         }
     # Env-var fallback (only if no such user in DB)
     if not row and username == ADMIN_USER and password == ADMIN_PASS:
+        _record_login(username, "admin", request)
         return {
             "access_token": _sign_token(username, "admin"),
             "token_type": "bearer",
@@ -257,6 +301,56 @@ async def api_me(request: Request):
     if not data:
         raise HTTPException(401, "Not authenticated")
     return data
+
+
+@app.get("/api/login-log")
+def api_login_log(request: Request, limit: int = 200):
+    """Admin-only: recent successful logins + an interest summary (distinct
+    users / IPs, both overall and in the last 7 days)."""
+    _require_admin(request)
+    limit = max(1, min(int(limit or 200), 2000))
+
+    def _n(d: dict, k: str) -> int:
+        try:
+            return int(d.get(k) or 0)
+        except Exception:
+            return 0
+
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT COUNT(*) AS total, COUNT(DISTINCT username) AS users, "
+            "COUNT(DISTINCT ip) AS ips FROM login_events"
+        )
+        summ = cur.fetchone() or {}
+        cur.execute(
+            "SELECT COUNT(*) AS total, COUNT(DISTINCT username) AS users, "
+            "COUNT(DISTINCT ip) AS ips FROM login_events "
+            "WHERE created_at >= NOW() - INTERVAL '7 days'"
+        )
+        last7 = cur.fetchone() or {}
+        cur.execute(
+            "SELECT username, role, ip, user_agent, created_at FROM login_events "
+            "ORDER BY created_at DESC LIMIT %s",
+            (limit,),
+        )
+        events = []
+        for r in cur.fetchall():
+            d = dict(r)
+            if d.get("created_at") is not None:
+                d["created_at"] = d["created_at"].isoformat()
+            events.append(d)
+
+    return {
+        "summary": {
+            "total_logins": _n(summ, "total"),
+            "distinct_users": _n(summ, "users"),
+            "distinct_ips": _n(summ, "ips"),
+            "last7_logins": _n(last7, "total"),
+            "last7_users": _n(last7, "users"),
+            "last7_ips": _n(last7, "ips"),
+        },
+        "events": events,
+    }
 
 
 # --- Users CRUD (admin only) -----------------------------------------

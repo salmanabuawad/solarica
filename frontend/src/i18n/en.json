@@ -34,7 +34,8 @@
     "config": "Config",
     "fieldConfig": "Field Config",
     "configurations": "Configurations",
-    "users": "Users"
+    "users": "Users",
+    "loginlog": "Login Activity"
   },
   "project": {
     "existing": "Existing Projects",
