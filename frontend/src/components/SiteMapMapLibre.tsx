@@ -876,8 +876,7 @@ export default function SiteMapMapLibre({
   // 288+ labels, unlike HTML markers). Each label is a LINE along the row run
   // so the symbol layer (symbol-placement: line-center) draws the number
   // ROTATED to read along the row line. One line per row a string occupies, so
-  // jumping (cross-row) strings get the number repeated per row (jumping=1 for
-  // red-italic styling).
+  // jumping (cross-row) strings get the number repeated once per row it crosses.
   const topologyLabelsGeoJSON = useMemo(() => {
     if (!imageWidth || imageWidth <= 0) return { type: "FeatureCollection" as const, features: [] };
     const features: any[] = [];
@@ -1975,11 +1974,7 @@ export default function SiteMapMapLibre({
           visibility: "none",
           "text-field": ["get", "id"],
           "text-size": ["interpolate", ["linear"], ["zoom"], 9, 16, 13, 22, 16, 28, 20, 35],
-          "text-font": [
-            "case", ["==", ["get", "jumping"], 1],
-            ["literal", ["Open Sans Bold Italic", "Open Sans Italic", "Arial Unicode MS Bold"]],
-            ["literal", ["Open Sans Bold", "Arial Unicode MS Bold"]],
-          ],
+          "text-font": ["literal", ["Open Sans Bold", "Arial Unicode MS Bold"]],
           // rotate each number to read ALONG its row line
           "text-rotate": ["get", "rot"],
           "text-rotation-alignment": "map",
@@ -1989,7 +1984,7 @@ export default function SiteMapMapLibre({
           "text-ignore-placement": true,
         },
         paint: {
-          "text-color": ["case", ["==", ["get", "jumping"], 1], "#dc2626", "#1e3a8a"],
+          "text-color": "#1e3a8a",
           "text-halo-color": "#ffffff",
           "text-halo-width": 3,
         },
