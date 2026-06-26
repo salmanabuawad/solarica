@@ -111,7 +111,11 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{ open: setItem, close: () => setItem(null) }}>
       {children}
       <Box sx={{
-        position: "fixed", top: 52, bottom: 0, right: 250, width: 430, zIndex: 35,
+        position: "fixed", top: 52, bottom: 0,
+        // Desktop: 430px panel sitting left of the 250px nav. Mobile: full-width
+        // (no nav gutter) so the closed panel slides fully off-screen instead of
+        // covering the right half of the content.
+        right: { xs: 0, md: 250 }, width: { xs: "100%", md: 430 }, maxWidth: "100%", zIndex: 35,
         bgcolor: "#fff", borderLeft: `1px solid ${BORDER}`, boxShadow: item ? "-12px 0 32px rgba(15,23,42,0.14)" : "none",
         transform: item ? "translateX(0)" : "translateX(110%)", transition: "transform .22s ease",
         display: "flex", flexDirection: "column",
