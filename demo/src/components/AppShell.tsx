@@ -18,7 +18,7 @@ import SecurityOutlined from "@mui/icons-material/SecurityOutlined";
 import HubOutlined from "@mui/icons-material/HubOutlined";
 import SearchOutlined from "@mui/icons-material/SearchOutlined";
 import FileDownloadOutlined from "@mui/icons-material/FileDownloadOutlined";
-import { NAV_BG, NAV_BG2, NAV_TEXT, NAV_MUTED, ACCENT, BRAND, BORDER, WORKSPACE } from "../theme";
+import { NAV_BG, NAV_BG2, NAV_TEXT, NAV_MUTED, ACCENT, BORDER, WORKSPACE } from "../theme";
 import { ROLES, modulesForRole, type ModuleDef } from "../data/catalog";
 
 const ICONS: Record<string, any> = {
@@ -49,8 +49,8 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
         position: "fixed", top: 0, left: 0, right: NAV_W, height: 52, zIndex: 30,
         bgcolor: "#fff", borderBottom: `1px solid ${BORDER}`, display: "flex", alignItems: "center", gap: 1.5, px: 2,
       }}>
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.6, mr: 1 }}>
-          <Box sx={{ fontWeight: 900, letterSpacing: 1, color: "#0f172a", fontSize: 18 }}>SOLAR<span style={{ color: BRAND }}>I</span>CA</Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mr: 1 }}>
+          <img src="/logo.png" alt="Solarica" style={{ height: 26, display: "block" }} />
           <Box sx={{ fontSize: 10, color: "#94a3b8", fontWeight: 700 }}>V2</Box>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, bgcolor: WORKSPACE, border: `1px solid ${BORDER}`, borderRadius: 2, px: 1, height: 32, width: 280 }}>
@@ -72,12 +72,12 @@ export default function AppShell({ role, setRole }: { role: string; setRole: (r:
 
       {/* Right navigation */}
       <Box sx={{
-        position: "fixed", top: 0, right: 0, bottom: 0, width: NAV_W, bgcolor: NAV_BG, color: NAV_TEXT,
+        position: "fixed", top: 0, right: 0, bottom: 0, width: NAV_W,
+        background: `linear-gradient(180deg, ${NAV_BG} 0%, ${NAV_BG2} 100%)`, color: NAV_TEXT,
         display: "flex", flexDirection: "column", zIndex: 40, overflowY: "auto",
       }}>
-        <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${NAV_BG2}` }}>
-          <Box sx={{ fontWeight: 900, color: "#fff", fontSize: 16, letterSpacing: 0.5 }}>SOLAR<span style={{ color: BRAND }}>I</span>CA</Box>
-          <Box sx={{ fontSize: 10.5, color: NAV_MUTED }}>Single Source of Truth · Renewable Assets</Box>
+        <Box sx={{ px: 1, py: 1.5, bgcolor: "#fff", borderBottom: `1px solid ${NAV_BG2}`, display: "flex", justifyContent: "center" }}>
+          <img src="/logo.png" alt="Solarica" style={{ width: "92%", maxWidth: "none", height: "auto", display: "block" }} />
         </Box>
         <Box sx={{ py: 1, flex: 1 }}>
           {Object.entries(groups).map(([group, items]) => (

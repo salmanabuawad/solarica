@@ -1,10 +1,10 @@
 import { createTheme } from "@mui/material/styles";
 
 // Solarica visual language — matched to the MVP (solarica.kortexd.com):
-// teal-slate sidebar, light-gray workspace, BLUE action accent, dense
+// dark-navy sidebar gradient, light-gray workspace, BLUE action accent, dense
 // engineering tables. Amber is reserved for the brand mark only.
-export const NAV_BG = "#2f4d52";        // sidebar — matches the MVP
-export const NAV_BG2 = "#3d6971";       // sidebar hover / active
+export const NAV_BG = "#0f172a";        // sidebar top — matches the MVP gradient
+export const NAV_BG2 = "#1e293b";       // sidebar bottom / hover / active
 export const NAV_TEXT = "#cbd5e1";      // slate-300
 export const NAV_MUTED = "#94a3b8";     // slate-400 — section labels on the dark nav
 export const BRAND = "#f59e0b";         // amber — logo mark only
