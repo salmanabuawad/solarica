@@ -84,6 +84,7 @@ const STRING_STATUS_BG: Record<string, string> = {
 };
 // Custom SVG icons (served from public/) for the optimizer + connection stages + AVL.
 const STATUS_SVG: Record<string, string> = {
+  new: "/new.svg",
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
@@ -93,14 +94,12 @@ const STATUS_SVG: Record<string, string> = {
 };
 // Inline SVG that reproduces the map's sstatus-<code> sprite art, so the modal
 // and inspector icons are identical to what's drawn on the map: the custom
-// optimizer/connection/AVL artwork, a hollow ring for New, a no-entry sign for
-// Issue, and a solid status-coloured disc for every other stage.
+// optimizer/connection/AVL/New artwork, a no-entry sign for Issue, and a solid
+// status-coloured disc for every other stage.
 function statusIconSrc(code: string): string {
   if (STATUS_SVG[code]) return STATUS_SVG[code];
   const svg =
-    code === "new"
-      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
-      : code === "issue"
+    code === "issue"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
       : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${STRING_STATUS_COLORS[code] || "#64748b"}" stroke="#ffffff" stroke-width="3"/></svg>`;
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
@@ -1706,14 +1705,13 @@ export default function SiteMapMapLibre({
       // (and simple shapes for the rest) as map images so the on-map status
       // markers match the grid/popup. All 48x48 so icon-size scales uniformly.
       // One 48x48 image per status id "sstatus-<code>": the custom panel
-      // artwork where defined, a hollow ring for New, a no-entry disc for
+      // artwork where defined (incl. New), a no-entry disc for
       // Issue, and a solid coloured disc (status colour) for every other
       // commissioning stage. Generated from STRING_STATUSES so adding a stage
       // needs no extra wiring here.
       const disc = (fill: string) => "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${fill}" stroke="#ffffff" stroke-width="3"/></svg>`);
       const sstatusIcons: { id: string; src: string }[] = (STRING_STATUSES as readonly string[]).map((code) => {
         if (STATUS_SVG[code]) return { id: `sstatus-${code}`, src: STATUS_SVG[code] };
-        if (code === "new") return { id: "sstatus-new", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`) };
         if (code === "issue") return { id: "sstatus-issue", src: "data:image/svg+xml;utf8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`) };
         return { id: `sstatus-${code}`, src: disc(STRING_STATUS_COLORS[code] || "#64748b") };
       });

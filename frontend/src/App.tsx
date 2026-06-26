@@ -96,6 +96,7 @@ const naturalCompare = (a: any, b: any) =>
 // Status icon renderer. Some statuses use a custom SVG asset (solar panel +
 // plug, optimizer device); the rest use their emoji glyph.
 const STATUS_SVG: Record<string, string> = {
+  new: "/new.svg",
   optimizer: "/optimizer-mounted.svg",
   connection: "/panel-connected.svg",
   avl: "/avl.svg",
@@ -105,15 +106,13 @@ const STATUS_SVG: Record<string, string> = {
 };
 // Inline SVG reproducing the map's sstatus-<code> sprite art so every status
 // icon (grid, legend, progress, modals) matches what's drawn on the map: the
-// custom optimizer/connection/AVL artwork, a hollow ring for New, a no-entry
-// sign for Issue, and a solid status-coloured disc for every other stage.
+// custom optimizer/connection/AVL/New artwork, a no-entry sign for Issue, and
+// a solid status-coloured disc for every other stage.
 function statusIconSrc(code: string): string {
   if (STATUS_SVG[code]) return STATUS_SVG[code];
   const color = STRING_STATUS_META[code]?.color || "#64748b";
   const svg =
-    code === "new"
-      ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="16" fill="#ffffff" stroke="#64748b" stroke-width="4"/></svg>`
-      : code === "issue"
+    code === "issue"
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#dc2626" stroke="#ffffff" stroke-width="2"/><rect x="11" y="21" width="26" height="6" rx="3" fill="#ffffff"/></svg>`
       : `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="${color}" stroke="#ffffff" stroke-width="3"/></svg>`;
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
