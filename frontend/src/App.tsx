@@ -24,6 +24,7 @@ import SyncQueuePanel from "./components/SyncQueuePanel";
 import { useResponsive } from "./hooks/useResponsive";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useIdleLogout } from "./hooks/useIdleLogout";
+import { useKeepAlive } from "./hooks/useKeepAlive";
 import { userPrefs } from "./userPrefs";
 
 // MapLibre is our single map engine. Lazy-loaded so the initial bundle
@@ -935,6 +936,11 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     setRefreshKey((k) => k + 1);
     window.setTimeout(() => setRefreshing(false), 1200);
   }, [projectId, refreshing]);
+
+  // Keep-alive: every minute, check the server for newer data (and detect an
+  // expired session). Auto-refresh only when there are no pending local writes,
+  // so we never clobber optimistic edits that haven't synced yet.
+  useKeepAlive(projectId, () => { if (pending === 0) refreshData(); });
 
   const handleAreaSelect = useCallback((items: any[]) => {
     setSelectedPierCodes((prev) => {

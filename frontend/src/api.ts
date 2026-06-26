@@ -267,6 +267,14 @@ export const getStringOptimizerModel = async (id: string, includeOptimizers = fa
 export const getStringOptimizerExportUrl = (id: string) =>
   `${API}/api/epl/projects/${id}/string-optimizer-export`;
 
+// Keep-alive / change-detection: latest server-side data version for a project
+// (ISO timestamp string, or null if no data yet). Goes through j(), so an
+// expired token (401) purges auth and the caller can force the login screen.
+export async function getDataVersion(projectId: string): Promise<string | null> {
+  const r = await j<{ version: string | null }>(`${API}/api/projects/${projectId}/data-version`);
+  return r?.version ?? null;
+}
+
 export const getProjectFeatures = async (id: string) =>
   networkFirst<any>(
     () => jDeduped<any>(`${API}/api/projects/${id}/features`),

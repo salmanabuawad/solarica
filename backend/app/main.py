@@ -1210,6 +1210,27 @@ def api_get_string_records(project_id: str):
     return {"strings": {r["string_id"]: _normalize_string_record(r) for r in rows}}
 
 
+@app.get("/api/projects/{project_id}/data-version")
+def api_project_data_version(project_id: str):
+    """Cheap change-detection signal for the frontend keep-alive poll: the
+    latest update time across the mutable per-project data (string records +
+    pier statuses). Auth is enforced by the middleware, so an expired token
+    returns 401 and the client signs out."""
+    uu = _require_project_uuid(project_id)
+    latest = None
+    with db_store.get_conn() as conn, conn.cursor() as cur:
+        for tbl in ("string_records", "pier_statuses"):
+            try:
+                cur.execute(f"SELECT MAX(updated_at) AS v FROM {tbl} WHERE project_id = %s", (uu,))
+                row = cur.fetchone()
+                v = (row.get("v") if isinstance(row, dict) else row[0]) if row else None
+                if v is not None and (latest is None or v > latest):
+                    latest = v
+            except Exception:  # noqa: BLE001 — a missing column must not break the poll
+                conn.rollback()
+    return {"version": latest.isoformat() if latest else None}
+
+
 def _string_current_status(cur, uu: str, string_id: str):
     cur.execute("SELECT status, pre_block_status FROM string_records WHERE project_id=%s AND string_id=%s", (uu, string_id))
     r = cur.fetchone()
