@@ -363,6 +363,92 @@ def api_login_log(request: Request, limit: int = 200):
     }
 
 
+# --- Validation Engine (Phase 3 routes) ------------------------------
+#
+# Thin HTTP handlers over app.validation.{engine,store}. Reads are open to any
+# authenticated user; run / triage / repair-approve require admin. The engine
+# is imported lazily inside handlers so app startup never depends on it.
+
+def _validation_actor(request: Request) -> str:
+    auth = request.headers.get("authorization", "")
+    data = _verify_token(auth[7:]) if auth.startswith("Bearer ") else None
+    return (data or {}).get("username") or "system"
+
+
+_VALID_FINDING_STATUS = {"open", "acknowledged", "fixed", "muted", "resolved", "reopened"}
+
+
+@app.post("/api/projects/{project_id}/validate")
+def api_run_validation(project_id: str, request: Request, body: dict = Body(default={})):
+    _require_admin(request)
+    uu = _require_project_uuid(project_id)
+    from app.validation.engine import run_validation
+    return run_validation(project_id, uu, validators=body.get("validators"),
+                          trigger=str(body.get("trigger") or "manual"),
+                          actor=_validation_actor(request))
+
+
+@app.get("/api/projects/{project_id}/validation/score")
+def api_validation_score(project_id: str):
+    uu = _require_project_uuid(project_id)
+    from app.validation import store
+    summary = store.score_summary(uu)
+    runs = store.list_runs(uu, limit=1)
+    summary["latest_run"] = runs[0] if runs else None
+    return summary
+
+
+@app.get("/api/projects/{project_id}/validation/findings")
+def api_validation_findings(project_id: str, severity: Optional[str] = None,
+                            validator: Optional[str] = None, status: Optional[str] = None,
+                            asset_ref: Optional[str] = None, limit: int = 1000):
+    uu = _require_project_uuid(project_id)
+    from app.validation import store
+    return {"findings": store.list_results(uu, severity=severity, validator=validator,
+                                            status=status, asset_ref=asset_ref, limit=min(int(limit), 5000))}
+
+
+@app.get("/api/projects/{project_id}/validation/runs")
+def api_validation_runs(project_id: str, limit: int = 50):
+    uu = _require_project_uuid(project_id)
+    from app.validation import store
+    return {"runs": store.list_runs(uu, limit=min(int(limit), 200))}
+
+
+@app.get("/api/validation/findings/{finding_id}")
+def api_validation_finding(finding_id: int):
+    from app.validation import store
+    r = store.get_result(finding_id)
+    if not r:
+        raise HTTPException(404, "Finding not found")
+    return r
+
+
+@app.post("/api/validation/findings/{finding_id}/status")
+def api_validation_finding_status(finding_id: int, request: Request, body: dict = Body(...)):
+    _require_admin(request)
+    status = str(body.get("status") or "")
+    if status not in _VALID_FINDING_STATUS:
+        raise HTTPException(400, f"status must be one of {sorted(_VALID_FINDING_STATUS)}")
+    from app.validation import store
+    r = store.update_result_status(finding_id, status, actor=_validation_actor(request), note=body.get("note"))
+    if not r:
+        raise HTTPException(404, "Finding not found")
+    return r
+
+
+@app.post("/api/validation/repairs/{repair_id}/apply")
+def api_validation_repair_apply(repair_id: int, request: Request):
+    # Records human approval + marks the finding fixed. Does NOT auto-mutate
+    # twin data — executing the patch is a separate, guarded step.
+    _require_admin(request)
+    from app.validation import store
+    r = store.apply_repair(repair_id, actor=_validation_actor(request))
+    if not r:
+        raise HTTPException(404, "Repair not found")
+    return r
+
+
 # --- Users CRUD (admin only) -----------------------------------------
 
 @app.get("/api/users")

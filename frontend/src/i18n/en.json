@@ -35,7 +35,8 @@
     "fieldConfig": "Field Config",
     "configurations": "Configurations",
     "users": "Users",
-    "loginlog": "Login Activity"
+    "loginlog": "Login Activity",
+    "validation": "Validation"
   },
   "project": {
     "existing": "Existing Projects",

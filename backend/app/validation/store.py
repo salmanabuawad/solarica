@@ -206,6 +206,26 @@ def _result_dict(r: Any) -> dict:
     return d
 
 
+def apply_repair(repair_id: int, actor: Optional[str] = None) -> Optional[dict]:
+    """Record human approval of a suggested repair and mark its finding fixed.
+
+    Does NOT mutate twin data automatically — executing the patch on production
+    assets is a separate, deliberately-guarded step. Returns the finding.
+    """
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT result_id FROM validation_repairs WHERE id = %s", (repair_id,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        result_id = int(row["result_id"])
+        cur.execute(
+            "UPDATE validation_repairs SET status = 'applied', applied_at = NOW(), applied_by = %s WHERE id = %s",
+            (actor, repair_id),
+        )
+        conn.commit()
+    return update_result_status(result_id, "fixed", actor=actor, note="repair approved")
+
+
 def _repair_dict(r: Any) -> dict:
     d = dict(r)
     d["id"] = int(d["id"])

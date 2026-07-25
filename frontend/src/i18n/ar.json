@@ -35,7 +35,8 @@
     "fieldConfig": "إعداد الحقول",
     "configurations": "الإعدادات",
     "users": "المستخدمون",
-    "loginlog": "نشاط تسجيل الدخول"
+    "loginlog": "نشاط تسجيل الدخول",
+    "validation": "التحقق"
   },
   "project": {
     "existing": "المشاريع الحالية",

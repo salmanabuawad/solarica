@@ -8,6 +8,7 @@ import SettingsModal from "./components/SettingsModal";
 import StatusChangeModal from "./components/StatusChangeModal";
 const UsersManager = lazy(() => import("./components/UsersManager"));
 const LoginActivity = lazy(() => import("./components/LoginActivity"));
+const ValidationDashboard = lazy(() => import("./components/ValidationDashboard"));
 import { useFieldConfigs, applyFieldConfigs } from "./hooks/useFieldConfigs";
 const FieldConfigManager = lazy(() => import("./components/FieldConfigManager"));
 import SimpleGrid from "./components/SimpleGrid";
@@ -1394,6 +1395,7 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
     { id: "configurations", label: t("nav.configurations"), items: [
       { key: "config", label: t("nav.config") },
       ...(authUser.role === "admin" ? [
+        { key: "validation", label: t("nav.validation") },
         { key: "fields", label: t("nav.fieldConfig") },
         { key: "users",  label: t("nav.users") },
       ] : []),
@@ -2892,6 +2894,15 @@ function AppMain({ authUser }: { authUser: AuthUser }) {
         <div>
           <Suspense fallback={<div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>{t("app.loading")}</div>}>
             <LoginActivity />
+          </Suspense>
+        </div>
+      )}
+
+      {/* ---- TAB: Validation (admin only) ---- */}
+      {authUser.role === "admin" && activeTab === "validation" && (
+        <div>
+          <Suspense fallback={<div style={{ padding: 16, fontSize: 13, color: "#64748b" }}>{t("app.loading")}</div>}>
+            <ValidationDashboard projectId={projectId} onShowAsset={() => { setActiveTab("mapgrid"); setMode("grid"); }} />
           </Suspense>
         </div>
       )}

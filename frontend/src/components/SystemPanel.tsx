@@ -7,6 +7,7 @@ import {
   uploadProjectFile,
   clearProjectFiles,
   parseProject,
+  runValidation,
 } from "../api";
 import { useResponsive } from "../hooks/useResponsive";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -232,6 +233,9 @@ export default function SystemPanel({ projectId, onProjectChanged, section, proj
           await refreshFiles();
           // App.tsx owns project + plantInfo; ask it to re-fetch.
           onProjectChanged?.(projectId);
+          // Import validation (Phase 6): fire-and-forget so the parse UX isn't
+          // blocked; findings surface in the Validation dashboard.
+          runValidation(projectId, undefined, "import").catch(() => {});
         } catch (e: any) {
           setError(String(e.message || e));
           setParseMsg("");

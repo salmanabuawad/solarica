@@ -669,6 +669,56 @@ export async function getLoginLog(limit = 500): Promise<LoginLog> {
   return j<LoginLog>(`${API}/api/login-log?limit=${limit}`);
 }
 
+// ── Validation Engine ─────────────────────────────────────────────────
+
+export interface ValidationRepair {
+  id: number; result_id: number; action: string; reason?: string | null;
+  confidence?: number | null; patch?: any; status: string;
+}
+export interface ValidationFinding {
+  id: number; run_id: number | null; project_id: string;
+  validator: string; code: string; category: string; severity: string;
+  source?: string | null; asset_type?: string | null; asset_ref?: string | null;
+  description: string; suggested_fix?: string | null; confidence?: number | null;
+  status: string; evidence?: any; created_at?: string | null; updated_at?: string | null;
+  repairs?: ValidationRepair[];
+}
+export interface ValidationScore {
+  critical: number; warning: number; info: number; open_total: number; score: number;
+  latest_run?: any;
+}
+
+export async function runValidation(projectId: string, validators?: string[], trigger = "manual"): Promise<any> {
+  return j(`${API}/api/projects/${projectId}/validate`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ validators, trigger }),
+  });
+}
+export async function getValidationScore(projectId: string): Promise<ValidationScore> {
+  return j<ValidationScore>(`${API}/api/projects/${projectId}/validation/score`);
+}
+export async function getValidationFindings(
+  projectId: string,
+  filters: { severity?: string; validator?: string; status?: string; asset_ref?: string; limit?: number } = {},
+): Promise<{ findings: ValidationFinding[] }> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(filters)) if (v != null && v !== "") q.set(k, String(v));
+  const qs = q.toString();
+  return j(`${API}/api/projects/${projectId}/validation/findings${qs ? `?${qs}` : ""}`);
+}
+export async function getFinding(id: number): Promise<ValidationFinding> {
+  return j<ValidationFinding>(`${API}/api/validation/findings/${id}`);
+}
+export async function setFindingStatus(id: number, status: string, note?: string): Promise<ValidationFinding> {
+  return j(`${API}/api/validation/findings/${id}/status`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status, note }),
+  });
+}
+export async function applyRepair(repairId: number): Promise<ValidationFinding> {
+  return j(`${API}/api/validation/repairs/${repairId}/apply`, { method: "POST" });
+}
+
 // ── Users (admin CRUD) ────────────────────────────────────────────────
 
 export interface UserRow {
