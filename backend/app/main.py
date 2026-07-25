@@ -30,6 +30,7 @@ from pydantic import BaseModel
 from app.config import PROJECTS_ROOT
 from app.image_utils import shrink_image_to_max
 from app.services import db_store
+from app.validation.schema import ensure_validation_schema
 
 app = FastAPI(title="Solarica Parsing Engine")
 
@@ -137,6 +138,15 @@ def _startup_users() -> None:
         _ensure_users_schema()
     except Exception as exc:  # noqa: BLE001
         print(f"[users] schema ensure failed: {exc}")
+
+
+@app.on_event("startup")
+def _startup_validation() -> None:
+    # Validation Engine — additive schema, created on boot (idempotent).
+    try:
+        ensure_validation_schema()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[validation] schema ensure failed: {exc}")
 
 
 def _db_user_row(username: str) -> Optional[dict]:
